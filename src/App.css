@@ -1,0 +1,35 @@
+.App {
+  min-height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background: #111827;
+  color: white;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+}
+
+.app-header-title {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.app-header-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.app-header-controls span {
+  font-size: 0.95rem;
+}
+
+.role-badge {
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 6px 12px;
+}
