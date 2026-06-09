@@ -1,23 +1,49 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import AdminRequestTable from '../components/AdminRequestTable';
+import AdminLeaveReportCard from '../components/AdminLeaveReportCard';
+import { getLeaveRequests, updateLeaveRequestStatus } from '../services/leaveService';
 import '../styles/Dashboard.css';
+import '../styles/Leave.css';
 
 function LeavePage({ userName, onLogout }) {
   const navigate = useNavigate();
+  const [activeTab, setActiveTab] = useState('requests'); // requests, monthly-report
+  const [requests, setRequests] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const leaveSummary = [
-    { title: 'Total Balance', value: '18 days' },
-    { title: 'Pending Requests', value: '2' },
-    { title: 'Approved', value: '6' },
-    { title: 'Rejected', value: '1' },
-  ];
+  useEffect(() => {
+    loadLeaveRequests();
+  }, []);
 
-  const leaveRequests = [
-    { id: 101, employee: 'Alice Johnson', type: 'Vacation', period: 'Jun 12 - Jun 14', status: 'Pending' },
-    { id: 102, employee: 'Mark Lee', type: 'Sick Leave', period: 'Jun 02 - Jun 04', status: 'Approved' },
-    { id: 103, employee: 'Sara Reddy', type: 'Work from Home', period: 'Jun 05 - Jun 05', status: 'Approved' },
-    { id: 104, employee: 'John Doe', type: 'Personal', period: 'Jun 18 - Jun 19', status: 'Rejected' },
-  ];
+  const loadLeaveRequests = async () => {
+    setLoading(true);
+    try {
+      const data = await getLeaveRequests();
+      setRequests(data);
+      setError(null);
+    } catch (err) {
+      console.error('Failed to load leave requests:', err);
+      setError('Failed to load leave requests');
+      // Set mock data for demo purposes
+      
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleStatusChange = async (requestId, status) => {
+    try {
+      await updateLeaveRequestStatus(requestId, status);
+      setRequests(requests.map(req => 
+        req.id === requestId ? { ...req, status } : req
+      ));
+    } catch (err) {
+      console.error('Failed to update leave request:', err);
+      alert('Failed to update leave request');
+    }
+  };
 
   const handleLogout = () => {
     onLogout();
@@ -29,7 +55,7 @@ function LeavePage({ userName, onLogout }) {
       <header className="dashboard-header">
         <div>
           <h1>Leave Management</h1>
-          <p className="dashboard-subtitle">Review leave balances, recent requests, and approval status.</p>
+          <p className="dashboard-subtitle">Review and manage all leave requests from employees.</p>
         </div>
 
         <div className="header-info">
@@ -39,48 +65,36 @@ function LeavePage({ userName, onLogout }) {
       </header>
 
       <main className="dashboard-main">
-        <div className="dashboard-cards leave-summary-grid">
-          {leaveSummary.map((item) => (
-            <div key={item.title} className="dashboard-card">
-              <h3>{item.title}</h3>
-              <p>{item.value}</p>
-            </div>
-          ))}
+        {/* Tab Navigation */}
+        <div className="tab-navigation">
+          <button 
+            className={`tab-btn ${activeTab === 'requests' ? 'active' : ''}`}
+            onClick={() => setActiveTab('requests')}
+          >
+            Leave Requests
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'monthly-report' ? 'active' : ''}`}
+            onClick={() => setActiveTab('monthly-report')}
+          >
+            Monthly Report
+          </button>
         </div>
 
-        <div className="employees-section">
-          <div className="employees-header">
-            <h2>Recent Leave Requests</h2>
-            <button className="create-btn" type="button" onClick={() => alert('Add leave request flow not implemented yet')}>
-              Request Leave
-            </button>
-          </div>
-
-          <div className="table-responsive">
-            <table className="employees-table leave-table">
-              <thead>
-                <tr>
-                  <th>Request ID</th>
-                  <th>Employee</th>
-                  <th>Type</th>
-                  <th>Period</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {leaveRequests.map((request) => (
-                  <tr key={request.id}>
-                    <td>{request.id}</td>
-                    <td>{request.employee}</td>
-                    <td>{request.type}</td>
-                    <td>{request.period}</td>
-                    <td>{request.status}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
+        {error && <div className="error-message">{error}</div>}
+        
+        {loading ? (
+          <div className="loading">Loading leave data...</div>
+        ) : (
+          <>
+            {activeTab === 'requests' && (
+              <AdminRequestTable requests={requests} onStatusChange={handleStatusChange} />
+            )}
+            {activeTab === 'monthly-report' && (
+              <AdminLeaveReportCard />
+            )}
+          </>
+        )}
       </main>
     </div>
   );

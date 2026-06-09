@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { createEmployee, getEmployeeProfile, getEmployeeById, updateEmployeeProfile } from '../services/employeeService';
+import LeaveReportCard from '../components/LeaveReportCard';
 import '../styles/Profile.css';
+import '../styles/Leave.css';
 
 function EmployeeProfile({ userId, userRole, onLogout }) {
   const location = useLocation();
@@ -29,6 +31,7 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
     { id: 'education', label: 'Education Details', icon: '🎓' },
     { id: 'documents', label: 'Document Details', icon: '📄' },
     { id: 'emergency', label: 'Emergency Contact', icon: '🚨' },
+    { id: 'leaves', label: 'Leave Report', icon: '📋' },
   ];
 
   useEffect(() => {
@@ -252,6 +255,12 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
             </div>
           </div>
         );
+      case 'leaves':
+        return (
+          <div className="profile-section">
+            <LeaveReportCard userId={profileId || userId} />
+          </div>
+        );
       default:
         return null;
     }
@@ -302,7 +311,12 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
           <main className="profile-main">
             {canEdit && (
               <div className="edit-button-container">
-                <button className="edit-btn" onClick={() => setIsEditing(true)}>Edit Profile</button>
+                <button className="edit-btn" onClick={() => {
+                  if (activeSection === 'leaves') {
+                    setActiveSection('personal');
+                  }
+                  setIsEditing(true);
+                }}>Edit Profile</button>
               </div>
             )}
             {renderSectionView(activeSection)}
@@ -317,7 +331,9 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
               <h3>Profile Sections</h3>
             </div>
             <nav className="sidebar-menu">
-              {sections.map((section) => (
+              {sections
+                .filter(section => isEditing ? section.id !== 'leaves' : true)
+                .map((section) => (
                 <button
                   key={section.id}
                   className={`menu-item ${activeSection === section.id ? 'active' : ''}`}

@@ -6,6 +6,8 @@ import AdminDashboard from './pages/AdminDashboard';
 import EmployeeDashboard from './pages/EmployeeDashboard';
 import EmployeeProfile from './pages/EmployeeProfile';
 import LeavePage from './pages/LeavePage';
+import EmployeeLeaveRequestPage from './pages/EmployeeLeaveRequestPage';
+import MonthlyLeaveReportPage from './pages/MonthlyLeaveReportPage';
 import AttendancePage from './pages/AttendancePage';
 import EmployeeAttendancePage from './pages/EmployeeAttendancePage';
 import './App.css';
@@ -94,7 +96,17 @@ function App() {
             path="/employee/leaves"
             element={
               isAuthenticated && userRole === 'employee' ? (
-                <LeavePage userName={userName} onLogout={handleLogout} />
+                <EmployeeLeaveRequestPage userId={userId} userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/employee/leaves/monthly-report"
+            element={
+              isAuthenticated && userRole === 'employee' ? (
+                <MonthlyLeaveReportPage userId={userId} userName={userName} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/login" />
               )
