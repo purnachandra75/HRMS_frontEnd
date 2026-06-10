@@ -73,6 +73,17 @@
   margin-bottom: 30px;
 }
 
+.reports-grid {
+  grid-template-columns: repeat(3, minmax(220px, 1fr));
+}
+
+.report-summary-item {
+  margin-top: 18px;
+  font-size: 14px;
+  color: #475569;
+  font-weight: 600;
+}
+
 .leave-summary-grid {
   grid-template-columns: repeat(4, minmax(180px, 1fr));
 }

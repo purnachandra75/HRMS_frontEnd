@@ -8,6 +8,8 @@ import EmployeeProfile from './pages/EmployeeProfile';
 import LeavePage from './pages/LeavePage';
 import EmployeeLeaveRequestPage from './pages/EmployeeLeaveRequestPage';
 import MonthlyLeaveReportPage from './pages/MonthlyLeaveReportPage';
+import SalaryReportPage from './pages/SalaryReportPage';
+import AdminReportsPage from './pages/AdminReportsPage';
 import AttendancePage from './pages/AttendancePage';
 import EmployeeAttendancePage from './pages/EmployeeAttendancePage';
 import './App.css';
@@ -87,6 +89,26 @@ function App() {
             element={
               isAuthenticated && userRole === 'admin' ? (
                 <AttendancePage userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/admin/salary-report"
+            element={
+              isAuthenticated && userRole === 'admin' ? (
+                <SalaryReportPage userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/admin/reports"
+            element={
+              isAuthenticated && userRole === 'admin' ? (
+                <AdminReportsPage userName={userName} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/login" />
               )

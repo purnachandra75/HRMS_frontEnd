@@ -87,9 +87,9 @@ function AdminDashboard({ userName, onLogout }) {
             <h3>Leaves</h3>
             <p>Track leave requests and approvals.</p>
           </div>
-          <div className="dashboard-card">
-            <h3>Payroll</h3>
-            <p>Review salary and payroll summaries.</p>
+          <div className="dashboard-card clickable" onClick={() => navigate('/admin/reports')}>
+            <h3>Reports</h3>
+            <p>Open the admin reporting hub for salary, status, employment type, new joiners, and probation details.</p>
           </div>
           <div className="dashboard-card clickable" onClick={() => navigate('/admin/attendance')}>
             <h3>Attendance</h3>
