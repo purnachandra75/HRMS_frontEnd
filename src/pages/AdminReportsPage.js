@@ -231,81 +231,95 @@ function AdminReportsPage({ userName, onLogout }) {
         </div>
       </header>
 
-      <main className="dashboard-main">
-        <div className="dashboard-cards reports-grid">
-          <div className={`dashboard-card clickable ${selectedReport === 'salary' ? 'dashboard-card-primary' : ''}`} onClick={() => setSelectedReport('salary')}>
-            <h3>Salary Related</h3>
-            <p>View payroll-ready salary report (active employees only).</p>
-            <div className="report-summary-item">{salaryEmployees.length} records</div>
-          </div>
-          <div className={`dashboard-card clickable ${selectedReport === 'status' ? 'dashboard-card-primary' : ''}`} onClick={() => setSelectedReport('status')}>
-            <h3>Inactive Employees</h3>
-            <p>Review employees with inactive status.</p>
-            <div className="report-summary-item">{statusEmployees.length} records</div>
-          </div>
-          <div className={`dashboard-card clickable ${selectedReport === 'type' ? 'dashboard-card-primary' : ''}`} onClick={() => setSelectedReport('type')}>
-            <h3>Part-Time / Full-Time</h3>
-            <p>Check employment type (active employees only).</p>
-            <div className="report-summary-item">{fullTimeEmployees.length + partTimeEmployees.length} records</div>
-          </div>
-          <div className={`dashboard-card clickable ${selectedReport === 'newJoiners' ? 'dashboard-card-primary' : ''}`} onClick={() => setSelectedReport('newJoiners')}>
-            <h3>New Joiners</h3>
-            <p>Track active employees who joined within 6 months.</p>
-            <div className="report-summary-item">{newJoiners.length} records</div>
-          </div>
-          <div className={`dashboard-card clickable ${selectedReport === 'probation' ? 'dashboard-card-primary' : ''}`} onClick={() => setSelectedReport('probation')}>
-            <h3>Probation Period</h3>
-            <p>Review employees currently on probation.</p>
-            <div className="report-summary-item">{probationEmployees.length} records</div>
-          </div>
-          <div className={`dashboard-card clickable ${selectedReport === 'leaves' ? 'dashboard-card-primary' : ''}`} onClick={() => setSelectedReport('leaves')}>
-            <h3>Leave Report</h3>
-            <p>View employee leaves month-wise (active employees only).</p>
-            <div className="report-summary-item">{activeEmployees.length} records</div>
-          </div>
-          <div className="dashboard-card clickable" onClick={() => navigate('/admin')}>
-            <h3>Back to Dashboard</h3>
-            <p>Return to the main admin dashboard.</p>
-          </div>
-        </div>
+      <div className="reports-layout">
+        {/* Left Sidebar */}
+        <aside className="reports-sidebar">
+          <h2>Reports</h2>
+          <nav>
+            <button 
+              className={`${selectedReport === 'salary' ? 'active' : ''}`}
+              onClick={() => setSelectedReport('salary')}
+            >
+              Salary Related
+            </button>
+            <button 
+              className={`${selectedReport === 'status' ? 'active' : ''}`}
+              onClick={() => setSelectedReport('status')}
+            >
+              Inactive Employees
+            </button>
+            <button 
+              className={`${selectedReport === 'type' ? 'active' : ''}`}
+              onClick={() => setSelectedReport('type')}
+            >
+              Part-Time / Full-Time
+            </button>
+            <button 
+              className={`${selectedReport === 'newJoiners' ? 'active' : ''}`}
+              onClick={() => setSelectedReport('newJoiners')}
+            >
+              New Joiners
+            </button>
+            <button 
+              className={`${selectedReport === 'probation' ? 'active' : ''}`}
+              onClick={() => setSelectedReport('probation')}
+            >
+              Probation Period
+            </button>
+            <button 
+              className={`${selectedReport === 'leaves' ? 'active' : ''}`}
+              onClick={() => setSelectedReport('leaves')}
+            >
+              Leave Report
+            </button>
+            <hr style={{ borderColor: 'rgba(255,255,255,0.2)', margin: '12px 0' }} />
+            <button 
+              onClick={() => navigate('/admin')}
+              style={{ opacity: 0.7 }}
+            >
+              ← Back to Dashboard
+            </button>
+          </nav>
+        </aside>
 
-        <section className="employees-section">
-          <div className="employees-header">
-            <div>
-              <h2>{selected.title}</h2>
-              <p>{selected.description}</p>
-            </div>
-            <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-              {selected.hasYearFilter && (
-                <div>
-                  <label style={{ marginRight: '8px' }}>Year: </label>
-                  <select 
-                    value={selectedYear} 
-                    onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                    style={{ padding: '8px 12px', borderRadius: '4px', border: '1px solid #ddd', cursor: 'pointer' }}
-                  >
-                    {yearOptions.map((year) => (
-                      <option key={year} value={year}>{year}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
-              {selected.hasDownload && (
-                <button type="button" className="create-btn" onClick={downloadSalaryReport}>
-                  Download Salary CSV
-                </button>
-              )}
-            </div>
+        {/* Main Content */}
+        <main className="reports-main">
+          <div className="reports-content-header">
+            <h2>{selected.title}</h2>
+            <p>{selected.description}</p>
           </div>
 
+          {/* Controls */}
+          <div className="report-controls-top">
+            {selected.hasYearFilter && (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>Year:</label>
+                <select 
+                  value={selectedYear} 
+                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                >
+                  {yearOptions.map((year) => (
+                    <option key={year} value={year}>{year}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {selected.hasDownload && (
+              <button type="button" className="create-btn" onClick={downloadSalaryReport}>
+                Download Salary CSV
+              </button>
+            )}
+          </div>
+
+          {/* Table */}
           {loading ? (
-            <p>Loading report data...</p>
+            <p style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>Loading report data...</p>
           ) : error ? (
-            <p>{error}</p>
+            <p style={{ padding: '24px', textAlign: 'center', color: '#dc2626' }}>{error}</p>
           ) : selected.rows.length === 0 ? (
-            <p>No records found for this report.</p>
+            <p style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>No records found for this report.</p>
           ) : (
-            <div className="table-responsive">
+            <div className="reports-table-wrapper">
               <table className="report-table">
                 <thead>
                   <tr>
@@ -327,8 +341,8 @@ function AdminReportsPage({ userName, onLogout }) {
               </table>
             </div>
           )}
-        </section>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }
