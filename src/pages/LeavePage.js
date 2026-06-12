@@ -64,38 +64,70 @@ function LeavePage({ userName, onLogout }) {
         </div>
       </header>
 
-      <main className="dashboard-main">
-        {/* Tab Navigation */}
-        <div className="tab-navigation">
-          <button 
-            className={`tab-btn ${activeTab === 'requests' ? 'active' : ''}`}
-            onClick={() => setActiveTab('requests')}
-          >
-            Leave Requests
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'monthly-report' ? 'active' : ''}`}
-            onClick={() => setActiveTab('monthly-report')}
-          >
-            Monthly Report
-          </button>
-        </div>
+      <div className="reports-layout admin-dashboard-layout">
+        <aside className="reports-sidebar">
+          <h2>Dashboard</h2>
+          <nav>
+            <button type="button" onClick={() => navigate('/admin')}>
+              Employee Details
+            </button>
+            <button type="button" className="active" onClick={() => navigate('/admin/leaves')}>
+              Leave Management
+            </button>
+            <button type="button" onClick={() => navigate('/admin/reports')}>
+              Reports
+            </button>
+            <button type="button" onClick={() => navigate('/admin/attendance')}>
+              Attendance
+            </button>
+            <hr className="reports-sidebar-divider" />
+            <button type="button" onClick={() => navigate('/admin/employee/new')}>
+              + Create Employee
+            </button>
+          </nav>
+        </aside>
 
-        {error && <div className="error-message">{error}</div>}
-        
-        {loading ? (
-          <div className="loading">Loading leave data...</div>
-        ) : (
-          <>
-            {activeTab === 'requests' && (
-              <AdminRequestTable requests={requests} onStatusChange={handleStatusChange} />
-            )}
-            {activeTab === 'monthly-report' && (
-              <AdminLeaveReportCard />
-            )}
-          </>
-        )}
-      </main>
+        <main className="reports-main">
+          <div className="reports-content-header">
+            <h2>{activeTab === 'requests' ? 'Leave Requests' : 'Monthly Leave Report'}</h2>
+            <p>
+              {activeTab === 'requests'
+                ? 'Review employee leave requests and update their approval status.'
+                : 'View monthly leave usage and reporting details for employees.'}
+            </p>
+          </div>
+
+          <div className="tab-navigation">
+            <button 
+              className={`tab-btn ${activeTab === 'requests' ? 'active' : ''}`}
+              onClick={() => setActiveTab('requests')}
+            >
+              Leave Requests
+            </button>
+            <button 
+              className={`tab-btn ${activeTab === 'monthly-report' ? 'active' : ''}`}
+              onClick={() => setActiveTab('monthly-report')}
+            >
+              Monthly Report
+            </button>
+          </div>
+
+          {error && <div className="error-message">{error}</div>}
+          
+          {loading ? (
+            <div className="loading">Loading leave data...</div>
+          ) : (
+            <>
+              {activeTab === 'requests' && (
+                <AdminRequestTable requests={requests} onStatusChange={handleStatusChange} />
+              )}
+              {activeTab === 'monthly-report' && (
+                <AdminLeaveReportCard />
+              )}
+            </>
+          )}
+        </main>
+      </div>
     </div>
   );
 }

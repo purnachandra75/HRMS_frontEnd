@@ -94,7 +94,7 @@ function AttendancePage({ userName, onLogout }) {
   };
 
   return (
-    <div className="attendance-page-admin">
+    <div className="dashboard-container attendance-page-admin">
       <header className="dashboard-header attendance-page-header">
         <div>
           <h1>Admin Attendance Portal</h1>
@@ -109,26 +109,35 @@ function AttendancePage({ userName, onLogout }) {
         </div>
       </header>
 
-      <div className="attendance-content">
-        <aside className="attendance-sidebar">
-          <h2>👑 Admin Panel</h2>
+      <div className="reports-layout admin-dashboard-layout">
+        <aside className="reports-sidebar">
+          <h2>Dashboard</h2>
           <nav>
-            <button className="sidebar-link" type="button" onClick={() => navigate('/admin')}>
-              📊 Dashboard
+            <button type="button" onClick={() => navigate('/admin')}>
+              Employee Details
             </button>
-            <button className="sidebar-link" type="button" onClick={() => navigate('/admin')}>
-              👥 Employees
+            <button type="button" onClick={() => navigate('/admin/leaves')}>
+              Leave Management
             </button>
-            <button className="sidebar-link active" type="button" onClick={() => navigate('/admin/attendance')}>
-              📅 Attendance Records
+            <button type="button" onClick={() => navigate('/admin/reports')}>
+              Reports
             </button>
-            <button className="sidebar-link" type="button" onClick={() => navigate('/admin/leaves')}>
-              📝 Leave Management
+            <button className="active" type="button" onClick={() => navigate('/admin/attendance')}>
+              Attendance
+            </button>
+            <hr className="reports-sidebar-divider" />
+            <button type="button" onClick={() => navigate('/admin/employee/new')}>
+              + Create Employee
             </button>
           </nav>
         </aside>
 
-        <main className="attendance-main">
+        <main className="reports-main attendance-main">
+          <div className="reports-content-header">
+            <h2>Attendance Records</h2>
+            <p>Review employee attendance, filter by employee and month, and inspect daily time logs.</p>
+          </div>
+
           {loading ? (
             <div className="attendance-loading">Loading attendance data...</div>
           ) : error ? (

@@ -146,6 +146,15 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+.admin-dashboard-layout {
+  align-items: flex-start;
+}
+
+.admin-employees-section {
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
 .employees-section h2 {
   color: #333;
   margin-bottom: 20px;
@@ -675,6 +684,12 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+}
+
+.reports-sidebar-divider {
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  margin: 12px 0;
 }
 
 .reports-sidebar button {
