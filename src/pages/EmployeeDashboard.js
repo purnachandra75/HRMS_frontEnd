@@ -1,5 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import EmployeeLayout from '../components/EmployeeLayout';
 import '../styles/Dashboard.css';
 
 function EmployeeDashboard({ userName, userId, onLogout }) {
@@ -9,22 +10,15 @@ function EmployeeDashboard({ userName, userId, onLogout }) {
     navigate('/employee/profile');
   };
 
-  const handleLogout = () => {
-    onLogout();
-    navigate('/login');
-  };
-
   return (
-    <div className="dashboard-container">
-      <header className="dashboard-header">
-        <h1>Employee Dashboard</h1>
-        <div className="header-info">
-          <span>Welcome, {userName}!</span>
-          <button onClick={handleLogout} className="logout-btn">Logout</button>
-        </div>
-      </header>
-
-      <main className="dashboard-main">
+    <EmployeeLayout
+      userName={userName}
+      onLogout={onLogout}
+      activeItem="dashboard"
+      title="Employee Dashboard"
+      subtitle="Quick access to your profile, attendance records, and leave requests."
+    >
+      <div className="dashboard-main employee-dashboard-main">
         <div className="dashboard-cards">
           <div className="dashboard-card clickable" onClick={handleViewProfile}>
             <h3>View/Edit My Profile</h3>
@@ -51,8 +45,8 @@ function EmployeeDashboard({ userName, userId, onLogout }) {
             <li>Track your work hours</li>
           </ul>
         </div>
-      </main>
-    </div>
+      </div>
+    </EmployeeLayout>
   );
 }
 

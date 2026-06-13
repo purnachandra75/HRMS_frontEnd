@@ -12,6 +12,7 @@ import SalaryReportPage from './pages/SalaryReportPage';
 import AdminReportsPage from './pages/AdminReportsPage';
 import AttendancePage from './pages/AttendancePage';
 import EmployeeAttendancePage from './pages/EmployeeAttendancePage';
+import PfGeneratorPage from './pages/PfGeneratorPage';
 import './App.css';
 
 function App() {
@@ -109,6 +110,16 @@ function App() {
             element={
               isAuthenticated && userRole === 'admin' ? (
                 <AdminReportsPage userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/admin/pf-generator"
+            element={
+              isAuthenticated && userRole === 'admin' ? (
+                <PfGeneratorPage userName={userName} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/login" />
               )

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import EmployeeLayout from '../components/EmployeeLayout';
 import LeaveRequestForm from '../components/LeaveRequestForm';
 import EmployeeRequestTable from '../components/EmployeeRequestTable';
 import LeaveBalances from '../components/LeaveBalances';
@@ -75,7 +76,7 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
     const days = calculateDaysBetween(formData.fromDate, formData.toDate);
     
     if (days <= 0) {
-      alert('End date must be after start date');
+      alert('Please choose a valid date range with at least one working day. Saturdays and Sundays are not counted.');
       return;
     }
     
@@ -108,25 +109,15 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
     }
   };
 
-  const handleLogout = () => {
-    onLogout();
-    navigate('/login');
-  };
-
   return (
-    <div className="dashboard-container">
-      <header className="dashboard-header">
-        <div>
-          <h1>Attendance Portal</h1>
-          <p className="dashboard-subtitle">Employee Dashboard</p>
-        </div>
-
-        <div className="header-info">
-          <button onClick={handleLogout} className="logout-btn">Logout</button>
-        </div>
-      </header>
-
-      <main className="dashboard-main">
+    <EmployeeLayout
+      userName={userName}
+      onLogout={onLogout}
+      activeItem="leaves"
+      title="Leave Requests"
+      subtitle="Track balances, submit new leave requests, and review your leave history."
+    >
+      <div className="dashboard-main employee-dashboard-main">
         {error && <div className="error-message">{error}</div>}
         
         {loading ? (
@@ -161,7 +152,7 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
                 </div>
               </div>
               <div className="profile-info">
-                <p><strong>ID</strong></p>
+                <p><strong>ID</strong> {userId || 'N/A'}</p>
               </div>
             </section>
 
@@ -200,8 +191,8 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
             )}
           </>
         )}
-      </main>
-    </div>
+      </div>
+    </EmployeeLayout>
   );
 }
 

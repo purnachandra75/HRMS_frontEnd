@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import EmployeeLayout from '../components/EmployeeLayout';
 import { createEmployee, getEmployeeProfile, getEmployeeById, updateEmployeeProfile } from '../services/employeeService';
 import LeaveReportCard from '../components/LeaveReportCard';
 import '../styles/Profile.css';
@@ -266,23 +267,13 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
     }
   };
 
-  return (
-    <div className="profile-container">
-      {/* Header */}
-      <header className="profile-header">
-        <h1>{isCreateMode ? 'Create Employee' : isAdminView ? 'Employee Details' : 'Employee Profile'}</h1>
-        <div className="header-actions">
-          <span className="employee-name">{employee.firstName} {employee.lastName}</span>
-          {(isAdminView || isCreateMode) && (
-            <button className="cancel-btn" onClick={() => navigate('/admin')}>
-              Back to Dashboard
-            </button>
-          )}
-          <button className="logout-btn" onClick={handleLogout}>Logout</button>
-        </div>
-      </header>
+  const isEmployeeSelfService = userRole === 'employee' && !isAdminView && !isCreateMode;
+  const pageTitle = isCreateMode ? 'Create Employee' : isAdminView ? 'Employee Details' : 'Employee Profile';
+  const pageSubtitle = isEmployeeSelfService
+    ? 'Review and update your profile details, documents, and leave report.'
+    : null;
 
-      {!isEditing ? (
+  const profileBody = !isEditing ? (
         // View Mode - show sidebar and view sections; edit button placed below header on right
         <div className="profile-content">
           <aside className="profile-sidebar">
@@ -1180,7 +1171,39 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
             </div>
           </main>
         </div>
-      )}
+      );
+
+  if (isEmployeeSelfService) {
+    return (
+      <EmployeeLayout
+        userName={employee?.firstName || ''}
+        onLogout={onLogout}
+        activeItem="profile"
+        title={pageTitle}
+        subtitle={pageSubtitle}
+      >
+        <div className="employee-profile-shell">
+          {profileBody}
+        </div>
+      </EmployeeLayout>
+    );
+  }
+
+  return (
+    <div className="profile-container">
+      <header className="profile-header">
+        <h1>{pageTitle}</h1>
+        <div className="header-actions">
+          <span className="employee-name">{employee.firstName} {employee.lastName}</span>
+          {(isAdminView || isCreateMode) && (
+            <button className="cancel-btn" onClick={() => navigate('/admin')}>
+              Back to Dashboard
+            </button>
+          )}
+          <button className="logout-btn" onClick={handleLogout}>Logout</button>
+        </div>
+      </header>
+      {profileBody}
     </div>
   );
 }
