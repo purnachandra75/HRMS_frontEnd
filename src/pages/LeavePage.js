@@ -80,6 +80,9 @@ function LeavePage({ userName, onLogout }) {
             <button type="button" onClick={() => navigate('/admin/attendance')}>
               Attendance
             </button>
+            <button type="button" onClick={() => navigate('/admin/payroll')}>
+              Payroll
+            </button>
             <button type="button" onClick={() => navigate('/admin/pf-generator')}>
               Payslip Generator
             </button>

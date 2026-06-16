@@ -272,6 +272,9 @@ function AdminReportsPage({ userName, onLogout }) {
             >
               Leave Report
             </button>
+            <button onClick={() => navigate('/admin/payroll')}>
+              Payroll
+            </button>
             <button onClick={() => navigate('/admin/pf-generator')}>
               Payslip Generator
             </button>
