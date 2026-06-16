@@ -115,7 +115,7 @@ function AdminReportsPage({ userName, onLogout }) {
 
   const reportDetails = {
     salary: {
-      title: 'Salary Related Records',
+      title: 'Salary Reports',
       description: 'Review salary records for active employees only.',
       rows: salaryEmployees.map((employee, index) => ({
         id: employee.id || index,
@@ -306,7 +306,7 @@ function AdminReportsPage({ userName, onLogout }) {
             )}
             {selected.hasDownload && (
               <button type="button" className="create-btn" onClick={downloadSalaryReport}>
-                Download Salary CSV
+                Download
               </button>
             )}
           </div>
