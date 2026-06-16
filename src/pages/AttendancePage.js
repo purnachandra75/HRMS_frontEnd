@@ -125,6 +125,9 @@ function AttendancePage({ userName, onLogout }) {
             <button className="active" type="button" onClick={() => navigate('/admin/attendance')}>
               Attendance
             </button>
+            <button type="button" onClick={() => navigate('/admin/pf-generator')}>
+              Payslip Generator
+            </button>
             <hr className="reports-sidebar-divider" />
             <button type="button" onClick={() => navigate('/admin/employee/new')}>
               + Create Employee
