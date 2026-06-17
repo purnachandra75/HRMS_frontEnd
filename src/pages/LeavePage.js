@@ -84,7 +84,7 @@ function LeavePage({ userName, onLogout }) {
               Payroll
             </button>
             <button type="button" onClick={() => navigate('/admin/pf-generator')}>
-              Payslip Generator
+              Payslip
             </button>
             <hr className="reports-sidebar-divider" />
             <button type="button" onClick={() => navigate('/admin/employee/new')}>

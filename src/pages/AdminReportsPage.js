@@ -272,12 +272,7 @@ function AdminReportsPage({ userName, onLogout }) {
             >
               Leave Report
             </button>
-            <button onClick={() => navigate('/admin/payroll')}>
-              Payroll
-            </button>
-            <button onClick={() => navigate('/admin/pf-generator')}>
-              Payslip Generator
-            </button>
+           
             <hr style={{ borderColor: 'rgba(255,255,255,0.2)', margin: '12px 0' }} />
             <button 
               onClick={() => navigate('/admin')}

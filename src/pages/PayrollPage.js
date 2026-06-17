@@ -5,12 +5,59 @@ import { runPayroll } from '../services/payrollService';
 import '../styles/Dashboard.css';
 import '../styles/Payroll.css';
 
-const extractPayrollEmployees = (response) => {
-  if (Array.isArray(response)) return response;
-  if (Array.isArray(response?.includedEmployees)) return response.includedEmployees;
-  if (Array.isArray(response?.employees)) return response.employees;
-  if (Array.isArray(response?.data)) return response.data;
-  return [];
+const parseCsvLine = (line) => {
+  const cells = [];
+  let current = '';
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i += 1) {
+    const char = line[i];
+    const nextChar = line[i + 1];
+
+    if (char === '"' && inQuotes && nextChar === '"') {
+      current += '"';
+      i += 1;
+      continue;
+    }
+
+    if (char === '"') {
+      inQuotes = !inQuotes;
+      continue;
+    }
+
+    if (char === ',' && !inQuotes) {
+      cells.push(current);
+      current = '';
+      continue;
+    }
+
+    current += char;
+  }
+
+  cells.push(current);
+  return cells.map((cell) => cell.trim());
+};
+
+const parsePayrollReport = (text) => {
+  const lines = String(text || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) {
+    return { headers: [], rows: [] };
+  }
+
+  const headers = parseCsvLine(lines[0]);
+  const rows = lines.slice(1).map((line) => {
+    const values = parseCsvLine(line);
+    return headers.reduce((acc, header, index) => {
+      acc[header] = values[index] ?? '';
+      return acc;
+    }, {});
+  });
+
+  return { headers, rows };
 };
 
 function PayrollPage({ userName, onLogout }) {
@@ -19,11 +66,14 @@ function PayrollPage({ userName, onLogout }) {
   const [includedEmployeeIds, setIncludedEmployeeIds] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [excludedSearchQuery, setExcludedSearchQuery] = useState('');
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [running, setRunning] = useState(false);
-  const [runResult, setRunResult] = useState(null);
+  const [downloadMessage, setDownloadMessage] = useState('');
   const [runError, setRunError] = useState('');
+  const [reportPreview, setReportPreview] = useState({ headers: [], rows: [] });
 
   useEffect(() => {
     const loadEmployees = async () => {
@@ -64,18 +114,35 @@ function PayrollPage({ userName, onLogout }) {
   };
 
   const handleRunPayroll = async () => {
-    const payload = includedEmployees.map((employee) => ({
-      employeeId: employee.id,
-      employeeName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
-    }));
+    const payload = {
+      employees: includedEmployees.map((employee) => ({
+        employeeId: employee.id,
+        employeeName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
+      })),
+      month: selectedMonth,
+      year: selectedYear,
+    };
 
     setRunning(true);
     setRunError('');
-    setRunResult(null);
+    setDownloadMessage('');
+    setReportPreview({ headers: [], rows: [] });
 
     try {
-      const response = await runPayroll(payload);
-      setRunResult(response);
+      const { reportText } = await runPayroll(payload);
+      const parsedReport = parsePayrollReport(reportText);
+      setReportPreview(parsedReport);
+
+      const csvBlob = new Blob([reportText], { type: 'text/csv;charset=utf-8;' });
+      const downloadUrl = window.URL.createObjectURL(csvBlob);
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `payroll-${selectedMonth}-${selectedYear}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => window.URL.revokeObjectURL(downloadUrl), 1000);
+      setDownloadMessage('Payroll report generated and downloaded as CSV.');
     } catch (err) {
       console.error('Failed to run payroll:', err);
       setRunError(err.message || 'Failed to run payroll');
@@ -129,10 +196,11 @@ function PayrollPage({ userName, onLogout }) {
   const activeEmployeeCount = employees.length;
   const includedCount = includedEmployeeIds.length;
   const excludedCount = Math.max(activeEmployeeCount - includedCount, 0);
-  const payrollEmployeesFromResult = useMemo(
-    () => extractPayrollEmployees(runResult),
-    [runResult]
-  );
+  const monthOptions = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+  const yearOptions = Array.from({ length: 5 }, (_, index) => new Date().getFullYear() - 2 + index);
 
   const renderPayrollTable = (rows, emptyMessage, isIncludedList) => {
     if (rows.length === 0) {
@@ -168,7 +236,7 @@ function PayrollPage({ userName, onLogout }) {
                         checked={isIncluded}
                         onChange={() => handleToggleEmployee(employee.id)}
                       />
-                      <span>{isIncludedList ? 'Included' : 'Include'}</span>
+                      
                     </label>
                   </td>
                   <td>{employee.id}</td>
@@ -220,7 +288,7 @@ function PayrollPage({ userName, onLogout }) {
               Payroll
             </button>
             <button type="button" onClick={() => navigate('/admin/pf-generator')}>
-              Payslip Generator
+              Payslip 
             </button>
             <hr className="reports-sidebar-divider" />
             <button type="button" onClick={() => navigate('/admin/employee/new')}>
@@ -265,6 +333,28 @@ function PayrollPage({ userName, onLogout }) {
                 </div>
               </div>
               <div className="payroll-toolbar-actions">
+                <div className="payroll-period-controls">
+                  <label>
+                    Month
+                    <select value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>
+                      {monthOptions.map((month, index) => (
+                        <option key={month} value={index + 1}>
+                          {month}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Year
+                    <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
+                      {yearOptions.map((year) => (
+                        <option key={year} value={year}>
+                          {year}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
                 <p className="payroll-note">Uncheck a row to exclude it from payroll.</p>
                 <button
                   type="button"
@@ -283,46 +373,12 @@ function PayrollPage({ userName, onLogout }) {
               <p className="payroll-empty payroll-error">{error}</p>
             ) : (
               <>
-                {(runError || runResult) && (
+                {(runError || downloadMessage) && (
                   <div className={`payroll-run-result ${runError ? 'payroll-run-error' : ''}`}>
                     {runError ? (
                       <p>{runError}</p>
                     ) : (
-                      <>
-                        <p className="payroll-run-title">Payroll run completed.</p>
-                        <p className="payroll-run-summary">
-                          Included employees returned from backend: {payrollEmployeesFromResult.length}
-                        </p>
-                        {payrollEmployeesFromResult.length > 0 ? (
-                          <div className="table-responsive payroll-run-table-wrap">
-                            <table className="employees-table payroll-table payroll-run-table">
-                              <thead>
-                                <tr>
-                                  <th>ID</th>
-                                  <th>Name</th>
-                                </tr>
-                              </thead>
-                              <tbody>
-                                {payrollEmployeesFromResult.map((employee, index) => {
-                                  const employeeId = employee.employeeId ?? employee.id ?? employee.empId ?? index + 1;
-                                  const employeeName = employee.employeeName
-                                    || `${employee.firstName || ''} ${employee.lastName || ''}`.trim()
-                                    || 'N/A';
-
-                                  return (
-                                    <tr key={`${employeeId}-${index}`}>
-                                      <td>{employeeId}</td>
-                                      <td>{employeeName}</td>
-                                    </tr>
-                                  );
-                                })}
-                              </tbody>
-                            </table>
-                          </div>
-                        ) : (
-                          <pre>{JSON.stringify(runResult, null, 2)}</pre>
-                        )}
-                      </>
+                      <p className="payroll-run-title">{downloadMessage}</p>
                     )}
                   </div>
                 )}
@@ -359,6 +415,35 @@ function PayrollPage({ userName, onLogout }) {
                     false
                   )}
                 </div>
+
+                {reportPreview.headers.length > 0 && reportPreview.rows.length > 0 && (
+                  <div className="payroll-group">
+                    <div className="payroll-group-header">
+                      <h3>Payroll Report Preview</h3>
+                      <span>{reportPreview.rows.length} rows</span>
+                    </div>
+                    <div className="table-responsive">
+                      <table className="employees-table payroll-table payroll-run-table">
+                        <thead>
+                          <tr>
+                            {reportPreview.headers.map((header) => (
+                              <th key={header}>{header}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {reportPreview.rows.map((row, index) => (
+                            <tr key={`${row['Payroll ID'] || index}-${index}`}>
+                              {reportPreview.headers.map((header) => (
+                                <td key={`${header}-${index}`}>{row[header] || ''}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </>
             )}
           </section>

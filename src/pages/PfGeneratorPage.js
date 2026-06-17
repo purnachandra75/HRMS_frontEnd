@@ -489,7 +489,7 @@ function PayslipGeneratorPage({ userName, onLogout }) {
   return (
     <div className="dashboard-container">
       <header className="dashboard-header">
-        <h1>Payslip Generator</h1>
+        <h1>Payslip</h1>
         <div className="header-info">
           <span>Welcome, {userName}!</span>
           <button onClick={onLogout} className="logout-btn">Logout</button>
@@ -505,7 +505,7 @@ function PayslipGeneratorPage({ userName, onLogout }) {
             <button type="button" onClick={() => navigate('/admin/reports')}>Reports</button>
             <button type="button" onClick={() => navigate('/admin/attendance')}>Attendance</button>
             <button type="button" onClick={() => navigate('/admin/payroll')}>Payroll</button>
-            <button type="button" className="active" onClick={() => navigate('/admin/pf-generator')}>Payslip Generator</button>
+            <button type="button" className="active" onClick={() => navigate('/admin/pf-generator')}>Payslip</button>
             <hr className="reports-sidebar-divider" />
             <button type="button" onClick={() => navigate('/admin/employee/new')}>+ Create Employee</button>
           </nav>
@@ -513,7 +513,7 @@ function PayslipGeneratorPage({ userName, onLogout }) {
 
         <main className="reports-main">
           <div className="reports-content-header">
-            <h2>Payslip Generation</h2>
+            <h2>Payslip</h2>
             <p>Generate a payslip styled like the sample PDF by selecting the employee, month, and year.</p>
           </div>
 
