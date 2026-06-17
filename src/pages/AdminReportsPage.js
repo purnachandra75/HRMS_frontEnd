@@ -10,6 +10,8 @@ function AdminReportsPage({ userName, onLogout }) {
   const [error, setError] = useState('');
   const [selectedReport, setSelectedReport] = useState('salary');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [employmentFilter, setEmploymentFilter] = useState('all');
+  const [departmentFilter, setDepartmentFilter] = useState('all');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -61,6 +63,14 @@ function AdminReportsPage({ userName, onLogout }) {
   });
   const partTimeEmployees = activeEmployees.filter((employee) => (employee.employeeType || '').toLowerCase().includes('part'));
   const fullTimeEmployees = activeEmployees.filter((employee) => (employee.employeeType || '').toLowerCase().includes('full'));
+
+  // Prepare filtered rows for Employment Type report based on dropdown selection
+  const allTypeEmployees = [...fullTimeEmployees, ...partTimeEmployees];
+  const filteredTypeEmployees = employmentFilter === 'all'
+    ? allTypeEmployees
+    : employmentFilter === 'full'
+      ? fullTimeEmployees
+      : partTimeEmployees;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -131,11 +141,11 @@ function AdminReportsPage({ userName, onLogout }) {
       description: 'View employee leaves month-wise for the selected year.',
       rows: leavesReportRows,
       columns: ['#', 'Employee Name', 'Department', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
-      hasDownload: false,
+      hasDownload: true,
       hasYearFilter: true,
     },
     status: {
-      title: 'Inactive Employees',
+      title: ' Employees status',
       description: 'See employees with inactive status (resigned, terminated, or inactive).',
       rows: statusEmployees.map((employee, index) => ({
         id: employee.id || index,
@@ -144,19 +154,19 @@ function AdminReportsPage({ userName, onLogout }) {
         department: employee.department || 'N/A',
       })),
       columns: ['#', 'Employee Name', 'Status', 'Department'],
-      hasDownload: false,
+      hasDownload: true,
     },
     type: {
-      title: 'Employment Type Records',
+      title: 'Work Type ',
       description: 'Filter active employees by part-time or full-time employment.',
-      rows: [...fullTimeEmployees, ...partTimeEmployees].map((employee, index) => ({
+      rows: filteredTypeEmployees.map((employee, index) => ({
         id: employee.id || index,
         name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
         type: employee.employeeType || 'N/A',
         department: employee.department || 'N/A',
       })),
       columns: ['#', 'Employee Name', 'Employment Type', 'Department'],
-      hasDownload: false,
+      hasDownload: true,
     },
     newJoiners: {
       title: 'New Joiners',
@@ -174,10 +184,10 @@ function AdminReportsPage({ userName, onLogout }) {
         };
       }),
       columns: ['#', 'Employee Name', 'Date Joined', 'Department'],
-      hasDownload: false,
+      hasDownload: true,
     },
     probation: {
-      title: 'Probation Period Employees',
+      title: 'Probation Period',
       description: 'Active employees within 6 months of joining date (probation period).',
       rows: probationEmployees.map((employee, index) => {
         const joinedDate = getJoiningDate(employee);
@@ -192,29 +202,95 @@ function AdminReportsPage({ userName, onLogout }) {
         };
       }),
       columns: ['#', 'Employee Name', 'Date Joined', 'Department'],
-      hasDownload: false,
+      hasDownload: true,
     },
   };
 
   const selected = reportDetails[selectedReport];
 
-  const downloadSalaryReport = () => {
-    const headers = ['Employee Name', 'Department', 'Salary'];
-    const rows = salaryEmployees.map((employee) => [
-      `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
-      employee.department || 'N/A',
-      employee.ctc || employee.basicSalary || '0',
-    ]);
+  // Department filtering helper
+  const matchesDepartment = (dept) => {
+    if (!departmentFilter || departmentFilter === 'all') return true;
+    const d = String(dept || '').trim().toLowerCase();
+    if (departmentFilter === 'non-it') return d !== 'it' && d !== '';
+    return d === departmentFilter;
+  };
 
-    const csvContent = [headers, ...rows]
-      .map((row) => row.map((value) => `"${String(value).replace(/"/g, '""')}"`).join(','))
-      .join('\n');
+  // Apply department filter to each report's rows so table and download respect selection
+  const filteredReportDetails = Object.fromEntries(
+    Object.entries(reportDetails).map(([key, rpt]) => [
+      key,
+      {
+        ...rpt,
+        rows: Array.isArray(rpt.rows) ? rpt.rows.filter((r) => matchesDepartment(r.department)) : rpt.rows,
+      },
+    ])
+  );
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const selectedFiltered = filteredReportDetails[selectedReport];
+
+  const downloadReport = (report) => {
+    const headers = report.columns;
+    const rows = report.rows.map((row) => Object.keys(row)
+      .filter((key) => key !== 'id')
+      .map((cellKey) => row[cellKey]));
+
+    const escapeHtml = (value) => String(value)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+
+    const headerRow = headers
+      .map((header) => `<th style="font-weight:bold; text-align:left; padding:6px;">${escapeHtml(header)}</th>`)
+      .join('');
+
+    const bodyRows = rows
+      .map((row) => `
+        <tr>
+          ${row.map((cell) => `<td style="padding:6px;">${escapeHtml(cell)}</td>`).join('')}
+        </tr>
+      `)
+      .join('');
+
+    const tableHtml = `
+      <table border="1" style="border-collapse:collapse;">
+        <thead>
+          <tr>${headerRow}</tr>
+        </thead>
+        <tbody>${bodyRows}</tbody>
+      </table>
+    `;
+
+    const excelHtml = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+        <head>
+          <meta charset="UTF-8" />
+          <!--[if gte mso 9]>
+            <xml>
+              <x:ExcelWorkbook>
+                <x:ExcelWorksheets>
+                  <x:ExcelWorksheet>
+                    <x:Name>${escapeHtml(report.title)}</x:Name>
+                    <x:WorksheetOptions>
+                      <x:DisplayGridlines/>
+                    </x:WorksheetOptions>
+                  </x:ExcelWorksheet>
+                </x:ExcelWorksheets>
+              </x:ExcelWorkbook>
+            </xml>
+          <![endif]-->
+        </head>
+        <body>${tableHtml}</body>
+      </html>
+    `;
+
+    const fileName = `${report.title.replace(/\s+/g, '-').toLowerCase()}.xls`;
+    const blob = new Blob([excelHtml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'employee-salary-report.csv');
+    link.setAttribute('download', fileName);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -240,13 +316,13 @@ function AdminReportsPage({ userName, onLogout }) {
               className={`${selectedReport === 'salary' ? 'active' : ''}`}
               onClick={() => setSelectedReport('salary')}
             >
-              Salary Related
+              Salary Reports
             </button>
             <button 
               className={`${selectedReport === 'status' ? 'active' : ''}`}
               onClick={() => setSelectedReport('status')}
             >
-              Inactive Employees
+              Employee Exit Report
             </button>
             <button 
               className={`${selectedReport === 'type' ? 'active' : ''}`}
@@ -305,8 +381,28 @@ function AdminReportsPage({ userName, onLogout }) {
                 </select>
               </div>
             )}
+            {selectedReport === 'type' && (
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>Employment:</label>
+                <select value={employmentFilter} onChange={(e) => setEmploymentFilter(e.target.value)}>
+                  <option value="all">All</option>
+                  <option value="full">Full-Time</option>
+                  <option value="part">Part-Time</option>
+                </select>
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>Department:</label>
+              <select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}>
+                <option value="all">All</option>
+                <option value="hr">HR Department</option>
+                <option value="it">IT Department</option>
+                <option value="non-it">Non IT Department</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
             {selected.hasDownload && (
-              <button type="button" className="create-btn" onClick={downloadSalaryReport}>
+              <button type="button" className="create-btn" onClick={() => downloadReport(selected)}>
                 Download
               </button>
             )}

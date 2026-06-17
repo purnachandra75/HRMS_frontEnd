@@ -176,7 +176,13 @@ function EmployeeEditModal({ employee, onSave, onClose }) {
             <div className="form-row">
               <div className="form-group">
                 <label>Department:</label>
-                <input type="text" name="department" value={formData.department} onChange={handleChange} />
+                <select name="department" value={formData.department} onChange={handleChange}>
+                  <option value="">Select Department</option>
+                  <option value="IT">IT</option>
+                  <option value="Non IT">Non IT</option>
+                  <option value="HR">HR</option>
+                  <option value="Admin">Admin</option>
+                </select>
               </div>
               <div className="form-group">
                 <label>Designation:</label>

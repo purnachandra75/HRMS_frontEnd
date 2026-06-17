@@ -598,14 +598,18 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
                   <div className="form-row">
                     <div className="form-group">
                       <label>Department</label>
-                      <input
-                        type="text"
+                      <select
                         name="department"
                         value={formData.department || ''}
                         onChange={handleInputChange}
-                        placeholder="Enter department"
                         disabled={sectionReadOnly}
-                      />
+                      >
+                        <option value="">Select Department</option>
+                        <option value="IT">IT</option>
+                        <option value="Non IT">Non IT</option>
+                        <option value="HR">HR</option>
+                        <option value="Admin">Admin</option>
+                      </select>
                     </div>
                     <div className="form-group">
                       <label>Designation</label>
