@@ -13,6 +13,7 @@ import AdminReportsPage from './pages/AdminReportsPage';
 import AttendancePage from './pages/AttendancePage';
 import EmployeeAttendancePage from './pages/EmployeeAttendancePage';
 import PfGeneratorPage from './pages/PfGeneratorPage';
+import PayrollPage from './pages/PayrollPage';
 import './App.css';
 
 function App() {
@@ -120,6 +121,16 @@ function App() {
             element={
               isAuthenticated && userRole === 'admin' ? (
                 <PfGeneratorPage userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/admin/payroll"
+            element={
+              isAuthenticated && userRole === 'admin' ? (
+                <PayrollPage userName={userName} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/login" />
               )
