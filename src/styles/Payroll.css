@@ -165,6 +165,12 @@
   color: #1f2937;
 }
 
+.payroll-report-subtitle {
+  margin: 4px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
 .payroll-group-header span {
   color: #64748b;
   font-size: 14px;
@@ -177,6 +183,79 @@
 .payroll-table th:first-child,
 .payroll-table td:first-child {
   width: 140px;
+}
+
+.payroll-report-table {
+  min-width: 1050px;
+}
+
+.payroll-report-table th:first-child,
+.payroll-report-table td:first-child {
+  width: auto;
+}
+
+.payroll-status-select {
+  min-width: 160px;
+  padding: 9px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #334155;
+  font: inherit;
+  font-weight: 700;
+}
+
+.payroll-status-select:focus {
+  outline: 2px solid rgba(102, 126, 234, 0.35);
+  border-color: #667eea;
+}
+
+.payroll-status-credited {
+  border-color: #22c55e;
+  background: #dcfce7;
+  color: #166534;
+}
+
+.payroll-status-pending {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  color: #92400e;
+}
+
+.payroll-status-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 140px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid transparent;
+}
+
+.payroll-action-btn {
+  min-width: 128px;
+  padding: 10px 14px;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  color: white;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.payroll-action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.payroll-action-btn:disabled {
+  background: #cbd5e1;
+  color: #475569;
+  cursor: not-allowed;
+  transform: none;
 }
 
 .payroll-toggle-cell {

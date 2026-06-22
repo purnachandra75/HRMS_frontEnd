@@ -505,6 +505,7 @@ function PayslipGeneratorPage({ userName, onLogout }) {
             <button type="button" onClick={() => navigate('/admin/reports')}>Reports</button>
             <button type="button" onClick={() => navigate('/admin/attendance')}>Attendance</button>
             <button type="button" onClick={() => navigate('/admin/payroll')}>Payroll</button>
+            <button type="button" onClick={() => navigate('/admin/payroll-report')}>Payroll Report</button>
             <button type="button" className="active" onClick={() => navigate('/admin/pf-generator')}>Payslip</button>
             <hr className="reports-sidebar-divider" />
             <button type="button" onClick={() => navigate('/admin/employee/new')}>+ Create Employee</button>

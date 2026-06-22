@@ -5,61 +5,6 @@ import { runPayroll } from '../services/payrollService';
 import '../styles/Dashboard.css';
 import '../styles/Payroll.css';
 
-const parseCsvLine = (line) => {
-  const cells = [];
-  let current = '';
-  let inQuotes = false;
-
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    const nextChar = line[i + 1];
-
-    if (char === '"' && inQuotes && nextChar === '"') {
-      current += '"';
-      i += 1;
-      continue;
-    }
-
-    if (char === '"') {
-      inQuotes = !inQuotes;
-      continue;
-    }
-
-    if (char === ',' && !inQuotes) {
-      cells.push(current);
-      current = '';
-      continue;
-    }
-
-    current += char;
-  }
-
-  cells.push(current);
-  return cells.map((cell) => cell.trim());
-};
-
-const parsePayrollReport = (text) => {
-  const lines = String(text || '')
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-
-  if (lines.length === 0) {
-    return { headers: [], rows: [] };
-  }
-
-  const headers = parseCsvLine(lines[0]);
-  const rows = lines.slice(1).map((line) => {
-    const values = parseCsvLine(line);
-    return headers.reduce((acc, header, index) => {
-      acc[header] = values[index] ?? '';
-      return acc;
-    }, {});
-  });
-
-  return { headers, rows };
-};
-
 function PayrollPage({ userName, onLogout }) {
   const navigate = useNavigate();
   const [employees, setEmployees] = useState([]);
@@ -73,7 +18,6 @@ function PayrollPage({ userName, onLogout }) {
   const [running, setRunning] = useState(false);
   const [downloadMessage, setDownloadMessage] = useState('');
   const [runError, setRunError] = useState('');
-  const [reportPreview, setReportPreview] = useState({ headers: [], rows: [] });
 
   useEffect(() => {
     const loadEmployees = async () => {
@@ -114,8 +58,12 @@ function PayrollPage({ userName, onLogout }) {
   };
 
   const handleRunPayroll = async () => {
+    const employeesForPayroll = employees.filter((employee) =>
+      includedEmployeeIds.includes(String(employee.id))
+    );
+
     const payload = {
-      employees: includedEmployees.map((employee) => ({
+      employees: employeesForPayroll.map((employee) => ({
         employeeId: employee.id,
         employeeName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
       })),
@@ -126,23 +74,18 @@ function PayrollPage({ userName, onLogout }) {
     setRunning(true);
     setRunError('');
     setDownloadMessage('');
-    setReportPreview({ headers: [], rows: [] });
 
     try {
-      const { reportText } = await runPayroll(payload);
-      const parsedReport = parsePayrollReport(reportText);
-      setReportPreview(parsedReport);
-
-      const csvBlob = new Blob([reportText], { type: 'text/csv;charset=utf-8;' });
-      const downloadUrl = window.URL.createObjectURL(csvBlob);
+      const { fileBlob, filename } = await runPayroll(payload);
+      const downloadUrl = window.URL.createObjectURL(fileBlob);
       const link = document.createElement('a');
       link.href = downloadUrl;
-      link.download = `payroll-${selectedMonth}-${selectedYear}.csv`;
+      link.download = filename || `payroll-${selectedMonth}-${selectedYear}.xlsx`;
       document.body.appendChild(link);
       link.click();
       link.remove();
       setTimeout(() => window.URL.revokeObjectURL(downloadUrl), 1000);
-      setDownloadMessage('Payroll report generated and downloaded as CSV.');
+      setDownloadMessage('Payroll Excel generated and downloaded successfully.');
     } catch (err) {
       console.error('Failed to run payroll:', err);
       setRunError(err.message || 'Failed to run payroll');
@@ -201,6 +144,18 @@ function PayrollPage({ userName, onLogout }) {
     'July', 'August', 'September', 'October', 'November', 'December',
   ];
   const yearOptions = Array.from({ length: 5 }, (_, index) => new Date().getFullYear() - 2 + index);
+  const selectedMonthName = monthOptions[selectedMonth - 1];
+  const payrollReportRows = useMemo(() => {
+    return employees
+      .filter((employee) => includedEmployeeIds.includes(String(employee.id)))
+      .map((employee) => ({
+        id: employee.id,
+        name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
+        department: employee.department || 'N/A',
+        designation: employee.designation || 'N/A',
+        amount: employee.ctc || employee.basicSalary || 'N/A',
+      }));
+  }, [employees, includedEmployeeIds]);
 
   const renderPayrollTable = (rows, emptyMessage, isIncludedList) => {
     if (rows.length === 0) {
@@ -287,6 +242,9 @@ function PayrollPage({ userName, onLogout }) {
             <button type="button" className="active" onClick={() => navigate('/admin/payroll')}>
               Payroll
             </button>
+            <button type="button" onClick={() => navigate('/admin/payroll-report')}>
+              Payroll Report
+            </button>
             <button type="button" onClick={() => navigate('/admin/pf-generator')}>
               Payslip 
             </button>
@@ -316,7 +274,6 @@ function PayrollPage({ userName, onLogout }) {
               <span>Excluded</span>
               <strong>{excludedCount}</strong>
             </div>
-            
           </section>
 
           <section className="payroll-section">
@@ -360,7 +317,7 @@ function PayrollPage({ userName, onLogout }) {
                   type="button"
                   className="create-btn payroll-run-btn"
                   onClick={handleRunPayroll}
-                  disabled={running || includedEmployees.length === 0}
+                  disabled={running || includedCount === 0}
                 >
                   {running ? 'Running...' : 'Run'}
                 </button>
@@ -382,6 +339,51 @@ function PayrollPage({ userName, onLogout }) {
                     )}
                   </div>
                 )}
+
+                <div className="payroll-group">
+                  <div className="payroll-group-header">
+                    <div>
+                      <h3>Payroll Report</h3>
+                      <p className="payroll-report-subtitle">
+                        Showing selected employees for {selectedMonthName} {selectedYear}.
+                      </p>
+                    </div>
+                    <span>{payrollReportRows.length} employees</span>
+                  </div>
+
+                  {payrollReportRows.length === 0 ? (
+                    <p className="payroll-empty">No employees selected for this payroll report.</p>
+                  ) : (
+                    <div className="table-responsive">
+                      <table className="employees-table payroll-table payroll-report-table">
+                        <thead>
+                          <tr>
+                            <th>Employee ID</th>
+                            <th>Employee Name</th>
+                            <th>Month</th>
+                            <th>Year</th>
+                            <th>Department</th>
+                            <th>Designation</th>
+                            <th>Amount</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {payrollReportRows.map((row) => (
+                            <tr key={`${row.id}-${selectedMonth}-${selectedYear}`}>
+                              <td>{row.id}</td>
+                              <td>{row.name}</td>
+                              <td>{selectedMonthName}</td>
+                              <td>{selectedYear}</td>
+                              <td>{row.department}</td>
+                              <td>{row.designation}</td>
+                              <td>{row.amount}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
 
                 <div className="payroll-group">
                   <div className="payroll-group-header">
@@ -415,35 +417,6 @@ function PayrollPage({ userName, onLogout }) {
                     false
                   )}
                 </div>
-
-                {reportPreview.headers.length > 0 && reportPreview.rows.length > 0 && (
-                  <div className="payroll-group">
-                    <div className="payroll-group-header">
-                      <h3>Payroll Report Preview</h3>
-                      <span>{reportPreview.rows.length} rows</span>
-                    </div>
-                    <div className="table-responsive">
-                      <table className="employees-table payroll-table payroll-run-table">
-                        <thead>
-                          <tr>
-                            {reportPreview.headers.map((header) => (
-                              <th key={header}>{header}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {reportPreview.rows.map((row, index) => (
-                            <tr key={`${row['Payroll ID'] || index}-${index}`}>
-                              {reportPreview.headers.map((header) => (
-                                <td key={`${header}-${index}`}>{row[header] || ''}</td>
-                              ))}
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
               </>
             )}
           </section>

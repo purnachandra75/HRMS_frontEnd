@@ -128,6 +128,9 @@ function AttendancePage({ userName, onLogout }) {
             <button type="button" onClick={() => navigate('/admin/payroll')}>
               Payroll
             </button>
+            <button type="button" onClick={() => navigate('/admin/payroll-report')}>
+              Payroll Report
+            </button>
             <button type="button" onClick={() => navigate('/admin/pf-generator')}>
               Payslip
             </button>

@@ -5,7 +5,7 @@ export const runPayroll = async (payload) => {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Accept': 'text/csv, application/octet-stream, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Accept': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     },
     body: JSON.stringify(payload),
   });
@@ -21,10 +21,101 @@ export const runPayroll = async (payload) => {
     throw new Error(message);
   }
 
-  const reportText = await response.text();
+  const disposition = response.headers.get('content-disposition') || '';
+  const filenameMatch = disposition.match(/filename\*?=(?:UTF-8'')?"?([^";]+)"?/i);
+  const filename = filenameMatch ? decodeURIComponent(filenameMatch[1]) : null;
+  const fileBlob = await response.blob();
 
   return {
-    reportText,
-    contentType: response.headers.get('content-type') || 'text/csv',
+    fileBlob,
+    filename,
+    contentType: response.headers.get('content-type') || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   };
+};
+
+const parseJsonResponse = async (response, fallbackMessage) => {
+  if (!response.ok) {
+    let message = fallbackMessage;
+    try {
+      const errorData = await response.json();
+      message = errorData.message || errorData.error || message;
+    } catch (error) {
+      // Keep the default message when the response is not JSON.
+    }
+    throw new Error(message);
+  }
+
+  return response.json();
+};
+
+const fetchFirstAvailableJson = async (requests, fallbackMessage) => {
+  const notFoundUrls = [];
+  let lastErrorMessage = fallbackMessage;
+
+  for (const request of requests) {
+    const response = await fetch(request.url, request.options);
+
+    if (response.status === 404) {
+      notFoundUrls.push(request.url);
+      continue;
+    }
+
+    try {
+      return await parseJsonResponse(response, fallbackMessage);
+    } catch (error) {
+      lastErrorMessage = error.message || fallbackMessage;
+      throw error;
+    }
+  }
+
+  throw new Error(`${lastErrorMessage}. Backend payroll report endpoint was not found. Tried: ${notFoundUrls.join(', ')}`);
+};
+
+export const getPayrollReport = async ({ month, year }) => {
+  const params = new URLSearchParams({
+    month: String(month),
+    year: String(year),
+  });
+  const query = params.toString();
+
+  return fetchFirstAvailableJson(
+    [
+      { url: `${API_BASE_URL}/api/payroll/report?${query}` },
+      { url: `${API_BASE_URL}/api/payroll/reports?${query}` },
+      { url: `${API_BASE_URL}/api/payroll?${query}` },
+      { url: `${API_BASE_URL}/api/payroll/${year}/${month}` },
+      { url: `${API_BASE_URL}/api/payroll/report/${year}/${month}` },
+    ],
+    'Failed to load payroll report'
+  );
+};
+
+export const updatePayrollStatus = async ({ payrollId, employeeId, month, year, status }) => {
+  const options = {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      employeeId,
+      month,
+      year,
+      status,
+      creditStatus: status,
+      paymentStatus: status,
+    }),
+  };
+
+  const requests = payrollId
+    ? [
+        { url: `${API_BASE_URL}/api/payroll/${payrollId}/status`, options },
+        { url: `${API_BASE_URL}/api/payroll/status`, options },
+        { url: `${API_BASE_URL}/api/payroll/${payrollId}/payment-status`, options },
+      ]
+    : [
+        { url: `${API_BASE_URL}/api/payroll/status`, options },
+        { url: `${API_BASE_URL}/api/payroll/payment-status`, options },
+      ];
+
+  return fetchFirstAvailableJson(requests, 'Failed to update payroll status');
 };
