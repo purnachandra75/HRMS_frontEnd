@@ -9,7 +9,7 @@ import {
   createLeaveRequest, 
   getLeaveBalances 
 } from '../services/leaveService';
-import { calculateDaysBetween } from '../utils/leaveUtils';
+import { calculateDaysBetween, getTotalLeaveBalance, normalizeLeaveBalances } from '../utils/leaveUtils';
 import '../styles/Dashboard.css';
 import '../styles/Leave.css';
 
@@ -33,33 +33,27 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
 
   const loadEmployeeData = async () => {
     setLoading(true);
-    try {
-      const [requestsData, balancesData] = await Promise.all([
-        getEmployeeLeaveRequests(userId),
-        getLeaveBalances(userId)
-      ]);
-      console.log("User ID:", userId);
-      console.log("Requests Data:", requestsData);
-      console.log("Balances Data:", balancesData);
+    let requestsData = [];
+    let balancesData = {};
+    let loadError = '';
 
-      setRequests(requestsData);
-      setBalances(balancesData);
-      setError(null);
-    } catch (err) {
-      console.error('Failed to load employee data:', err);
-      // Set mock data for demo purposes
-      setRequests([
-        { id: 201, leaveType: 'casual', days: 2, status: 'Approved', fromDate: '2026-05-15', toDate: '2026-05-16', createdAt: '2026-05-15' },
-        { id: 202, leaveType: 'sick', days: 1, status: 'Pending', fromDate: '2026-06-01', toDate: '2026-06-01', createdAt: '2026-06-01' }
-      ]);
-      setBalances({
-        casual: 8,
-        sick: 9,
-        paid: 5
-      });
-    } finally {
-      setLoading(false);
+    try {
+      requestsData = await getEmployeeLeaveRequests(userId);
+    } catch (requestError) {
+      console.error('Failed to load leave requests:', requestError);
+      loadError = 'Unable to load leave requests. Default leave balances are shown.';
     }
+
+    try {
+      balancesData = await getLeaveBalances(userId);
+    } catch (balanceError) {
+      console.error('Failed to load leave balances:', balanceError);
+    }
+
+    setRequests(Array.isArray(requestsData) ? requestsData : []);
+    setBalances(normalizeLeaveBalances(balancesData));
+    setError(loadError || null);
+    setLoading(false);
   };
 
   const handleFormChange = (newFormData) => {
@@ -170,9 +164,7 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
             </div>
           </section>
             {/* Leave Balance Cards */}
-            {Object.keys(balances).length > 0 && (
-              <LeaveBalances balances={balances} />
-            )}
+            <LeaveBalances balances={balances} />
 
             {/* Content Section - Changes based on active tab */}
             {activeTab === 'dashboard' && (
@@ -181,24 +173,20 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
 
                 <div className="stat-card">
                   <h3>Available Leaves</h3>
-                  <span>
-                    {Array.isArray(balances)
-                      ? balances.reduce((total, item) => total + (item.balance || 0), 0)
-                      : 0}
-                  </span>
+                  <span>{getTotalLeaveBalance(balances)}</span>
                 </div>
 
                 <div className="stat-card">
                   <h3>Approved</h3>
                   <span>
-                    {requests.filter(r => r.status === 'Approved').length}
+                    {requests.filter(r => (r.status || '').toLowerCase() === 'approved').length}
                   </span>
                 </div>
 
                 <div className="stat-card">
                   <h3>Pending</h3>
                   <span>
-                    {requests.filter(r => r.status === 'Pending').length}
+                    {requests.filter(r => (r.status || '').toLowerCase() === 'pending').length}
                   </span>
                 </div>
 
@@ -206,7 +194,7 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
                   <h3>Used Leaves</h3>
                   <span>
                     {requests
-                      .filter(r => r.status === 'Approved')
+                      .filter(r => (r.status || '').toLowerCase() === 'approved')
                       .reduce((sum, r) => sum + (r.days || 0), 0)}
                   </span>
                 </div>

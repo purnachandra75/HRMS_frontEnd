@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import EmployeeRequestTable from './EmployeeRequestTable';
 import { getEmployeeLeaveRequests, getLeaveBalances } from '../services/leaveService';
+import { normalizeLeaveBalances } from '../utils/leaveUtils';
 
 export default function LeaveReportCard({ userId }) {
   const [leaveData, setLeaveData] = useState(null);
@@ -23,29 +24,12 @@ export default function LeaveReportCard({ userId }) {
         getEmployeeLeaveRequests(userId)
       ]);
       
-      // Handle balances data format
-      let processedBalances = {};
-      if (Array.isArray(balancesData)) {
-        balancesData.forEach(item => {
-          if (item.leaveType && item.balance !== undefined) {
-            processedBalances[item.leaveType] = item.balance;
-          }
-        });
-      } else if (typeof balancesData === 'object' && balancesData !== null) {
-        processedBalances = balancesData;
-      }
-      
-      setLeaveData(processedBalances);
+      setLeaveData(normalizeLeaveBalances(balancesData));
       setRequests(requestsData);
     } catch (err) {
       console.error('Failed to load leave data:', err);
-      // Set mock data
-      setLeaveData({
-        casual: 8,
-        sick: 9,
-        paid: 5
-      });
-      
+      setLeaveData(normalizeLeaveBalances({}));
+      setRequests([]);
     } finally {
       setLoading(false);
     }

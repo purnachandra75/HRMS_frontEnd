@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { getAllEmployees } from '../services/employeeService';
-import { getLeaveRequests } from '../services/leaveService';
+import EmployeeLayout from '../components/EmployeeLayout';
+import { getEmployeeProfile } from '../services/employeeService';
+import { getEmployeeLeaveRequests } from '../services/leaveService';
+import { getPayrollReport } from '../services/payrollService';
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import '../styles/Dashboard.css';
@@ -331,56 +332,120 @@ function buildDeductions(employee, earnedBasicSalary) {
   ];
 }
 
-function PayslipGeneratorPage({ userName, onLogout }) {
-  const navigate = useNavigate();
-  const [employees, setEmployees] = useState([]);
+const pickPayrollRecords = (response) => {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.records)) return response.records;
+  if (Array.isArray(response?.payrolls)) return response.payrolls;
+  if (Array.isArray(response?.employees)) return response.employees;
+  if (Array.isArray(response?.rows)) return response.rows;
+  if (Array.isArray(response?.data)) return response.data;
+  if (response && typeof response === 'object') return [response];
+  return [];
+};
+
+const buildEmployeeName = (employee) =>
+  `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim() || employee?.name || 'N/A';
+
+const getPayrollEmployeeId = (record) =>
+  record.employeeId ?? record.empId ?? record.employee?.id ?? record.employee?.empId ?? record.id;
+
+const getPayrollCreditStatus = (record) =>
+  record.creditStatus ?? record.paymentStatus ?? record.payrollStatus ?? record.employee?.creditStatus ?? record.status ?? '';
+
+const isAmountCredited = (status) => {
+  const value = String(status || '').trim().toLowerCase();
+  return ['amount credited', 'credited', 'amount_credited', 'paid', 'payment credited'].includes(value);
+};
+
+function PayslipGeneratorPage({ userId, userName, onLogout }) {
+  const [employee, setEmployee] = useState(null);
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [checkingPayroll, setCheckingPayroll] = useState(false);
+  const [canGeneratePayslip, setCanGeneratePayslip] = useState(false);
+  const [payrollMessage, setPayrollMessage] = useState('');
   const payslipRef = useRef(null);
 
   useEffect(() => {
     const loadData = async () => {
       setLoading(true);
       try {
-        const [employeesData, leaveData] = await Promise.all([
-          getAllEmployees(),
-          getLeaveRequests(),
+        const [employeeData, leaveData] = await Promise.all([
+          getEmployeeProfile(userId),
+          getEmployeeLeaveRequests(userId),
         ]);
 
-        const activeEmployees = employeesData.filter((employee) => (employee.role || '').toLowerCase() !== 'admin');
-        setEmployees(activeEmployees);
+        setEmployee(employeeData);
         setLeaveRequests(leaveData);
-        setSelectedEmployeeId((current) => current || String(activeEmployees[0]?.id || ''));
         setError('');
       } catch (err) {
         console.error('Failed to load payslip generator data:', err);
-        setError('Unable to load payslip generator data.');
+        setError('Unable to load payslip data.');
       } finally {
         setLoading(false);
       }
     };
 
-    loadData();
-  }, []);
+    if (userId) {
+      loadData();
+    }
+  }, [userId]);
 
-  const selectedEmployee = useMemo(
-    () => employees.find((employee) => String(employee.id) === String(selectedEmployeeId)) || null,
-    [employees, selectedEmployeeId]
-  );
+  useEffect(() => {
+    setCanGeneratePayslip(false);
+    setPayrollMessage('');
+  }, [selectedMonth, selectedYear]);
+
+  const handleGeneratePayslip = async () => {
+    if (!employee) return;
+
+    const employeeName = buildEmployeeName(employee);
+    setCheckingPayroll(true);
+    setCanGeneratePayslip(false);
+    setPayrollMessage('');
+    setError('');
+
+    try {
+      const response = await getPayrollReport({
+        employeeId: employee.id,
+        employeeName,
+        month: selectedMonth,
+        year: selectedYear,
+      });
+      const payrollRecords = pickPayrollRecords(response);
+      const employeePayroll = payrollRecords.find((record) => {
+        const recordEmployeeId = getPayrollEmployeeId(record);
+        return String(recordEmployeeId) === String(employee.id);
+      });
+
+      if (employeePayroll && isAmountCredited(getPayrollCreditStatus(employeePayroll))) {
+        setCanGeneratePayslip(true);
+        setPayrollMessage('Payroll amount credited. Payslip is ready to download.');
+        return;
+      }
+
+      setPayrollMessage('Amount was not credited.');
+    } catch (err) {
+      console.error('Failed to verify payroll status:', err);
+      setPayrollMessage('');
+      setError(err.message || 'Unable to verify payroll status.');
+    } finally {
+      setCheckingPayroll(false);
+    }
+  };
 
   const payslip = useMemo(() => {
-    if (!selectedEmployee) return null;
+    if (!employee || !canGeneratePayslip) return null;
 
     const monthIndex = selectedMonth - 1;
     const workingDays = countWeekdaysInMonth(selectedYear, monthIndex);
     const approvedLeaveDays = leaveRequests
       .filter((request) => {
         const employeeId = request.employeeId ?? request.empId;
-        return String(employeeId) === String(selectedEmployee.id) && (request.status || '').toLowerCase() === 'approved';
+        return String(employeeId) === String(employee.id) && (request.status || '').toLowerCase() === 'approved';
       })
       .reduce(
         (total, request) => total + countLeaveDaysInMonth(request.fromDate, request.toDate, selectedYear, monthIndex),
@@ -388,15 +453,15 @@ function PayslipGeneratorPage({ userName, onLogout }) {
       );
 
     const payableDays = Math.max(workingDays - approvedLeaveDays, 0);
-    const salaryData = buildSalaryComponents(selectedEmployee, workingDays, payableDays);
+    const salaryData = buildSalaryComponents(employee, workingDays, payableDays);
     const totalEarned = salaryData.components.reduce((sum, item) => sum + item.earned, 0);
     const earnedBasicSalary = salaryData.components[0]?.earned || 0;
-    const deductions = buildDeductions(selectedEmployee, earnedBasicSalary);
+    const deductions = buildDeductions(employee, earnedBasicSalary);
     const totalDeductions = deductions.reduce((sum, item) => sum + item.amount, 0);
     const netPay = totalEarned - totalDeductions;
 
     return {
-      employee: selectedEmployee,
+      employee,
       monthLabel: MONTH_NAMES[monthIndex],
       year: selectedYear,
       workingDays,
@@ -407,23 +472,24 @@ function PayslipGeneratorPage({ userName, onLogout }) {
       totalEarned,
       totalDeductions,
       netPay,
-      grade: selectedEmployee.employeeCategory || 'B1',
-      location: selectedEmployee.workLocation || 'Hyderabad',
-      designation: selectedEmployee.designation || 'N/A',
-      department: selectedEmployee.department || 'N/A',
-      panNumber: selectedEmployee.panNumber || 'N/A',
-      gender: selectedEmployee.gender || 'N/A',
-      doj: selectedEmployee.dateOfJoining || 'N/A',
-      pfNumber: selectedEmployee.pfNumber || 'N/A',
-      uanNumber: selectedEmployee.uanNumber || 'N/A',
-      bankName: selectedEmployee.bankName || 'N/A',
-      bankAccount: selectedEmployee.accountNumber || 'N/A',
+      grade: employee.employeeCategory || 'B1',
+      location: employee.workLocation || 'Hyderabad',
+      designation: employee.designation || 'N/A',
+      department: employee.department || 'N/A',
+      panNumber: employee.panNumber || 'N/A',
+      gender: employee.gender || 'N/A',
+      doj: employee.dateOfJoining || 'N/A',
+      pfNumber: employee.pfNumber || 'N/A',
+      uanNumber: employee.uanNumber || 'N/A',
+      bankName: employee.bankName || 'N/A',
+      bankAccount: employee.accountNumber || 'N/A',
     };
-  }, [leaveRequests, selectedEmployee, selectedMonth, selectedYear]);
+  }, [canGeneratePayslip, employee, leaveRequests, selectedMonth, selectedYear]);
 
   const yearOptions = Array.from({ length: 11 }, (_, index) => new Date().getFullYear() - 5 + index);
 
   const handleDownloadPdf = async () => {
+    if (!payslipRef.current) return;
 
     const input = payslipRef.current;
 
@@ -487,48 +553,23 @@ function PayslipGeneratorPage({ userName, onLogout }) {
   };
 
   return (
-    <div className="dashboard-container">
-      <header className="dashboard-header">
-        <h1>Payslip</h1>
-        <div className="header-info">
-          <span>Welcome, {userName}!</span>
-          <button onClick={onLogout} className="logout-btn">Logout</button>
-        </div>
-      </header>
-
-      <div className="reports-layout admin-dashboard-layout">
-        <aside className="reports-sidebar">
-          <h2>Dashboard</h2>
-          <nav>
-            <button type="button" onClick={() => navigate('/admin')}>Employee Details</button>
-            <button type="button" onClick={() => navigate('/admin/leaves')}>Leave Management</button>
-            <button type="button" onClick={() => navigate('/admin/reports')}>Reports</button>
-            <button type="button" onClick={() => navigate('/admin/attendance')}>Attendance</button>
-            <button type="button" onClick={() => navigate('/admin/payroll')}>Payroll</button>
-            <button type="button" onClick={() => navigate('/admin/payroll-report')}>Payroll Report</button>
-            <button type="button" className="active" onClick={() => navigate('/admin/pf-generator')}>Payslip</button>
-            <hr className="reports-sidebar-divider" />
-            <button type="button" onClick={() => navigate('/admin/employee/new')}>+ Create Employee</button>
-          </nav>
-        </aside>
-
-        <main className="reports-main">
-          <div className="reports-content-header">
-            <h2>Payslip</h2>
-            <p>Generate a payslip styled like the sample PDF by selecting the employee, month, and year.</p>
-          </div>
-
+    <EmployeeLayout
+      userName={userName}
+      onLogout={onLogout}
+      activeItem="payslip"
+      title="Payslip"
+      subtitle="Generate your payslip after payroll amount is credited for the selected month."
+    >
           <div className="pf-generator-panel">
             <div className="pf-controls">
               <div className="pf-field">
-                <label htmlFor="payEmployee">Employee Name / ID</label>
-                <select id="payEmployee" value={selectedEmployeeId} onChange={(e) => setSelectedEmployeeId(e.target.value)}>
-                  {employees.map((employee) => (
-                    <option key={employee.id} value={employee.id}>
-                      {employee.id} - {employee.firstName} {employee.lastName}
-                    </option>
-                  ))}
-                </select>
+                <label>Employee ID</label>
+                <div className="pf-readonly-value">{employee?.id || userId || 'N/A'}</div>
+              </div>
+
+              <div className="pf-field">
+                <label>Employee Name</label>
+                <div className="pf-readonly-value">{employee ? buildEmployeeName(employee) : userName || 'N/A'}</div>
               </div>
 
               <div className="pf-field">
@@ -548,15 +589,36 @@ function PayslipGeneratorPage({ userName, onLogout }) {
                   ))}
                 </select>
               </div>
+
+              <div className="pf-actions pf-inline-action">
+                <button
+                  type="button"
+                  className="create-btn"
+                  onClick={handleGeneratePayslip}
+                  disabled={loading || checkingPayroll || !employee}
+                >
+                  {checkingPayroll ? 'Checking...' : 'Generate Payslip'}
+                </button>
+              </div>
             </div>
 
             {loading ? (
               <p className="pf-empty">Loading payslip data...</p>
             ) : error ? (
               <p className="pf-empty pf-error">{error}</p>
-            ) : !payslip ? (
+            ) : !employee ? (
               <p className="pf-empty">No employee available for payslip generation.</p>
+            ) : payrollMessage && !canGeneratePayslip ? (
+              <p className="pf-empty pf-error">{payrollMessage}</p>
+            ) : payrollMessage && canGeneratePayslip ? (
+              <div className="payroll-run-result">
+                <p className="payroll-run-title">{payrollMessage}</p>
+              </div>
             ) : (
+              <p className="pf-empty">Select month and year, then click Generate Payslip.</p>
+            )}
+
+            {payslip && (
               <>
                 <div className="payslip-preview">
                   <div className="payslip-sheet" ref={payslipRef}>
@@ -686,15 +748,10 @@ function PayslipGeneratorPage({ userName, onLogout }) {
                     Download Payslip PDF
                   </button>
                 </div>
-                <p className="pf-note">
-                  Assumption used: payslip earnings are derived from salary fields already stored in the employee profile, and approved leave days reduce the earned amount for the selected month.
-                </p>
               </>
             )}
           </div>
-        </main>
-      </div>
-    </div>
+    </EmployeeLayout>
   );
 }
 

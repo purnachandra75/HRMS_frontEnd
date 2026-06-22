@@ -40,6 +40,9 @@ function EmployeeLayout({ userName, onLogout, activeItem, title, subtitle, child
             <button type="button" className={activeItem === 'monthly-report' ? 'active' : ''} onClick={() => navigate('/employee/leaves/monthly-report')}>
               Monthly Leave Report
             </button>
+            <button type="button" className={activeItem === 'payslip' ? 'active' : ''} onClick={() => navigate('/employee/payslip')}>
+              Payslip
+            </button>
           </nav>
         </aside>
 

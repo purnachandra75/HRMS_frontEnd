@@ -118,10 +118,10 @@ function App() {
             }
           />
           <Route
-            path="/admin/pf-generator"
+            path="/employee/payslip"
             element={
-              isAuthenticated && userRole === 'admin' ? (
-                <PfGeneratorPage userName={userName} onLogout={handleLogout} />
+              isAuthenticated && userRole === 'employee' ? (
+                <PfGeneratorPage userId={userId} userName={userName} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/login" />
               )

@@ -71,11 +71,13 @@ const fetchFirstAvailableJson = async (requests, fallbackMessage) => {
   throw new Error(`${lastErrorMessage}. Backend payroll report endpoint was not found. Tried: ${notFoundUrls.join(', ')}`);
 };
 
-export const getPayrollReport = async ({ month, year }) => {
+export const getPayrollReport = async ({ month, year, employeeId, employeeName } = {}) => {
   const params = new URLSearchParams({
     month: String(month),
     year: String(year),
   });
+  if (employeeId) params.append('employeeId', String(employeeId));
+  if (employeeName) params.append('employeeName', employeeName);
   const query = params.toString();
 
   return fetchFirstAvailableJson(

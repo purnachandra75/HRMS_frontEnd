@@ -32,6 +32,10 @@ function EmployeeDashboard({ userName, userId, onLogout }) {
             <h3>Leave Requests</h3>
             <p>Submit, track, and manage your leave requests.</p>
           </div>
+          <div className="dashboard-card clickable" onClick={() => navigate('/employee/payslip')}>
+            <h3>Payslip</h3>
+            <p>Generate your payslip after payroll amount is credited.</p>
+          </div>
         </div>
 
         <div className="info-card">
@@ -43,6 +47,7 @@ function EmployeeDashboard({ userName, userId, onLogout }) {
             <li>View your attendance records</li>
             <li>Submit leave requests</li>
             <li>Track your work hours</li>
+            <li>Generate your credited payroll payslip</li>
           </ul>
         </div>
       </div>
