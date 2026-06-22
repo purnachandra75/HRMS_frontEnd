@@ -38,6 +38,10 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
         getEmployeeLeaveRequests(userId),
         getLeaveBalances(userId)
       ]);
+      console.log("User ID:", userId);
+      console.log("Requests Data:", requestsData);
+      console.log("Balances Data:", balancesData);
+
       setRequests(requestsData);
       setBalances(balancesData);
       setError(null);
@@ -125,37 +129,46 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
         ) : (
           <>
             {/* Employee Profile Section */}
-            <section className="section-box">
-              <div className="section-header">
-                <div>
-                  <h2>Employee Profile</h2>
-                </div>
-                <div className="profile-actions">
-                  <button 
-                    className={`action-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('dashboard')}
-                  >
-                    Dashboard
-                  </button>
-                  <button 
-                    className={`action-btn ${activeTab === 'apply-leave' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('apply-leave')}
-                  >
-                    Apply Leave
-                  </button>
-                  <button 
-                    className="action-btn"
-                    onClick={() => navigate('/employee/leaves/monthly-report')}
-                  >
-                    Monthly Report
-                  </button>
-                </div>
+           {/* Welcome Card */}
+          <section className="section-box employee-summary-card">
+            <div className="employee-header">
+              <div>
+                <h2>Welcome Back 👋</h2>
+                <p>Manage your leave requests and balances</p>
               </div>
-              <div className="profile-info">
-                <p><strong>ID</strong> {userId || 'N/A'}</p>
-              </div>
-            </section>
 
+              <div className="employee-meta">
+                <span>Employee ID</span>
+                <strong>{userId}</strong>
+              </div>
+            </div>
+          </section>
+
+          {/* Navigation Buttons */}
+          <section className="section-box">
+            <div className="profile-actions">
+              <button
+                className={`action-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
+                onClick={() => setActiveTab('dashboard')}
+              >
+                Dashboard
+              </button>
+
+              <button
+                className={`action-btn ${activeTab === 'apply-leave' ? 'active' : ''}`}
+                onClick={() => setActiveTab('apply-leave')}
+              >
+                Apply Leave
+              </button>
+
+              <button
+                className="action-btn"
+                onClick={() => navigate('/employee/leaves/monthly-report')}
+              >
+                Monthly Report
+              </button>
+            </div>
+          </section>
             {/* Leave Balance Cards */}
             {Object.keys(balances).length > 0 && (
               <LeaveBalances balances={balances} />
@@ -164,15 +177,44 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
             {/* Content Section - Changes based on active tab */}
             {activeTab === 'dashboard' && (
               <>
-                <div className="section-box">
-                  <div className="section-header">
-                    <h2>Dashboard Overview</h2>
-                  </div>
-                  <p className="dashboard-subtitle">Your leave balance information is displayed above. Click "Apply Leave" to submit a new leave request.</p>
+               <div className="leave-stats-grid">
+
+                <div className="stat-card">
+                  <h3>Available Leaves</h3>
+                  <span>
+                    {Array.isArray(balances)
+                      ? balances.reduce((total, item) => total + (item.balance || 0), 0)
+                      : 0}
+                  </span>
                 </div>
+
+                <div className="stat-card">
+                  <h3>Approved</h3>
+                  <span>
+                    {requests.filter(r => r.status === 'Approved').length}
+                  </span>
+                </div>
+
+                <div className="stat-card">
+                  <h3>Pending</h3>
+                  <span>
+                    {requests.filter(r => r.status === 'Pending').length}
+                  </span>
+                </div>
+
+                <div className="stat-card">
+                  <h3>Used Leaves</h3>
+                  <span>
+                    {requests
+                      .filter(r => r.status === 'Approved')
+                      .reduce((sum, r) => sum + (r.days || 0), 0)}
+                  </span>
+                </div>
+
+              </div>
                 
                 {/* My Leave Requests Table */}
-                <EmployeeRequestTable requests={requests} />
+              <EmployeeRequestTable requests={requests} />
               </>
             )}
 
