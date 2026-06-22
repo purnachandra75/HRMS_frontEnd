@@ -212,8 +212,11 @@ function AdminReportsPage({ userName, onLogout }) {
   const matchesDepartment = (dept) => {
     if (!departmentFilter || departmentFilter === 'all') return true;
     const d = String(dept || '').trim().toLowerCase();
-    if (departmentFilter === 'non-it') return d !== 'it' && d !== '';
-    return d === departmentFilter;
+    const filterLower = String(departmentFilter).trim().toLowerCase();
+    // Normalize spaces in both for comparison (e.g., "non-it" -> "non it", "Non IT" -> "non it")
+    const dNormalized = d.replace(/-/g, ' ');
+    const filterNormalized = filterLower.replace(/-/g, ' ');
+    return dNormalized === filterNormalized;
   };
 
   // Apply department filter to each report's rows so table and download respect selection
@@ -395,10 +398,10 @@ function AdminReportsPage({ userName, onLogout }) {
               <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>Department:</label>
               <select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}>
                 <option value="all">All</option>
-                <option value="hr">HR Department</option>
-                <option value="it">IT Department</option>
-                <option value="non-it">Non IT Department</option>
-                <option value="admin">Admin</option>
+                <option value="HR">HR</option>
+                <option value="IT">IT</option>
+                <option value="Non IT">Non IT</option>
+                <option value="Admin">Admin</option>
               </select>
             </div>
             {selected.hasDownload && (
