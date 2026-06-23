@@ -90,6 +90,9 @@ function AdminDashboard({ userName, onLogout }) {
             <button type="button" onClick={() => navigate('/admin/reports')}>
               Reports
             </button>
+            <button type="button" onClick={() => navigate('/admin/holidays')}>
+              Holidays
+            </button>
             <button type="button" onClick={() => navigate('/admin/attendance')}>
               Attendance
             </button>

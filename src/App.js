@@ -14,7 +14,12 @@ import AttendancePage from './pages/AttendancePage';
 import EmployeeAttendancePage from './pages/EmployeeAttendancePage';
 import PfGeneratorPage from './pages/PfGeneratorPage';
 import PayrollPage from './pages/PayrollPage';
+<<<<<<< Updated upstream
 import PayrollReportPage from './pages/PayrollReportPage';
+=======
+import AdminHolidaysPage from './pages/AdminHolidaysPage';
+import EmployeeHolidaysPage from './pages/EmployeeHolidaysPage';
+>>>>>>> Stashed changes
 import './App.css';
 
 function App() {
@@ -88,6 +93,16 @@ function App() {
             }
           />
           <Route
+            path="/admin/holidays"
+            element={
+              isAuthenticated && userRole === 'admin' ? (
+                <AdminHolidaysPage userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
             path="/admin/attendance"
             element={
               isAuthenticated && userRole === 'admin' ? (
@@ -152,6 +167,16 @@ function App() {
             element={
               isAuthenticated && userRole === 'employee' ? (
                 <EmployeeLeaveRequestPage userId={userId} userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/employee/holidays"
+            element={
+              isAuthenticated && userRole === 'employee' ? (
+                <EmployeeHolidaysPage userId={userId} userName={userName} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/login" />
               )

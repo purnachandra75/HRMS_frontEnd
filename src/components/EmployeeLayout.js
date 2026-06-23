@@ -36,6 +36,9 @@ function EmployeeLayout({ userName, onLogout, activeItem, title, subtitle, child
             <button type="button" className={activeItem === 'leaves' ? 'active' : ''} onClick={() => navigate('/employee/leaves')}>
               Leave Requests
             </button>
+            <button type="button" className={activeItem === 'holidays' ? 'active' : ''} onClick={() => navigate('/employee/holidays')}>
+              Holidays
+            </button>
             <hr className="reports-sidebar-divider" />
             <button type="button" className={activeItem === 'monthly-report' ? 'active' : ''} onClick={() => navigate('/employee/leaves/monthly-report')}>
               Monthly Leave Report

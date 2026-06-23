@@ -211,12 +211,35 @@ function AdminReportsPage({ userName, onLogout }) {
   // Department filtering helper
   const matchesDepartment = (dept) => {
     if (!departmentFilter || departmentFilter === 'all') return true;
+<<<<<<< Updated upstream
     const d = String(dept || '').trim().toLowerCase();
     const filterLower = String(departmentFilter).trim().toLowerCase();
     // Normalize spaces in both for comparison (e.g., "non-it" -> "non it", "Non IT" -> "non it")
     const dNormalized = d.replace(/-/g, ' ');
     const filterNormalized = filterLower.replace(/-/g, ' ');
     return dNormalized === filterNormalized;
+=======
+    const normalized = String(dept || '').trim().toLowerCase();
+    if (!normalized) return false;
+
+    if (departmentFilter === 'non-it') {
+      return !/\bit\b/.test(normalized);
+    }
+
+    if (departmentFilter === 'hr') {
+      return /\bhr\b/.test(normalized) || normalized.includes('hr department') || normalized.includes('human resources');
+    }
+
+    if (departmentFilter === 'it') {
+      return /\bit\b/.test(normalized) || normalized.includes('it department');
+    }
+
+    if (departmentFilter === 'admin') {
+      return normalized.includes('admin');
+    }
+
+    return normalized === departmentFilter;
+>>>>>>> Stashed changes
   };
 
   // Apply department filter to each report's rows so table and download respect selection
