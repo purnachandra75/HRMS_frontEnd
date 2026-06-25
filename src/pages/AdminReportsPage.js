@@ -34,66 +34,83 @@ function AdminReportsPage({ userName, onLogout }) {
   const parseDateOfJoining = (value) => {
     if (!value) return null;
     const normalized = String(value).trim();
+
     if (/^\d{4}-\d{2}-\d{2}$/.test(normalized)) {
       const [year, month, day] = normalized.split('-').map((part) => parseInt(part, 10));
       return new Date(year, month - 1, day);
     }
+
     if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/.test(normalized)) {
       const parts = normalized.includes('/') ? normalized.split('/') : normalized.split('-');
       const [first, second, year] = parts.map((part) => parseInt(part, 10));
       return first > 12 ? new Date(year, second - 1, first) : new Date(year, first - 1, second);
     }
+
     return new Date(normalized);
   };
 
   const getJoiningDate = (employee) => {
-   return parseDateOfJoining(employee.dateOfJoining || employee.jobDetails?.dateOfJoining || employee.jobDetails?.joinedDate);
+    return parseDateOfJoining(
+      employee.dateOfJoining ||
+      employee.jobDetails?.dateOfJoining ||
+      employee.jobDetails?.joinedDate
+    );
   };
 
-  const nonAdminEmployees = employees.filter((employee) => (employee.role || '').toLowerCase() !== 'admin');
+  const nonAdminEmployees = employees.filter(
+    (employee) => (employee.role || '').toLowerCase() !== 'admin'
+  );
+
   const activeEmployees = nonAdminEmployees.filter((employee) => {
     const status = (employee.employeeStatus || '').toLowerCase();
     return status !== 'inactive';
   });
-  
-  const salaryEmployees = activeEmployees.filter((employee) => employee.ctc !== '' || employee.basicSalary !== '');
+
+  const salaryEmployees = activeEmployees.filter(
+    (employee) => employee.ctc !== '' || employee.basicSalary !== ''
+  );
+
   const statusEmployees = nonAdminEmployees.filter((employee) => {
     const status = (employee.employeeStatus || '').toLowerCase();
     return status === 'inactive';
   });
-  const partTimeEmployees = activeEmployees.filter((employee) => (employee.employeeType || '').toLowerCase().includes('part'));
-  const fullTimeEmployees = activeEmployees.filter((employee) => (employee.employeeType || '').toLowerCase().includes('full'));
 
-  // Prepare filtered rows for Employment Type report based on dropdown selection
+  const partTimeEmployees = activeEmployees.filter((employee) =>
+    (employee.employeeType || '').toLowerCase().includes('part')
+  );
+
+  const fullTimeEmployees = activeEmployees.filter((employee) =>
+    (employee.employeeType || '').toLowerCase().includes('full')
+  );
+
   const allTypeEmployees = [...fullTimeEmployees, ...partTimeEmployees];
-  const filteredTypeEmployees = employmentFilter === 'all'
-    ? allTypeEmployees
-    : employmentFilter === 'full'
+  const filteredTypeEmployees =
+    employmentFilter === 'all'
+      ? allTypeEmployees
+      : employmentFilter === 'full'
       ? fullTimeEmployees
       : partTimeEmployees;
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
-  // Employees within 6 months of joining are considered new joiners / probation (only active employees)
+
   const newJoiners = activeEmployees.filter((employee) => {
     const joinedDate = getJoiningDate(employee);
     if (!joinedDate || Number.isNaN(joinedDate.getTime())) return false;
+
     joinedDate.setHours(0, 0, 0, 0);
     const diffDays = Math.floor((today - joinedDate) / (1000 * 60 * 60 * 24));
-    return diffDays >= 0 && diffDays <= 180; // 6 months = ~180 days
+    return diffDays >= 0 && diffDays <= 180;
   });
-  
-  // Probation period = same as new joiners (6 months from joining date)
+
   const probationEmployees = newJoiners;
 
-  // Generate year options (current year ± 5 years)
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
 
-  // Build leaves report data month-wise for selected year
   const leavesReportRows = activeEmployees.map((employee, index) => {
     const monthlyLeaves = Array(12).fill(0);
+
     if (employee.leaveHistory && Array.isArray(employee.leaveHistory)) {
       employee.leaveHistory.forEach((leave) => {
         if (leave.leaveDate) {
@@ -104,6 +121,7 @@ function AdminReportsPage({ userName, onLogout }) {
         }
       });
     }
+
     return {
       id: employee.id || index,
       name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
@@ -136,16 +154,34 @@ function AdminReportsPage({ userName, onLogout }) {
       columns: ['#', 'Employee Name', 'Department', 'Salary'],
       hasDownload: true,
     },
+
     leaves: {
       title: `Leave Report (${selectedYear})`,
       description: 'View employee leaves month-wise for the selected year.',
       rows: leavesReportRows,
-      columns: ['#', 'Employee Name', 'Department', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+      columns: [
+        '#',
+        'Employee Name',
+        'Department',
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec',
+      ],
       hasDownload: true,
       hasYearFilter: true,
     },
+
     status: {
-      title: ' Employees status',
+      title: 'Employees Status',
       description: 'See employees with inactive status (resigned, terminated, or inactive).',
       rows: statusEmployees.map((employee, index) => ({
         id: employee.id || index,
@@ -156,8 +192,9 @@ function AdminReportsPage({ userName, onLogout }) {
       columns: ['#', 'Employee Name', 'Status', 'Department'],
       hasDownload: true,
     },
+
     type: {
-      title: 'Work Type ',
+      title: 'Work Type',
       description: 'Filter active employees by part-time or full-time employment.',
       rows: filteredTypeEmployees.map((employee, index) => ({
         id: employee.id || index,
@@ -168,14 +205,17 @@ function AdminReportsPage({ userName, onLogout }) {
       columns: ['#', 'Employee Name', 'Employment Type', 'Department'],
       hasDownload: true,
     },
+
     newJoiners: {
       title: 'New Joiners',
       description: 'Active employees who joined within the last 6 months (probation period).',
       rows: newJoiners.map((employee, index) => {
         const joinedDate = getJoiningDate(employee);
-        const joinedText = joinedDate && !Number.isNaN(joinedDate.getTime())
-          ? joinedDate.toISOString().split('T')[0]
-          : 'N/A';
+        const joinedText =
+          joinedDate && !Number.isNaN(joinedDate.getTime())
+            ? joinedDate.toISOString().split('T')[0]
+            : 'N/A';
+
         return {
           id: employee.id || index,
           name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
@@ -186,14 +226,17 @@ function AdminReportsPage({ userName, onLogout }) {
       columns: ['#', 'Employee Name', 'Date Joined', 'Department'],
       hasDownload: true,
     },
+
     probation: {
       title: 'Probation Period',
       description: 'Active employees within 6 months of joining date (probation period).',
       rows: probationEmployees.map((employee, index) => {
         const joinedDate = getJoiningDate(employee);
-        const joinedText = joinedDate && !Number.isNaN(joinedDate.getTime())
-          ? joinedDate.toISOString().split('T')[0]
-          : 'N/A';
+        const joinedText =
+          joinedDate && !Number.isNaN(joinedDate.getTime())
+            ? joinedDate.toISOString().split('T')[0]
+            : 'N/A';
+
         return {
           id: employee.id || index,
           name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
@@ -206,77 +249,80 @@ function AdminReportsPage({ userName, onLogout }) {
     },
   };
 
-  const selected = reportDetails[selectedReport];
-
-  // Department filtering helper
+  // resolved department filter logic
   const matchesDepartment = (dept) => {
     if (!departmentFilter || departmentFilter === 'all') return true;
-<<<<<<< Updated upstream
-    const d = String(dept || '').trim().toLowerCase();
-    const filterLower = String(departmentFilter).trim().toLowerCase();
-    // Normalize spaces in both for comparison (e.g., "non-it" -> "non it", "Non IT" -> "non it")
-    const dNormalized = d.replace(/-/g, ' ');
-    const filterNormalized = filterLower.replace(/-/g, ' ');
-    return dNormalized === filterNormalized;
-=======
+
     const normalized = String(dept || '').trim().toLowerCase();
+    const filter = String(departmentFilter || '').trim().toLowerCase().replace(/-/g, ' ');
+
     if (!normalized) return false;
 
-    if (departmentFilter === 'non-it') {
+    if (filter === 'non it') {
       return !/\bit\b/.test(normalized);
     }
 
-    if (departmentFilter === 'hr') {
-      return /\bhr\b/.test(normalized) || normalized.includes('hr department') || normalized.includes('human resources');
+    if (filter === 'hr') {
+      return (
+        /\bhr\b/.test(normalized) ||
+        normalized.includes('hr department') ||
+        normalized.includes('human resources')
+      );
     }
 
-    if (departmentFilter === 'it') {
+    if (filter === 'it') {
       return /\bit\b/.test(normalized) || normalized.includes('it department');
     }
 
-    if (departmentFilter === 'admin') {
+    if (filter === 'admin') {
       return normalized.includes('admin');
     }
 
-    return normalized === departmentFilter;
->>>>>>> Stashed changes
+    return normalized.replace(/-/g, ' ') === filter;
   };
 
-  // Apply department filter to each report's rows so table and download respect selection
   const filteredReportDetails = Object.fromEntries(
     Object.entries(reportDetails).map(([key, rpt]) => [
       key,
       {
         ...rpt,
-        rows: Array.isArray(rpt.rows) ? rpt.rows.filter((r) => matchesDepartment(r.department)) : rpt.rows,
+        rows: Array.isArray(rpt.rows)
+          ? rpt.rows.filter((r) => matchesDepartment(r.department))
+          : rpt.rows,
       },
     ])
   );
 
-  const selectedFiltered = filteredReportDetails[selectedReport];
+  const selected = filteredReportDetails[selectedReport];
 
   const downloadReport = (report) => {
     const headers = report.columns;
-    const rows = report.rows.map((row) => Object.keys(row)
-      .filter((key) => key !== 'id')
-      .map((cellKey) => row[cellKey]));
 
-    const escapeHtml = (value) => String(value)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+    const rows = report.rows.map((row) =>
+      Object.keys(row)
+        .filter((key) => key !== 'id')
+        .map((cellKey) => row[cellKey])
+    );
+
+    const escapeHtml = (value) =>
+      String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 
     const headerRow = headers
       .map((header) => `<th style="font-weight:bold; text-align:left; padding:6px;">${escapeHtml(header)}</th>`)
       .join('');
 
     const bodyRows = rows
-      .map((row) => `
+      .map(
+        (row) => `
         <tr>
           ${row.map((cell) => `<td style="padding:6px;">${escapeHtml(cell)}</td>`).join('')}
         </tr>
-      `)
+      `
+      )
       .join('');
 
     const tableHtml = `
@@ -312,7 +358,10 @@ function AdminReportsPage({ userName, onLogout }) {
     `;
 
     const fileName = `${report.title.replace(/\s+/g, '-').toLowerCase()}.xls`;
-    const blob = new Blob([excelHtml], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    const blob = new Blob([excelHtml], {
+      type: 'application/vnd.ms-excel;charset=utf-8;',
+    });
+
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -334,82 +383,89 @@ function AdminReportsPage({ userName, onLogout }) {
       </header>
 
       <div className="reports-layout">
-        {/* Left Sidebar */}
         <aside className="reports-sidebar">
           <h2>Reports</h2>
           <nav>
-            <button 
+            <button
               className={`${selectedReport === 'salary' ? 'active' : ''}`}
               onClick={() => setSelectedReport('salary')}
             >
               Salary Reports
             </button>
-            <button 
+
+            <button
               className={`${selectedReport === 'status' ? 'active' : ''}`}
               onClick={() => setSelectedReport('status')}
             >
               Employee Exit Report
             </button>
-            <button 
+
+            <button
               className={`${selectedReport === 'type' ? 'active' : ''}`}
               onClick={() => setSelectedReport('type')}
             >
               Part-Time / Full-Time
             </button>
-            <button 
+
+            <button
               className={`${selectedReport === 'newJoiners' ? 'active' : ''}`}
               onClick={() => setSelectedReport('newJoiners')}
             >
               New Joiners
             </button>
-            <button 
+
+            <button
               className={`${selectedReport === 'probation' ? 'active' : ''}`}
               onClick={() => setSelectedReport('probation')}
             >
               Probation Period
             </button>
-            <button 
+
+            <button
               className={`${selectedReport === 'leaves' ? 'active' : ''}`}
               onClick={() => setSelectedReport('leaves')}
             >
               Leave Report
             </button>
-           
+
             <hr style={{ borderColor: 'rgba(255,255,255,0.2)', margin: '12px 0' }} />
-            <button 
-              onClick={() => navigate('/admin')}
-              style={{ opacity: 0.7 }}
-            >
+
+            <button onClick={() => navigate('/admin')} style={{ opacity: 0.7 }}>
               ← Back to Dashboard
             </button>
           </nav>
         </aside>
 
-        {/* Main Content */}
         <main className="reports-main">
           <div className="reports-content-header">
             <h2>{selected.title}</h2>
             <p>{selected.description}</p>
           </div>
 
-          {/* Controls */}
           <div className="report-controls-top">
             {selected.hasYearFilter && (
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>Year:</label>
-                <select 
-                  value={selectedYear} 
-                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>
+                  Year:
+                </label>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
                 >
                   {yearOptions.map((year) => (
-                    <option key={year} value={year}>{year}</option>
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
                   ))}
                 </select>
               </div>
             )}
+
             {selectedReport === 'type' && (
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>Employment:</label>
+                <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>
+                  Employment:
+                </label>
                 <select value={employmentFilter} onChange={(e) => setEmploymentFilter(e.target.value)}>
                   <option value="all">All</option>
                   <option value="full">Full-Time</option>
@@ -417,8 +473,11 @@ function AdminReportsPage({ userName, onLogout }) {
                 </select>
               </div>
             )}
+
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>Department:</label>
+              <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>
+                Department:
+              </label>
               <select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}>
                 <option value="all">All</option>
                 <option value="HR">HR</option>
@@ -427,6 +486,7 @@ function AdminReportsPage({ userName, onLogout }) {
                 <option value="Admin">Admin</option>
               </select>
             </div>
+
             {selected.hasDownload && (
               <button type="button" className="create-btn" onClick={() => downloadReport(selected)}>
                 Download
@@ -434,13 +494,16 @@ function AdminReportsPage({ userName, onLogout }) {
             )}
           </div>
 
-          {/* Table */}
           {loading ? (
-            <p style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>Loading report data...</p>
+            <p style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
+              Loading report data...
+            </p>
           ) : error ? (
             <p style={{ padding: '24px', textAlign: 'center', color: '#dc2626' }}>{error}</p>
           ) : selected.rows.length === 0 ? (
-            <p style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>No records found for this report.</p>
+            <p style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
+              No records found for this report.
+            </p>
           ) : (
             <div className="reports-table-wrapper">
               <table className="report-table">
@@ -455,9 +518,11 @@ function AdminReportsPage({ userName, onLogout }) {
                   {selected.rows.map((row, index) => (
                     <tr key={row.id || index}>
                       <td>{index + 1}</td>
-                      {Object.keys(row).filter((key) => key !== 'id').map((field) => (
-                        <td key={field}>{row[field]}</td>
-                      ))}
+                      {Object.keys(row)
+                        .filter((key) => key !== 'id')
+                        .map((field) => (
+                          <td key={field}>{row[field]}</td>
+                        ))}
                     </tr>
                   ))}
                 </tbody>
