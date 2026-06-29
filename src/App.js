@@ -15,6 +15,8 @@ import EmployeeAttendancePage from './pages/EmployeeAttendancePage';
 import PfGeneratorPage from './pages/PfGeneratorPage';
 import PayrollPage from './pages/PayrollPage';
 import PayrollReportPage from './pages/PayrollReportPage';
+import AdminHolidaysPage from './pages/AdminHolidaysPage';
+import EmployeeHolidaysPage from './pages/EmployeeHolidaysPage';
 import './App.css';
 
 function App() {
@@ -24,7 +26,6 @@ function App() {
   const [userName, setUserName] = useState(null);
 
   useEffect(() => {
-    // Check if user is already logged in (persist login state)
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
       const user = JSON.parse(storedUser);
@@ -58,15 +59,25 @@ function App() {
           <Route
             path="/login"
             element={
-              isAuthenticated ? <Navigate to={userRole === 'admin' ? '/admin' : '/employee'} /> : <Login onLogin={handleLogin} />
+              isAuthenticated ? (
+                <Navigate to={userRole === 'admin' ? '/admin' : '/employee'} />
+              ) : (
+                <Login onLogin={handleLogin} />
+              )
             }
           />
+
           <Route
             path="/register"
             element={
-              isAuthenticated ? <Navigate to={userRole === 'admin' ? '/admin' : '/employee'} /> : <Register />
+              isAuthenticated ? (
+                <Navigate to={userRole === 'admin' ? '/admin' : '/employee'} />
+              ) : (
+                <Register />
+              )
             }
           />
+
           <Route
             path="/admin"
             element={
@@ -77,6 +88,7 @@ function App() {
               )
             }
           />
+
           <Route
             path="/admin/leaves"
             element={
@@ -87,6 +99,18 @@ function App() {
               )
             }
           />
+
+          <Route
+            path="/admin/holidays"
+            element={
+              isAuthenticated && userRole === 'admin' ? (
+                <AdminHolidaysPage userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+
           <Route
             path="/admin/attendance"
             element={
@@ -97,6 +121,7 @@ function App() {
               )
             }
           />
+
           <Route
             path="/admin/salary-report"
             element={
@@ -107,6 +132,7 @@ function App() {
               )
             }
           />
+
           <Route
             path="/admin/reports"
             element={
@@ -117,16 +143,7 @@ function App() {
               )
             }
           />
-          <Route
-            path="/employee/payslip"
-            element={
-              isAuthenticated && userRole === 'employee' ? (
-                <PfGeneratorPage userId={userId} userName={userName} onLogout={handleLogout} />
-              ) : (
-                <Navigate to="/login" />
-              )
-            }
-          />
+
           <Route
             path="/admin/payroll"
             element={
@@ -137,6 +154,7 @@ function App() {
               )
             }
           />
+
           <Route
             path="/admin/payroll-report"
             element={
@@ -147,6 +165,18 @@ function App() {
               )
             }
           />
+
+          <Route
+            path="/employee/payslip"
+            element={
+              isAuthenticated && userRole === 'employee' ? (
+                <PfGeneratorPage userId={userId} userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+
           <Route
             path="/employee/leaves"
             element={
@@ -157,6 +187,18 @@ function App() {
               )
             }
           />
+
+          <Route
+            path="/employee/holidays"
+            element={
+              isAuthenticated && userRole === 'employee' ? (
+                <EmployeeHolidaysPage userId={userId} userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+
           <Route
             path="/employee/leaves/monthly-report"
             element={
@@ -167,6 +209,7 @@ function App() {
               )
             }
           />
+
           <Route
             path="/employee/attendance"
             element={
@@ -177,6 +220,7 @@ function App() {
               )
             }
           />
+
           <Route
             path="/employee"
             element={
@@ -187,37 +231,61 @@ function App() {
               )
             }
           />
+
           <Route
             path="/employee/profile"
             element={
               isAuthenticated && userRole === 'employee' ? (
-                <EmployeeProfile userId={userId} userName={userName} userRole={userRole} onLogout={handleLogout} />
+                <EmployeeProfile
+                  userId={userId}
+                  userName={userName}
+                  userRole={userRole}
+                  onLogout={handleLogout}
+                />
               ) : (
                 <Navigate to="/login" />
               )
             }
           />
+
           <Route
             path="/admin/employee/new"
             element={
               isAuthenticated && userRole === 'admin' ? (
-                <EmployeeProfile userId={userId} userName={userName} userRole={userRole} onLogout={handleLogout} />
+                <EmployeeProfile
+                  userId={userId}
+                  userName={userName}
+                  userRole={userRole}
+                  onLogout={handleLogout}
+                />
               ) : (
                 <Navigate to="/login" />
               )
             }
           />
+
           <Route
             path="/admin/employee/:id"
             element={
               isAuthenticated && userRole === 'admin' ? (
-                <EmployeeProfile userId={userId} userName={userName} userRole={userRole} onLogout={handleLogout} />
+                <EmployeeProfile
+                  userId={userId}
+                  userName={userName}
+                  userRole={userRole}
+                  onLogout={handleLogout}
+                />
               ) : (
                 <Navigate to="/login" />
               )
             }
           />
-          <Route path="/" element={<Navigate to={isAuthenticated ? (userRole === 'admin' ? '/admin' : '/employee') : '/login'} />} />
+
+          <Route
+            path="/"
+            element={
+              <Navigate to={isAuthenticated ? (userRole === 'admin' ? '/admin' : '/employee') : '/login'} />
+            }
+          />
         </Routes>
       </div>
     </Router>
