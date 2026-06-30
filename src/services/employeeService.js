@@ -63,12 +63,72 @@ const flattenEmployee = (employee) => {
     emergencyAlternateNumber: employee.emergencyContact?.emergencyAlternateNumber || '',
     emergencyAddress: employee.emergencyContact?.emergencyAddress || '',
 
-    resumeUpload: employee.documentDetails?.resumeUpload || '',
-    idProofUpload: employee.documentDetails?.idProofUpload || '',
-    addressProofUpload: employee.documentDetails?.addressProofUpload || '',
-    educationalCertificates: employee.documentDetails?.educationalCertificates || '',
-    experienceCertificates: employee.documentDetails?.experienceCertificates || '',
-    passportPhoto: employee.documentDetails?.passportPhoto || '',
+    resumeUpload:
+      employee.documentDetails?.resumeUploadName ||
+      employee.documentDetails?.resumeUpload ||
+      employee.resumeUploadName ||
+      employee.resumeUpload ||
+      '',
+    idProofUpload:
+      employee.documentDetails?.idProofUploadName ||
+      employee.documentDetails?.idProofUpload ||
+      employee.idProofUploadName ||
+      employee.idProofUpload ||
+      '',
+    addressProofUpload:
+      employee.documentDetails?.addressProofUploadName ||
+      employee.documentDetails?.addressProofUpload ||
+      employee.addressProofUploadName ||
+      employee.addressProofUpload ||
+      '',
+    educationalCertificates:
+      employee.documentDetails?.educationalCertificatesName ||
+      employee.documentDetails?.educationalCertificates ||
+      employee.educationalCertificatesName ||
+      employee.educationalCertificates ||
+      '',
+    experienceCertificates:
+      employee.documentDetails?.experienceCertificatesName ||
+      employee.documentDetails?.experienceCertificates ||
+      employee.experienceCertificatesName ||
+      employee.experienceCertificates ||
+      '',
+    passportPhoto:
+      employee.documentDetails?.passportPhotoName ||
+      employee.documentDetails?.passportPhoto ||
+      employee.passportPhotoName ||
+      employee.passportPhoto ||
+      '',
+    tenthCertificate:
+      employee.documentDetails?.tenthCertificateName ||
+      employee.documentDetails?.tenthCertificate ||
+      employee.tenthCertificateName ||
+      employee.tenthCertificate ||
+      '',
+    intermediateMarksheet:
+      employee.documentDetails?.intermediateMarksheetName ||
+      employee.documentDetails?.intermediateMarksheet ||
+      employee.intermediateMarksheetName ||
+      employee.intermediateMarksheet ||
+      '',
+    provisionalCertificate:
+      employee.documentDetails?.provisionalCertificateName ||
+      employee.documentDetails?.provisionalCertificate ||
+      employee.provisionalCertificateName ||
+      employee.provisionalCertificate ||
+      '',
+    originalDegree:
+      employee.documentDetails?.originalDegreeName ||
+      employee.documentDetails?.originalDegree ||
+      employee.originalDegreeName ||
+      employee.originalDegree ||
+      '',
+    aadhaarUpload:
+      employee.documentDetails?.aadhaarUploadName ||
+      employee.documentDetails?.aadhaarUpload ||
+      employee.aadhaarUploadName ||
+      employee.aadhaarUpload ||
+      '',
   };
 };
 
@@ -134,19 +194,86 @@ const buildEmployeePayload = (profileData) => ({
     emergencyAlternateNumber: profileData.emergencyAlternateNumber || null,
     emergencyAddress: profileData.emergencyAddress || null,
   },
-  documentDetails: {
-    resumeUpload: profileData.resumeUpload || null,
-    idProofUpload: profileData.idProofUpload || null,
-    addressProofUpload: profileData.addressProofUpload || null,
-    educationalCertificates: profileData.educationalCertificates || null,
-    experienceCertificates: profileData.experienceCertificates || null,
-    passportPhoto: profileData.passportPhoto || null,
-  },
 });
 
+const normalizeFileField = (value) => {
+  if (!value) return null;
+  if (typeof value === 'object' && value.content) {
+    return value.content;
+  }
+  return value;
+};
+
+export const getEmployeesPage = async ({ page = 1, size = 2, searchQuery = '' }) => {
+  const params = new URLSearchParams();
+  const apiPage = Math.max(0, page - 1);
+  params.append('page', apiPage);
+  params.append('size', size);
+
+  let requestUrl = API_BASE_URL;
+  if (searchQuery) {
+    requestUrl = 'http://localhost:8080/api/employee/getemployee';
+    params.append('search', searchQuery);
+  }
+
+  const response = await axios.get(`${requestUrl}?${params.toString()}`);
+  const data = response.data;
+
+  let employees = [];
+  let total = null;
+  let pageSize = size;
+
+  if (Array.isArray(data)) {
+    employees = data.map(flattenEmployee);
+  } else {
+    if (Array.isArray(data.content)) {
+      employees = data.content.map(flattenEmployee);
+    } else if (Array.isArray(data.employees)) {
+      employees = data.employees.map(flattenEmployee);
+    }
+
+    total = data.totalElements ?? data.total ?? data.totalCount ?? data.totalEmployees ?? null;
+    pageSize = data.size ?? data.pageable?.pageSize ?? size;
+  }
+
+  return { employees, total, pageSize };
+};
+
 export const getAllEmployees = async () => {
-  const response = await axios.get(API_BASE_URL);
-  return response.data.map(flattenEmployee);
+  const allEmployees = [];
+  let page = 0;
+  let lastPage = false;
+
+  while (!lastPage) {
+    const response = await axios.get(API_BASE_URL, {
+      params: {
+        page,
+        size: 1000,
+      },
+    });
+    const data = response.data;
+
+    if (Array.isArray(data)) {
+      return data.map(flattenEmployee);
+    }
+
+    const pageItems = Array.isArray(data.content)
+      ? data.content
+      : Array.isArray(data.employees)
+      ? data.employees
+      : [];
+
+    allEmployees.push(...pageItems.map(flattenEmployee));
+
+    lastPage = data.last === true || pageItems.length === 0;
+    page += 1;
+
+    if (page > 50) {
+      break;
+    }
+  }
+
+  return allEmployees;
 };
 
 export const getEmployeeById = async (employeeId) => {
@@ -155,6 +282,37 @@ export const getEmployeeById = async (employeeId) => {
 };
 
 export const getEmployeeProfile = async (userId) => getEmployeeById(userId);
+
+export const uploadEmployeeDocument = async (employeeId, fieldName, file) => {
+  const docType = mapFieldNameToDocType(fieldName);
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await axios.post(`${API_BASE_URL}/${employeeId}/document/${docType}`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+
+  return response.data;
+};
+
+const mapFieldNameToDocType = (fieldName) => {
+  const mapping = {
+    resumeUpload: 'resume',
+    idProofUpload: 'idproof',
+    addressProofUpload: 'addressproof',
+    educationalCertificates: 'education',
+    experienceCertificates: 'experience',
+    passportPhoto: 'passport',
+    tenthCertificate: 'tenthCertificate',
+    intermediateMarksheet: 'intermediateMarksheet',
+    provisionalCertificate: 'provisionalCertificate',
+    originalDegree: 'originalDegree',
+    aadhaarUpload: 'aadhaarUpload',
+  };
+  return mapping[fieldName] || fieldName;
+};
 
 export const updateEmployeeProfile = async (userId, profileData) => {
   const payload = buildEmployeePayload(profileData);

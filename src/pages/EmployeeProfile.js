@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import EmployeeLayout from '../components/EmployeeLayout';
-import { createEmployee, getEmployeeProfile, getEmployeeById, updateEmployeeProfile } from '../services/employeeService';
+import { createEmployee, getEmployeeProfile, getEmployeeById, updateEmployeeProfile, uploadEmployeeDocument } from '../services/employeeService';
 import LeaveReportCard from '../components/LeaveReportCard';
 import '../styles/Profile.css';
 import '../styles/Leave.css';
@@ -70,28 +70,123 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
     }));
   };
 
+  const handleFileChange = (e) => {
+    const { name, files } = e.target;
+    const file = files?.[0];
+    if (!file) return;
+
+    if (file.size > 1024 * 1024) {
+      alert('File size must be 1 MB or less.');
+      e.target.value = null;
+      return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      [name]: file,
+    }));
+  };
+
+  const getFileUrl = (fileValue) => {
+    if (!fileValue) return null;
+    if (typeof fileValue === 'object') {
+      if (fileValue.content) return fileValue.content;
+      if (fileValue.url) return fileValue.url;
+      if (fileValue.path) return fileValue.path;
+    }
+    if (typeof fileValue === 'string' && (fileValue.startsWith('data:') || fileValue.startsWith('http') || fileValue.startsWith('blob:'))) {
+      return fileValue;
+    }
+    return null;
+  };
+
+  const getDocumentDownloadUrl = (fieldName, fileValue) => {
+    const directUrl = getFileUrl(fileValue);
+    if (directUrl) return directUrl;
+    if (!fileValue) return null;
+
+    const docTypeMap = {
+      resumeUpload: 'resume',
+      idProofUpload: 'idproof',
+      addressProofUpload: 'addressproof',
+      educationalCertificates: 'education',
+      experienceCertificates: 'experience',
+      passportPhoto: 'passport',
+      tenthCertificate: 'tenthCertificate',
+      intermediateMarksheet: 'intermediateMarksheet',
+      provisionalCertificate: 'provisionalCertificate',
+      originalDegree: 'originalDegree',
+      aadhaarUpload: 'aadhaarUpload',
+    };
+
+    const docType = docTypeMap[fieldName] || fieldName;
+    const employeeId = profileId || employee?.id || userId;
+    if (!employeeId) return null;
+
+    return `http://localhost:8080/api/employees/${employeeId}/document/${docType}`;
+  };
+
+  const getFileName = (fileValue) => {
+    if (!fileValue) return 'document';
+    if (typeof fileValue === 'object') {
+      return fileValue.name || fileValue.filename || 'document';
+    }
+    if (fileValue.startsWith('data:')) {
+      return 'document';
+    }
+    const pathParts = fileValue.split('/');
+    const fileName = pathParts[pathParts.length - 1] || fileValue;
+    return fileName.split('?')[0] || fileName;
+  };
+
+  const uploadPendingDocuments = async (employeeId, data) => {
+    const documentFields = [
+      'resumeUpload',
+      'idProofUpload',
+      'addressProofUpload',
+      'educationalCertificates',
+      'experienceCertificates',
+      'passportPhoto',
+    ];
+
+    for (const fieldName of documentFields) {
+      const file = data[fieldName];
+      if (file instanceof File) {
+        await uploadEmployeeDocument(employeeId, fieldName, file);
+      }
+    }
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
       if (isCreateMode) {
         const result = await createEmployee(formData);
-        if (result.success) {
-          setEmployee(result.employee);
-          setIsEditing(false);
-          alert('Employee created successfully!');
-          navigate('/admin');
-        } else {
+        if (!result.success) {
           throw new Error(result.message);
         }
+
+        if (result.employee?.id) {
+          await uploadPendingDocuments(result.employee.id, formData);
+          await loadEmployee();
+        }
+
+        setEmployee(result.employee);
+        setIsEditing(false);
+        alert('Employee created successfully!');
+        navigate('/admin');
       } else {
         const result = await updateEmployeeProfile(profileId, formData);
-        if (result.success) {
-          setEmployee(result.employee);
-          setIsEditing(false);
-          alert('Profile updated successfully!');
-        } else {
+        if (!result.success) {
           throw new Error(result.message);
         }
+
+        await uploadPendingDocuments(profileId, formData);
+        await loadEmployee();
+
+        setEmployee(result.employee);
+        setIsEditing(false);
+        alert('Profile updated successfully!');
       }
     } catch (err) {
       alert(err.message || 'Failed to save profile');
@@ -139,9 +234,21 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
   const sectionReadOnly = !isAdminView && !isCreateMode && (activeSection === 'job' || activeSection === 'salary');
 
   const renderSectionView = (id) => {
-    const F = (label, value) => (
-      <div className="info-item"><strong>{label}</strong> {value || '—'}</div>
-    );
+    const F = (label, value, isFile = false, fieldName = '') => {
+      const fileUrl = isFile ? getDocumentDownloadUrl(fieldName, value) : getFileUrl(value);
+      if (fileUrl) {
+        return (
+          <div className="info-item">
+            <strong>{label}</strong>
+            <a href={fileUrl} target="_blank" rel="noopener noreferrer" download={getFileName(value)}>
+              {getFileName(value)}
+            </a>
+          </div>
+        );
+      }
+
+      return <div className="info-item"><strong>{label}</strong> {value || '—'}</div>;
+    };
 
     switch (id) {
       case 'personal':
@@ -237,6 +344,14 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
               {F('Passport Number:', employee.passportNumber)}
               {F('Driving License:', employee.drivingLicense)}
               {F('License Expiry Date:', employee.licenseExpiryDate)}
+              {F('Resume:', employee.resumeUpload, true, 'resumeUpload')}
+              {F('Passport Photo:', employee.passportPhoto, true, 'passportPhoto')}
+              {F('10th Certificate:', employee.tenthCertificate, true, 'tenthCertificate')}
+              {F('Intermediate Marksheet:', employee.intermediateMarksheet, true, 'intermediateMarksheet')}
+              {F('Provisional Certificate:', employee.provisionalCertificate, true, 'provisionalCertificate')}
+              {F('Original Degree:', employee.originalDegree, true, 'originalDegree')}
+              {F('Aadhaar Card:', employee.aadhaarUpload, true, 'aadhaarUpload')}
+              {F('ID Proof:', employee.idProofUpload, true, 'idProofUpload')}
             </div>
           </div>
         );
@@ -1023,6 +1138,98 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
                         value={formData.licenseExpiryDate || ''}
                         onChange={handleInputChange}
                       />
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Resume</label>
+                      <input
+                        type="file"
+                        name="resumeUpload"
+                        onChange={handleFileChange}
+                        accept=".pdf,.doc,.docx"
+                      />
+                      {formData.resumeUpload && <small>Selected: {formData.resumeUpload.name || formData.resumeUpload}</small>}
+                    </div>
+                    <div className="form-group">
+                      <label>Passport Photo</label>
+                      <input
+                        type="file"
+                        name="passportPhoto"
+                        onChange={handleFileChange}
+                        accept="image/*"
+                      />
+                      {formData.passportPhoto && <small>Selected: {formData.passportPhoto.name || formData.passportPhoto}</small>}
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>10th Certificate</label>
+                      <input
+                        type="file"
+                        name="tenthCertificate"
+                        onChange={handleFileChange}
+                        accept=".pdf,.jpg,.jpeg,.png"
+                      />
+                      {formData.tenthCertificate && <small>Selected: {formData.tenthCertificate.name || formData.tenthCertificate}</small>}
+                    </div>
+                    <div className="form-group">
+                      <label>Intermediate Marksheet</label>
+                      <input
+                        type="file"
+                        name="intermediateMarksheet"
+                        onChange={handleFileChange}
+                        accept=".pdf,.jpg,.jpeg,.png"
+                      />
+                      {formData.intermediateMarksheet && <small>Selected: {formData.intermediateMarksheet.name || formData.intermediateMarksheet}</small>}
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Provisional Certificate</label>
+                      <input
+                        type="file"
+                        name="provisionalCertificate"
+                        onChange={handleFileChange}
+                        accept=".pdf,.jpg,.jpeg,.png"
+                      />
+                      {formData.provisionalCertificate && <small>Selected: {formData.provisionalCertificate.name || formData.provisionalCertificate}</small>}
+                    </div>
+                    <div className="form-group">
+                      <label>Original Degree</label>
+                      <input
+                        type="file"
+                        name="originalDegree"
+                        onChange={handleFileChange}
+                        accept=".pdf,.jpg,.jpeg,.png"
+                      />
+                      {formData.originalDegree && <small>Selected: {formData.originalDegree.name || formData.originalDegree}</small>}
+                    </div>
+                  </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Aadhaar Card</label>
+                      <input
+                        type="file"
+                        name="aadhaarUpload"
+                        onChange={handleFileChange}
+                        accept=".pdf,.jpg,.jpeg,.png"
+                      />
+                      {formData.aadhaarUpload && <small>Selected: {formData.aadhaarUpload.name || formData.aadhaarUpload}</small>}
+                    </div>
+                    <div className="form-group">
+                      <label>Verification ID Proof</label>
+                      <input
+                        type="file"
+                        name="idProofUpload"
+                        onChange={handleFileChange}
+                        accept=".pdf,.jpg,.jpeg,.png"
+                      />
+                      {formData.idProofUpload && <small>Selected: {formData.idProofUpload.name || formData.idProofUpload}</small>}
                     </div>
                   </div>
                 </form>

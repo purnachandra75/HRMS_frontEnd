@@ -195,6 +195,40 @@
   overflow-y: hidden;
 }
 
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.pagination-btn {
+  background: #1f6feb;
+  border: none;
+  color: #fff;
+  padding: 10px 16px;
+  font-size: 0.95rem;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.pagination-btn:disabled {
+  background: #cbd5e1;
+  cursor: not-allowed;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background: #1558d0;
+}
+
+.pagination-info {
+  color: #475569;
+  font-weight: 600;
+}
+
 .employees-table {
   width: 100%;
   min-width: 1100px;
