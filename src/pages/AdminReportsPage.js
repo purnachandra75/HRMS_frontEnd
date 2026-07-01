@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getAllEmployees } from '../services/employeeService';
+import { getEmployeesPage } from '../services/employeeService';
 import '../styles/Dashboard.css';
 import '../styles/Leave.css';
 
@@ -12,7 +12,11 @@ function AdminReportsPage({ userName, onLogout }) {
   const [employeeReportType, setEmployeeReportType] = useState('status');
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [employmentFilter, setEmploymentFilter] = useState('all');
-  const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [departmentFilter, setDepartmentFilter] = useState('All');
+  const [currentPage, setCurrentPage] = useState(1);
+  const rowsPerPage = 2;
+  const [backendTotal, setBackendTotal] = useState(0);
+  const [backendTotalPages, setBackendTotalPages] = useState(1);
   const [expandedSections, setExpandedSections] = useState({
     payroll: true,
     employee: false,
@@ -22,21 +26,54 @@ function AdminReportsPage({ userName, onLogout }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    const loadEmployees = async () => {
+    const loadReportPage = async () => {
+      if (!['salary', 'leaves', 'attendance', 'employee'].includes(selectedReport)) return;
+
       setLoading(true);
       try {
-        const data = await getAllEmployees();
-        setEmployees(data);
+        const trimmedDepartment = String(departmentFilter || '').trim();
+        const params = {
+          page: currentPage,
+          size: rowsPerPage,
+        };
+
+        if (trimmedDepartment && trimmedDepartment.toLowerCase() !== 'all') {
+          params.department = trimmedDepartment;
+        }
+
+        if (selectedReport === 'salary' || selectedReport === 'leaves' || selectedReport === 'attendance') {
+          params.status = 'active';
+        }
+
+        if (selectedReport === 'employee') {
+          if (employeeReportType === 'status') {
+            params.status = 'inactive';
+          } else {
+            params.status = 'active';
+          }
+
+          if (employeeReportType === 'employment' && employmentFilter) {
+            const normalizedEmployment = employmentFilter.trim();
+            if (normalizedEmployment.toLowerCase() !== 'all') {
+              params.employeeType = normalizedEmployment;
+            }
+          }
+        }
+
+        const { employees: paged, total, totalPages } = await getEmployeesPage(params);
+        setEmployees(paged);
+        setBackendTotal(total ?? paged.length);
+        setBackendTotalPages(totalPages ?? Math.max(1, Math.ceil((total ?? paged.length) / rowsPerPage)));
       } catch (err) {
-        console.error('Failed to load report data:', err);
+        console.error('Failed to load report page:', err);
         setError('Unable to load report data.');
       } finally {
         setLoading(false);
       }
     };
 
-    loadEmployees();
-  }, []);
+    loadReportPage();
+  }, [selectedReport, employeeReportType, departmentFilter, employmentFilter, currentPage]);
 
   const parseDateOfJoining = (value) => {
     if (!value) return null;
@@ -83,11 +120,11 @@ function AdminReportsPage({ userName, onLogout }) {
   });
 
   const partTimeEmployees = activeEmployees.filter((employee) =>
-    (employee.employeeType || '').toLowerCase().includes('part')
+    (employee.employeeType || '').toLowerCase().includes('part time')
   );
 
   const fullTimeEmployees = activeEmployees.filter((employee) =>
-    (employee.employeeType || '').toLowerCase().includes('full')
+    (employee.employeeType || '').toLowerCase().includes('full time')
   );
 
   const allTypeEmployees = [...fullTimeEmployees, ...partTimeEmployees];
@@ -205,7 +242,7 @@ function AdminReportsPage({ userName, onLogout }) {
     status: {
       title: 'Employee Exit Report',
       description: 'See employees with inactive status (resigned, terminated, or inactive).',
-      rows: statusEmployees.map((employee, index) => ({
+      rows: employees.map((employee, index) => ({
         id: employee.id || index,
         name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
         status: employee.employeeStatus || 'N/A',
@@ -214,25 +251,15 @@ function AdminReportsPage({ userName, onLogout }) {
       columns: ['#', 'Employee Name', 'Status', 'Department'],
       hasDownload: true,
     },
-    fulltime: {
-      title: 'Full-Time Employees',
-      description: 'View all active full-time employees.',
-      rows: fullTimeEmployees.map((employee, index) => ({
+    employment: {
+      title: 'Employment Type Report',
+      description: 'View active employees by employment type with a full/part filter.',
+      rows: employees.map((employee, index) => ({
         id: employee.id || index,
         name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
-        type: 'Full-Time',
-        department: employee.department || 'N/A',
-      })),
-      columns: ['#', 'Employee Name', 'Employment Type', 'Department'],
-      hasDownload: true,
-    },
-    parttime: {
-      title: 'Part-Time Employees',
-      description: 'View all active part-time employees.',
-      rows: partTimeEmployees.map((employee, index) => ({
-        id: employee.id || index,
-        name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
-        type: 'Part-Time',
+        type: (employee.employeeType || 'N/A').replace(/\b(full|part)\b/i, (match) =>
+          match.toLowerCase() === 'full' ? 'Full-Time' : 'Part-Time'
+        ),
         department: employee.department || 'N/A',
       })),
       columns: ['#', 'Employee Name', 'Employment Type', 'Department'],
@@ -241,7 +268,7 @@ function AdminReportsPage({ userName, onLogout }) {
     newJoiners: {
       title: 'New Joiners',
       description: 'Active employees who joined within the last 6 months (probation period).',
-      rows: newJoiners.map((employee, index) => {
+      rows: employees.map((employee, index) => {
         const joinedDate = getJoiningDate(employee);
         const joinedText =
           joinedDate && !Number.isNaN(joinedDate.getTime())
@@ -261,7 +288,7 @@ function AdminReportsPage({ userName, onLogout }) {
     probation: {
       title: 'Probation Period',
       description: 'Active employees within 6 months of joining date (probation period).',
-      rows: probationEmployees.map((employee, index) => {
+      rows: employees.map((employee, index) => {
         const joinedDate = getJoiningDate(employee);
         const joinedText =
           joinedDate && !Number.isNaN(joinedDate.getTime())
@@ -281,10 +308,10 @@ function AdminReportsPage({ userName, onLogout }) {
   };
 
   const matchesDepartment = (dept) => {
-    if (!departmentFilter || departmentFilter === 'all') return true;
+    const filter = String(departmentFilter || '').trim().toLowerCase().replace(/-/g, ' ');
+    if (!filter || filter === 'all') return true;
 
     const normalized = String(dept || '').trim().toLowerCase();
-    const filter = String(departmentFilter || '').trim().toLowerCase().replace(/-/g, ' ');
 
     if (!normalized) return false;
 
@@ -317,12 +344,14 @@ function AdminReportsPage({ userName, onLogout }) {
 
   const selectPayrollReport = (report) => {
     setSelectedReport(report);
+    setCurrentPage(1);
     setExpandedSections((prev) => ({ ...prev, payroll: true }));
   };
 
   const selectEmployeeReport = (reportType) => {
     setEmployeeReportType(reportType);
     setSelectedReport('employee');
+    setCurrentPage(1);
     setExpandedSections((prev) => ({ ...prev, employee: true }));
   };
 
@@ -330,14 +359,42 @@ function AdminReportsPage({ userName, onLogout }) {
     ? employeeReports[employeeReportType]
     : reportDetails[selectedReport];
 
+  const visibleRows = selectedReportData && Array.isArray(selectedReportData.rows)
+    ? selectedReportData.rows
+    : [];
+
+  const filteredRows = visibleRows.filter((row) => matchesDepartment(row.department));
+  const isBackendPagedReport = ['salary', 'leaves', 'attendance', 'employee'].includes(selectedReport);
+
+  const totalRows = isBackendPagedReport ? backendTotal : filteredRows.length;
+  const totalPages = isBackendPagedReport
+    ? backendTotalPages
+    : Math.max(1, Math.ceil(totalRows / rowsPerPage));
+
+  const currentPageRows = isBackendPagedReport
+    ? visibleRows
+    : filteredRows.slice(
+        (currentPage - 1) * rowsPerPage,
+        currentPage * rowsPerPage
+      );
+
   const selected = selectedReportData
     ? {
         ...selectedReportData,
-        rows: Array.isArray(selectedReportData.rows)
-          ? selectedReportData.rows.filter((row) => matchesDepartment(row.department))
-          : selectedReportData.rows,
+        rows: currentPageRows,
+        totalRows,
       }
     : null;
+
+  const reportForDownload = selectedReportData
+    ? { ...selectedReportData, rows: currentPageRows }
+    : null;
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(1);
+    }
+  }, [currentPage, totalPages]);
 
   const downloadReport = (report) => {
     const headers = report.columns;
@@ -516,12 +573,12 @@ function AdminReportsPage({ userName, onLogout }) {
                     • Employee Exit Report
                   </button>
                   <button
-                    onClick={() => selectEmployeeReport('fulltime')}
+                    onClick={() => selectEmployeeReport('employment')}
                     style={{
                       width: '100%',
                       padding: '8px 12px',
                       marginBottom: '4px',
-                      background: selectedReport === 'employee' && employeeReportType === 'fulltime' ? '#3b82f6' : 'transparent',
+                      background: selectedReport === 'employee' && employeeReportType === 'employment' ? '#3b82f6' : 'transparent',
                       color: '#fff',
                       border: 'none',
                       cursor: 'pointer',
@@ -530,24 +587,7 @@ function AdminReportsPage({ userName, onLogout }) {
                       fontSize: '14px',
                     }}
                   >
-                    • Full-Time Employees
-                  </button>
-                  <button
-                    onClick={() => selectEmployeeReport('parttime')}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      marginBottom: '4px',
-                      background: selectedReport === 'employee' && employeeReportType === 'parttime' ? '#3b82f6' : 'transparent',
-                      color: '#fff',
-                      border: 'none',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                    }}
-                  >
-                    • Part-Time Employees
+                    • Employment Type Report
                   </button>
                   <button
                     onClick={() => selectEmployeeReport('newJoiners')}
@@ -705,7 +745,10 @@ function AdminReportsPage({ userName, onLogout }) {
                 </label>
                 <select
                   value={selectedYear}
-                  onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
+                  onChange={(e) => {
+                    setSelectedYear(parseInt(e.target.value, 10));
+                    setCurrentPage(1);
+                  }}
                 >
                   {yearOptions.map((year) => (
                     <option key={year} value={year}>
@@ -716,15 +759,18 @@ function AdminReportsPage({ userName, onLogout }) {
               </div>
             )}
 
-            {selectedReport === 'employee' && ['fulltime', 'parttime'].includes(employeeReportType) && (
+            {selectedReport === 'employee' && employeeReportType === 'employment' && (
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>
                   Employment:
                 </label>
-                <select value={employmentFilter} onChange={(e) => setEmploymentFilter(e.target.value)}>
+                <select value={employmentFilter} onChange={(e) => {
+                  setEmploymentFilter(e.target.value);
+                  setCurrentPage(1);
+                }}>
                   <option value="all">All</option>
-                  <option value="full">Full-Time</option>
-                  <option value="part">Part-Time</option>
+                  <option value="Full Time">Full Time</option>
+                  <option value="Part Time">Part Time</option>
                 </select>
               </div>
             )}
@@ -733,8 +779,11 @@ function AdminReportsPage({ userName, onLogout }) {
               <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>
                 Department:
               </label>
-              <select value={departmentFilter} onChange={(e) => setDepartmentFilter(e.target.value)}>
-                <option value="all">All</option>
+              <select value={departmentFilter} onChange={(e) => {
+                setDepartmentFilter(e.target.value);
+                setCurrentPage(1);
+              }}>
+                <option value="All">All</option>
                 <option value="HR">HR</option>
                 <option value="IT">IT</option>
                 <option value="Non IT">Non IT</option>
@@ -742,8 +791,8 @@ function AdminReportsPage({ userName, onLogout }) {
               </select>
             </div>
 
-            {selected?.hasDownload && (
-              <button type="button" className="create-btn" onClick={() => downloadReport(selected)}>
+            {selected?.hasDownload && reportForDownload && (
+              <button type="button" className="create-btn" onClick={() => downloadReport(reportForDownload)}>
                 Download
               </button>
             )}
@@ -762,29 +811,58 @@ function AdminReportsPage({ userName, onLogout }) {
               No records found for this report.
             </p>
           ) : (
-            <div className="reports-table-wrapper">
-              <table className="report-table">
-                <thead>
-                  <tr>
-                    {selected.columns.map((column) => (
-                      <th key={column}>{column}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {selected.rows.map((row, index) => (
-                    <tr key={row.id || index}>
-                      <td>{index + 1}</td>
-                      {Object.keys(row)
-                        .filter((key) => key !== 'id')
-                        .map((field) => (
-                          <td key={field}>{row[field]}</td>
-                        ))}
+            <>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0' }}>
+                <span style={{ color: '#374151', fontSize: '14px' }}>
+                  Showing {Math.min((currentPage - 1) * rowsPerPage + 1, selected.totalRows)}
+                  {' - '}
+                  {Math.min(currentPage * rowsPerPage, selected.totalRows)} of {selected.totalRows}
+                </span>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    type="button"
+                    className="create-btn"
+                    style={{ opacity: currentPage === 1 ? 0.5 : 1 }}
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  >
+                    Previous
+                  </button>
+                  <button
+                    type="button"
+                    className="create-btn"
+                    style={{ opacity: currentPage === totalPages ? 0.5 : 1 }}
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+              <div className="reports-table-wrapper">
+                <table className="report-table">
+                  <thead>
+                    <tr>
+                      {selected.columns.map((column) => (
+                        <th key={column}>{column}</th>
+                      ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {selected.rows.map((row, index) => (
+                      <tr key={row.id || index}>
+                        <td>{index + 1}</td>
+                        {Object.keys(row)
+                          .filter((key) => key !== 'id')
+                          .map((field) => (
+                            <td key={field}>{row[field]}</td>
+                          ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
           )}
         </main>
       </div>

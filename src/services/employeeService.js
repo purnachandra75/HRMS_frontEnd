@@ -204,24 +204,52 @@ const normalizeFileField = (value) => {
   return value;
 };
 
-export const getEmployeesPage = async ({ page = 1, size = 2, searchQuery = '' }) => {
-  const params = new URLSearchParams();
-  const apiPage = Math.max(0, page - 1);
-  params.append('page', apiPage);
-  params.append('size', size);
+const normalizeDepartment = (department) => {
+  if (!department) return null;
+  const value = department.trim();
+  if (/^non\s*it$/i.test(value)) return 'Non IT';
+  if (/^it$/i.test(value)) return 'IT';
+  if (/^hr$/i.test(value)) return 'HR';
+  if (/^admin$/i.test(value)) return 'Admin';
+  return value;
+};
+
+const normalizeStatus = (status) => {
+  if (!status) return null;
+  const lower = status.trim().toLowerCase();
+  if (lower === 'active') return 'Active';
+  if (lower === 'inactive') return 'Inactive';
+  return status.trim();
+};
+
+export const getEmployeesPage = async ({ page = 1, size = 2, department = '', employeeType = '', status = '', searchQuery = '' }) => {
+  const params = {
+    page: Math.max(0, page - 1),
+    size,
+  };
+
+  const normalizedDepartment = normalizeDepartment(department);
+  const normalizedStatus = normalizeStatus(status);
+  const trimmedEmployeeType = employeeType ? employeeType.trim() : '';
+
+  if (normalizedDepartment) params.department = normalizedDepartment;
+  if (trimmedEmployeeType) params.employeeType = trimmedEmployeeType;
+  if (normalizedStatus) params.status = normalizedStatus;
 
   let requestUrl = API_BASE_URL;
   if (searchQuery) {
     requestUrl = 'http://localhost:8080/api/employee/getemployee';
-    params.append('search', searchQuery);
+    params.search = searchQuery.trim();
   }
 
-  const response = await axios.get(`${requestUrl}?${params.toString()}`);
+  console.debug('[employeeService] getEmployeesPage', requestUrl, params);
+  const response = await axios.get(requestUrl, { params });
   const data = response.data;
 
   let employees = [];
   let total = null;
   let pageSize = size;
+  let totalPages = null;
 
   if (Array.isArray(data)) {
     employees = data.map(flattenEmployee);
@@ -234,9 +262,10 @@ export const getEmployeesPage = async ({ page = 1, size = 2, searchQuery = '' })
 
     total = data.totalElements ?? data.total ?? data.totalCount ?? data.totalEmployees ?? null;
     pageSize = data.size ?? data.pageable?.pageSize ?? size;
+    totalPages = data.totalPages ?? data.pageable?.totalPages ?? (total !== null ? Math.ceil(total / pageSize) : null);
   }
 
-  return { employees, total, pageSize };
+  return { employees, total, pageSize, totalPages };
 };
 
 export const getAllEmployees = async () => {
