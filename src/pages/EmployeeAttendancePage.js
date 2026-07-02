@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmployeeLayout from '../components/EmployeeLayout';
 import { getEmployeeLeaveRequests } from '../services/leaveService';
+import { getHolidays } from '../services/holidayService';
 import '../styles/EmployeeAttendance.css';
 
 function EmployeeAttendancePage({ userId, userName, onLogout }) {
@@ -17,6 +18,7 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
   const [statusMessage, setStatusMessage] = useState('');
   const [allAttendanceData, setAllAttendanceData] = useState([]);
   const [isOnApprovedLeaveToday, setIsOnApprovedLeaveToday] = useState(false);
+  const [holidays, setHolidays] = useState([]);
 
   const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
@@ -112,6 +114,20 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
     return () => clearInterval(timer);
   }, [userId]);
 
+  useEffect(() => {
+    const loadHolidayData = async () => {
+      try {
+        const data = await getHolidays(selectedYear);
+        setHolidays(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error('Failed to load holiday dates', error);
+        setHolidays([]);
+      }
+    };
+
+    loadHolidayData();
+  }, [selectedYear]);
+
   const dateString = currentTime.toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -187,16 +203,32 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
     setTimeout(() => setStatusMessage(''), 4000);
   };
 
-  const presentDays = allAttendanceData.filter((record) => record.status === 'PRESENT').length;
-  const totalDays = allAttendanceData.length;
-  const absentDays = totalDays - presentDays;
-  let totalWorkHours = 0;
-  allAttendanceData.forEach((record) => {
-    if (record.totalHours && record.totalHours !== '-') {
-      totalWorkHours += parseFloat(record.totalHours) || 0;
+  const isWeekend = (date) => {
+    const day = date.getDay();
+    return day === 0 || day === 6;
+  };
+
+  const isHoliday = (date) => {
+    const dateKey = date.toISOString().split('T')[0];
+    return holidays.some((holiday) => {
+      const holidayDate = holiday?.date ? new Date(holiday.date).toISOString().split('T')[0] : null;
+      return holidayDate === dateKey;
+    });
+  };
+
+  const getWorkingDaysInMonth = (year, month) => {
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const workingDays = [];
+
+    for (let day = 1; day <= daysInMonth; day += 1) {
+      const currentDate = new Date(year, month - 1, day);
+      if (!isWeekend(currentDate) && !isHoliday(currentDate)) {
+        workingDays.push(currentDate);
+      }
     }
-  });
-  const attendanceRate = totalDays > 0 ? ((presentDays / totalDays) * 100).toFixed(1) : 0;
+
+    return workingDays;
+  };
 
   const monthlyData = allAttendanceData.filter((record) => {
     if (!record.date) return false;
@@ -205,15 +237,16 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
   });
 
   const monthlyPresent = monthlyData.filter((record) => record.status === 'PRESENT').length;
-  const monthlyTotal = monthlyData.length;
-  const monthlyAbsent = monthlyTotal - monthlyPresent;
+  const monthlyWorkingDays = getWorkingDaysInMonth(selectedYear, selectedMonth);
+  const workingDaysUpToToday = monthlyWorkingDays.filter((day) => day <= new Date());
+  const monthlyAbsent = Math.max(0, workingDaysUpToToday.length - monthlyPresent);
   let monthlyHours = 0;
   monthlyData.forEach((record) => {
     if (record.totalHours && record.totalHours !== '-') {
       monthlyHours += parseFloat(record.totalHours) || 0;
     }
   });
-  const monthlyRate = monthlyTotal > 0 ? ((monthlyPresent / monthlyTotal) * 100).toFixed(1) : 0;
+  const monthlyRate = workingDaysUpToToday.length > 0 ? ((monthlyPresent / workingDaysUpToToday.length) * 100).toFixed(1) : 0;
 
   const months = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -283,35 +316,6 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
                 </div>
               </div>
 
-              <div className="card">
-                <h2 className="card-title">Overall Attendance Rate</h2>
-                <div className="stats-grid">
-                  <div className="stat-card">
-                    <div className="stat-number">{presentDays}</div>
-                    <div className="stat-label">Total Present Days</div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-number">{absentDays}</div>
-                    <div className="stat-label">Total Absent Days</div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-number">{totalDays}</div>
-                    <div className="stat-label">Total Working Days</div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-number">{totalWorkHours.toFixed(1)}</div>
-                    <div className="stat-label">Total Hours Worked</div>
-                  </div>
-                </div>
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: `${attendanceRate}%` }}>
-                    {attendanceRate}%
-                  </div>
-                </div>
-                <p style={{ textAlign: 'center', marginTop: '10px', color: '#666' }}>
-                  Your Overall Attendance Rate
-                </p>
-              </div>
             </div>
           )}
 
@@ -346,8 +350,8 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
                     <div className="stat-label">Absent</div>
                   </div>
                   <div className="stat-card">
-                    <div className="stat-number">{monthlyTotal}</div>
-                    <div className="stat-label">Total Days</div>
+                    <div className="stat-number">{workingDaysUpToToday.length}</div>
+                    <div className="stat-label">Working Days Till Date</div>
                   </div>
                   <div className="stat-card">
                     <div className="stat-number">{monthlyHours.toFixed(1)}</div>
