@@ -19,6 +19,7 @@ import AdminHolidaysPage from './pages/AdminHolidaysPage';
 import EmployeeHolidaysPage from './pages/EmployeeHolidaysPage';
 import './App.css';
 
+
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState(null);
