@@ -8,6 +8,10 @@ export default function AdminLeaveReportCard() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [appliedSearchTerm, setAppliedSearchTerm] = useState('');
+  const [appliedMonth, setAppliedMonth] = useState(new Date().getMonth() + 1);
+  const [appliedYear, setAppliedYear] = useState(new Date().getFullYear());
+  const [hasSearched, setHasSearched] = useState(false);
 
   const months = [
     { value: 1, label: 'January' },
@@ -43,31 +47,62 @@ export default function AdminLeaveReportCard() {
     }
   };
 
+  const getSearchableValues = (request) => {
+    const values = [];
+
+    const addValue = (value) => {
+      if (value !== null && value !== undefined && value !== '') {
+        values.push(String(value).toLowerCase());
+      }
+    };
+
+    addValue(request.empId);
+    addValue(request.employeeId);
+    addValue(request.employee?.empId);
+    addValue(request.employee?.employeeId);
+    addValue(request.employeeName);
+    addValue(request.employee?.fullName);
+    addValue(request.employee?.name);
+    addValue(request.name);
+
+    return values;
+  };
+
+  const handleViewReport = () => {
+    setAppliedSearchTerm(searchTerm.trim());
+    setAppliedMonth(selectedMonth);
+    setAppliedYear(selectedYear);
+    setHasSearched(true);
+  };
+
   // Filter data based on search term, month, and year
   useEffect(() => {
+    if (!hasSearched) {
+      setFilteredData([]);
+      return;
+    }
+
     let filtered = allRequests.filter(request => {
       const fromDate = new Date(request.fromDate);
       const toDate = new Date(request.toDate);
       
       // Check if request falls within selected month and year
       const isInSelectedMonth = (
-        (fromDate.getFullYear() === selectedYear && fromDate.getMonth() + 1 === selectedMonth) ||
-        (toDate.getFullYear() === selectedYear && toDate.getMonth() + 1 === selectedMonth)
+        (fromDate.getFullYear() === appliedYear && fromDate.getMonth() + 1 === appliedMonth) ||
+        (toDate.getFullYear() === appliedYear && toDate.getMonth() + 1 === appliedMonth)
       );
 
       if (!isInSelectedMonth) return false;
 
       // Filter by search term (employee name or employee ID)
-      const searchLower = searchTerm.toLowerCase();
-      const matchesSearch = !searchTerm || 
-        (request.employeeName && request.employeeName.toLowerCase().includes(searchLower)) ||
-        (request.employeeId && request.employeeId.toLowerCase().includes(searchLower));
+      const searchLower = appliedSearchTerm.toLowerCase();
+      const matchesSearch = !searchLower || getSearchableValues(request).some(value => value.includes(searchLower));
 
       return matchesSearch;
     });
 
     setFilteredData(filtered);
-  }, [allRequests, searchTerm, selectedMonth, selectedYear]);
+  }, [allRequests, appliedSearchTerm, appliedMonth, appliedYear, hasSearched]);
 
   // Calculate total days by leave type for filtered data
   const calculateStats = () => {
@@ -95,7 +130,7 @@ export default function AdminLeaveReportCard() {
   };
 
   const stats = calculateStats();
-  const monthName = months.find(m => m.value === selectedMonth)?.label || 'January';
+  const monthName = months.find(m => m.value === appliedMonth)?.label || 'January';
 
   if (loading) {
     return <div className="loading">Loading leave data...</div>;
@@ -141,78 +176,104 @@ export default function AdminLeaveReportCard() {
                 ))}
               </select>
             </div>
+            <div className="filter-group">
+              <button
+                type="button"
+                onClick={handleViewReport}
+                style={{
+                  padding: '8px 14px',
+                  border: 'none',
+                  borderRadius: '6px',
+                  background: '#2563eb',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  fontWeight: '600',
+                  marginTop: '20px'
+                }}
+              >
+                View Report
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Summary Cards */}
-        <div className="report-summary">
-          <div className="summary-card">
-            <div className="summary-label">Casual Leaves</div>
-            <div className="summary-value">{stats.casual}</div>
-            <div className="summary-unit">days</div>
-          </div>
-          <div className="summary-card">
-            <div className="summary-label">Sick Leaves</div>
-            <div className="summary-value">{stats.sick}</div>
-            <div className="summary-unit">days</div>
-          </div>
-          <div className="summary-card">
-            <div className="summary-label">Paid Leaves</div>
-            <div className="summary-value">{stats.paid}</div>
-            <div className="summary-unit">days</div>
-          </div>
-          <div className="summary-card total">
-            <div className="summary-label">Total Leaves</div>
-            <div className="summary-value">{stats.total}</div>
-            <div className="summary-unit">days</div>
-          </div>
-        </div>
+        {hasSearched ? (
+          <>
+            {/* Summary Cards */}
+            <div className="report-summary">
+              <div className="summary-card">
+                <div className="summary-label">Casual Leaves</div>
+                <div className="summary-value">{stats.casual}</div>
+                <div className="summary-unit">days</div>
+              </div>
+              <div className="summary-card">
+                <div className="summary-label">Sick Leaves</div>
+                <div className="summary-value">{stats.sick}</div>
+                <div className="summary-unit">days</div>
+              </div>
+              <div className="summary-card">
+                <div className="summary-label">Paid Leaves</div>
+                <div className="summary-value">{stats.paid}</div>
+                <div className="summary-unit">days</div>
+              </div>
+              <div className="summary-card total">
+                <div className="summary-label">Total Leaves</div>
+                <div className="summary-value">{stats.total}</div>
+                <div className="summary-unit">days</div>
+              </div>
+            </div>
 
-        {/* Detailed Table */}
-        <div className="report-title">
-          <h3>Leave Details - {monthName} {selectedYear}</h3>
-        </div>
-        
-        {filteredData.length === 0 ? (
-          <div className="no-data">
-            <p>No leave records found for {monthName} {selectedYear}</p>
-          </div>
+            {/* Detailed Table */}
+            <div className="report-title">
+              <h3>Leave Details - {monthName} {appliedYear}</h3>
+            </div>
+            
+            {filteredData.length === 0 ? (
+              <div className="no-data">
+                <p>{appliedSearchTerm ? `No leave records found for ${monthName} ${appliedYear}` : 'Enter an employee ID or name to view the report.'}</p>
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="report-table">
+                  <thead>
+                    <tr>
+                      <th>Employee ID</th>
+                      <th>Employee Name</th>
+                      <th>Leave Type</th>
+                      <th>From Date</th>
+                      <th>To Date</th>
+                      <th>Days</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredData.map((request) => (
+                      <tr key={request.id}>
+                        <td>{request.empId || request.employeeId || request.employee?.empId || request.employee?.employeeId || request.id}</td>
+                        <td>{request.employeeName || request.employee?.fullName || request.employee?.name || 'N/A'}</td>
+                        <td>
+                          <span className={`type-badge ${(request.leaveType || request.type || '').toLowerCase()}`}>
+                            {(request.leaveType || request.type || '').charAt(0).toUpperCase() + (request.leaveType || request.type || '').slice(1)}
+                          </span>
+                        </td>
+                        <td>{new Date(request.fromDate).toLocaleDateString()}</td>
+                        <td>{new Date(request.toDate).toLocaleDateString()}</td>
+                        <td>{request.days}</td>
+                        <td>
+                          <span className={`status-badge ${(request.status || '').toLowerCase()}`}>
+                            {request.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </>
         ) : (
-          <div className="table-responsive">
-            <table className="report-table">
-              <thead>
-                <tr>
-                  <th>Employee ID</th>
-                  <th>Employee Name</th>
-                  <th>Leave Type</th>
-                  <th>From Date</th>
-                  <th>To Date</th>
-                  <th>Days</th>
-                  <th>Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredData.map((request) => (
-                  <tr key={request.id}>
-                    <td>{request.empId}</td>
-                    <td>{request.employeeName}</td>
-                    <td>
-                      <span className={`type-badge ${(request.leaveType || request.type || '').toLowerCase()}`}>
-                        {(request.leaveType || request.type || '').charAt(0).toUpperCase() + (request.leaveType || request.type || '').slice(1)}
-                      </span>
-                    </td>
-                    <td>{new Date(request.fromDate).toLocaleDateString()}</td>
-                    <td>{new Date(request.toDate).toLocaleDateString()}</td>
-                    <td>{request.days}</td>
-                    <td>
-                      <span className={`status-badge ${(request.status || '').toLowerCase()}`}>
-                        {request.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="no-data">
+            <p>Enter an employee ID or name, choose a month and year, then click View Report.</p>
           </div>
         )}
       </div>

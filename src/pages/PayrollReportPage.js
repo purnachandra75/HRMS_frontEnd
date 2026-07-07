@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getPayrollReport, updatePayrollStatus } from '../services/payrollService';
+import AdminLayout from '../components/AdminLayout';
 import '../styles/Dashboard.css';
 import '../styles/Payroll.css';
 
@@ -242,51 +243,7 @@ function PayrollReportPage({ userName, onLogout }) {
   };
 
   return (
-    <div className="dashboard-container payroll-page">
-      <header className="dashboard-header">
-        <div>
-          <h1>Payroll Report</h1>
-        </div>
-        <div className="header-info">
-          <span>Welcome, {userName}!</span>
-          <button onClick={handleLogout} className="logout-btn">Logout</button>
-        </div>
-      </header>
-
-      <div className="reports-layout admin-dashboard-layout">
-        <aside className="reports-sidebar">
-          <h2>Dashboard</h2>
-          <nav>
-            <button type="button" onClick={() => navigate('/admin')}>
-              Employee Details
-            </button>
-            <button type="button" onClick={() => navigate('/admin/leaves')}>
-              Leave Management
-            </button>
-            <button type="button" onClick={() => navigate('/admin/reports')}>
-              Reports
-            </button>
-            <button type="button" onClick={() => navigate('/admin/attendance')}>
-              Attendance
-            </button>
-            <button type="button" onClick={() => navigate('/admin/payroll')}>
-              Payroll
-            </button>
-            <button type="button" className="active" onClick={() => navigate('/admin/payroll-report')}>
-              Payroll Report
-            </button>
-            <hr className="reports-sidebar-divider" />
-            <button type="button" onClick={() => navigate('/admin/employee/new')}>
-              + Create Employee
-            </button>
-          </nav>
-        </aside>
-
-        <main className="reports-main payroll-main">
-          <div className="reports-content-header">
-            <h2>Employee Payroll List</h2>
-            <p>Filter payroll records by month and year, then update the status after the amount is credited.</p>
-          </div>
+    <AdminLayout userName={userName} onLogout={onLogout} activeItem="payroll-report" title="Employee Payroll List" subtitle="Filter payroll records by month and year, then update the status after the amount is credited.">
 
           <section className="payroll-summary-grid">
             <div className="payroll-summary-card">
@@ -373,10 +330,8 @@ function PayrollReportPage({ userName, onLogout }) {
                 {renderPayrollReport()}
               </div>
             )}
-          </section>
-        </main>
-      </div>
-    </div>
+              </section>
+            </AdminLayout>
   );
 }
 

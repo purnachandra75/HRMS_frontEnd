@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllEmployees } from '../services/employeeService';
 import { runPayroll } from '../services/payrollService';
+import AdminLayout from '../components/AdminLayout';
 import '../styles/Dashboard.css';
 import '../styles/Payroll.css';
 
@@ -211,52 +212,7 @@ function PayrollPage({ userName, onLogout }) {
   };
 
   return (
-    <div className="dashboard-container payroll-page">
-      <header className="dashboard-header">
-        <div>
-          <h1>Payroll Module</h1>
-          {/* <p className="dashboard-subtitle">Manage which active employees are included or excluded from payroll.</p> */}
-        </div>
-        <div className="header-info">
-          <span>Welcome, {userName}!</span>
-          <button onClick={handleLogout} className="logout-btn">Logout</button>
-        </div>
-      </header>
-
-      <div className="reports-layout admin-dashboard-layout">
-        <aside className="reports-sidebar">
-          <h2>Dashboard</h2>
-          <nav>
-            <button type="button" onClick={() => navigate('/admin')}>
-              Employee Details
-            </button>
-            <button type="button" onClick={() => navigate('/admin/leaves')}>
-              Leave Management
-            </button>
-            <button type="button" onClick={() => navigate('/admin/reports')}>
-              Reports
-            </button>
-            <button type="button" onClick={() => navigate('/admin/attendance')}>
-              Attendance
-            </button>
-            <button type="button" className="active" onClick={() => navigate('/admin/payroll')}>
-              Payroll
-            </button>
-            <button type="button" onClick={() => navigate('/admin/payroll-report')}>
-              Payroll Report
-            </button>
-            <hr className="reports-sidebar-divider" />
-            <button type="button" onClick={() => navigate('/admin/employee/new')}>
-              + Create Employee
-            </button>
-          </nav>
-        </aside>
-
-        <main className="reports-main payroll-main">
-          <div className="reports-content-header">
-            <h2>Payroll</h2>
-            <p>Search active employees, then use the checkbox to include or exclude them from payroll.</p>
-          </div>
+    <AdminLayout userName={userName} onLogout={onLogout} activeItem="payroll" title="Payroll" subtitle="Search active employees, then use the checkbox to include or exclude them from payroll.">
 
           <section className="payroll-summary-grid">
             <div className="payroll-summary-card">
@@ -417,9 +373,7 @@ function PayrollPage({ userName, onLogout }) {
               </>
             )}
           </section>
-        </main>
-      </div>
-    </div>
+    </AdminLayout>
   );
 }
 

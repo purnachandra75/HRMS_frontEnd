@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/Dashboard.css';
 import { getAllYears, getHolidays, createHoliday, deleteHoliday } from '../services/holidayService';
+import AdminLayout from '../components/AdminLayout';
 
 function AdminHolidaysPage({ userName, onLogout }) {
   const navigate = useNavigate();
@@ -77,35 +78,7 @@ function AdminHolidaysPage({ userName, onLogout }) {
   };
 
   return (
-    <div className="dashboard-container">
-      <header className="dashboard-header">
-        <h1>Holiday Management</h1>
-        <div className="header-info">
-          <span>Welcome, {userName}!</span>
-          <button onClick={handleLogout} className="logout-btn">Logout</button>
-        </div>
-      </header>
-
-      <div className="reports-layout admin-dashboard-layout">
-        <aside className="reports-sidebar">
-          <h2>Dashboard</h2>
-          <nav>
-            <button type="button" onClick={() => navigate('/admin')}>Employee Details</button>
-            <button type="button" onClick={() => navigate('/admin/leaves')}>Leave Management</button>
-            <button type="button" onClick={() => navigate('/admin/reports')}>Reports</button>
-            <button type="button" onClick={() => navigate('/admin/attendance')}>Attendance</button>
-            <button type="button" onClick={() => navigate('/admin/payroll')}>Payroll</button>
-            <button type="button" className="active" onClick={() => navigate('/admin/holidays')}>Holidays</button>
-            <hr className="reports-sidebar-divider" />
-            <button type="button" onClick={() => navigate('/admin/employee/new')}>+ Create Employee</button>
-          </nav>
-        </aside>
-
-        <main className="reports-main">
-          <div className="reports-content-header">
-            <h2>Holidays for {year}</h2>
-            <p>Declare company holidays for a year. Employees will see this calendar in their dashboard.</p>
-          </div>
+    <AdminLayout userName={userName} onLogout={onLogout} activeItem="holidays" title={`Holidays for ${year}`} subtitle="Declare company holidays for a year. Employees will see this calendar in their dashboard.">
 
           <div className="report-controls-top">
             <div>
@@ -165,9 +138,7 @@ function AdminHolidaysPage({ userName, onLogout }) {
               )}
             </div>
           </div>
-        </main>
-      </div>
-    </div>
+    </AdminLayout>
   );
 }
 

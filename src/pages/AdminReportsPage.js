@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { getEmployeesPage } from '../services/employeeService';
+import AdminLayout from '../components/AdminLayout';
 import '../styles/Dashboard.css';
 import '../styles/Leave.css';
 
@@ -23,8 +23,6 @@ function AdminReportsPage({ userName, onLogout }) {
     leave: false,
     attendance: false,
   });
-  const navigate = useNavigate();
-
   useEffect(() => {
     const loadReportPage = async () => {
       if (!['salary', 'leaves', 'attendance', 'employee'].includes(selectedReport)) return;
@@ -114,11 +112,6 @@ function AdminReportsPage({ userName, onLogout }) {
     (employee) => employee.ctc !== '' || employee.basicSalary !== ''
   );
 
-  const statusEmployees = nonAdminEmployees.filter((employee) => {
-    const status = (employee.employeeStatus || '').toLowerCase();
-    return status === 'inactive';
-  });
-
   const partTimeEmployees = activeEmployees.filter((employee) =>
     (employee.employeeType || '').toLowerCase().includes('part time')
   );
@@ -146,8 +139,6 @@ function AdminReportsPage({ userName, onLogout }) {
     const diffDays = Math.floor((today - joinedDate) / (1000 * 60 * 60 * 24));
     return diffDays >= 0 && diffDays <= 180;
   });
-
-  const probationEmployees = newJoiners;
 
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
@@ -397,8 +388,8 @@ function AdminReportsPage({ userName, onLogout }) {
   }, [currentPage, totalPages]);
 
   const downloadReport = (report) => {
-    const headers = report.columns;
-    const rows = report.rows.map((row, index) => [
+    const headers = report.columns || [];
+    const rows = (report.rows || []).map((row, index) => [
       index + 1,
       ...Object.keys(row)
         .filter((key) => key !== 'id')
@@ -406,11 +397,11 @@ function AdminReportsPage({ userName, onLogout }) {
     ]);
 
     const escapeHtml = (value) =>
-      String(value)
+      String(value == null ? '' : value)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
-        .replace(/\"/g, '&quot;');
+        .replace(/"/g, '&quot;');
 
     const headerRow = headers
       .map((header) => `<th style="font-weight:bold; text-align:left; padding:6px;">${escapeHtml(header)}</th>`)
@@ -435,32 +426,11 @@ function AdminReportsPage({ userName, onLogout }) {
       </table>
     `;
 
-    const excelHtml = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
-        <head>
-          <meta charset="UTF-8" />
-          <!--[if gte mso 9]>
-            <xml>
-              <x:ExcelWorkbook>
-                <x:ExcelWorksheets>
-                  <x:ExcelWorksheet>
-                    <x:Name>${escapeHtml(report.title)}</x:Name>
-                    <x:WorksheetOptions>
-                      <x:DisplayGridlines/>
-                    </x:WorksheetOptions>
-                  </x:ExcelWorksheet>
-                </x:ExcelWorksheets>
-              </x:ExcelWorkbook>
-            </xml>
-          <![endif]-->
-        </head>
-        <body>${tableHtml}</body>
-      </html>
-    `;
+    const excelHtml = `<!DOCTYPE html><html><head><meta charset="utf-8"/></head><body>${tableHtml}</body></html>`;
 
-    const fileName = `${report.title.replace(/\s+/g, '-').toLowerCase()}.xls`;
+    const fileName = `${(report.title || 'report').replace(/\s+/g, '-').toLowerCase()}.xls`;
     const blob = new Blob([excelHtml], {
-      type: 'application/vnd.ms-excel;charset=utf-8;',
+      type: 'application/vnd.ms-excel;charset=utf-8;'
     });
 
     const url = URL.createObjectURL(blob);
@@ -474,399 +444,258 @@ function AdminReportsPage({ userName, onLogout }) {
   };
 
   return (
-    <div className="dashboard-container">
-      <header className="dashboard-header">
-        <h1>Admin Reports</h1>
-        <div className="header-info">
-          <span>Welcome, {userName}!</span>
-          <button onClick={onLogout} className="logout-btn">Logout</button>
-        </div>
-      </header>
+    <AdminLayout userName={userName} onLogout={onLogout} activeItem="reports" title="Admin Reports">
 
-      <div className="reports-layout">
-        <aside className="reports-sidebar">
-          <h2>Reports</h2>
-          <nav>
-            <div style={{ marginBottom: '12px' }}>
+      <div className="reports-page-content">
+        <div className="reports-page-grid with-submenu">
+          <aside className="reports-submenu profile-sidebar reports-submenu-container">
+            <div className="sidebar-header">
+              <h3>Report Sections</h3>
+            </div>
+            <nav className="sidebar-menu">
               <button
+                type="button"
+                className={`menu-item ${expandedSections.payroll ? 'active' : ''}`}
                 onClick={() => toggleSection('payroll')}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  background: '#1e3a8a',
-                  color: '#fff',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  fontWeight: '600',
-                  borderRadius: '4px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
               >
-                💰 Payroll
-                <span>{expandedSections.payroll ? '▼' : '▶'}</span>
+                <span className="menu-icon">💰</span>
+                <span className="menu-label">Payroll</span>
+                <span className="submenu-arrow">{expandedSections.payroll ? '▼' : '▶'}</span>
               </button>
               {expandedSections.payroll && (
-                <div style={{ paddingLeft: '12px', marginTop: '8px' }}>
+                <div className="submenu-children">
                   <button
-                    className={`${selectedReport === 'salary' ? 'active' : ''}`}
+                    type="button"
+                    className={`menu-item ${selectedReport === 'salary' ? 'active' : ''}`}
                     onClick={() => selectPayrollReport('salary')}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      marginBottom: '4px',
-                      background: selectedReport === 'salary' ? '#3b82f6' : 'transparent',
-                      color: '#fff',
-                      border: 'none',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                    }}
                   >
-                    Salary Report
+                    <span className="menu-label">Salary Report</span>
                   </button>
                 </div>
               )}
-            </div>
 
-            <div style={{ marginBottom: '12px' }}>
               <button
+                type="button"
+                className={`menu-item ${expandedSections.employee ? 'active' : ''}`}
                 onClick={() => toggleSection('employee')}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  background: '#1e3a8a',
-                  color: '#fff',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  fontWeight: '600',
-                  borderRadius: '4px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
               >
-                👥 Employee Reports
-                <span>{expandedSections.employee ? '▼' : '▶'}</span>
+                <span className="menu-icon">👥</span>
+                <span className="menu-label">Employee Reports</span>
+                <span className="submenu-arrow">{expandedSections.employee ? '▼' : '▶'}</span>
               </button>
               {expandedSections.employee && (
-                <div style={{ paddingLeft: '12px', marginTop: '8px' }}>
+                <div className="submenu-children">
                   <button
+                    type="button"
+                    className={`menu-item ${selectedReport === 'employee' && employeeReportType === 'status' ? 'active' : ''}`}
                     onClick={() => selectEmployeeReport('status')}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      marginBottom: '4px',
-                      background: selectedReport === 'employee' && employeeReportType === 'status' ? '#3b82f6' : 'transparent',
-                      color: '#fff',
-                      border: 'none',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                    }}
                   >
-                    • Employee Exit Report
+                    <span className="menu-label">Employee Exit Report</span>
                   </button>
                   <button
+                    type="button"
+                    className={`menu-item ${selectedReport === 'employee' && employeeReportType === 'employment' ? 'active' : ''}`}
                     onClick={() => selectEmployeeReport('employment')}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      marginBottom: '4px',
-                      background: selectedReport === 'employee' && employeeReportType === 'employment' ? '#3b82f6' : 'transparent',
-                      color: '#fff',
-                      border: 'none',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                    }}
                   >
-                    • Employment Type Report
+                    <span className="menu-label">Employment Type Report</span>
                   </button>
                   <button
+                    type="button"
+                    className={`menu-item ${selectedReport === 'employee' && employeeReportType === 'newJoiners' ? 'active' : ''}`}
                     onClick={() => selectEmployeeReport('newJoiners')}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      marginBottom: '4px',
-                      background: selectedReport === 'employee' && employeeReportType === 'newJoiners' ? '#3b82f6' : 'transparent',
-                      color: '#fff',
-                      border: 'none',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                    }}
                   >
-                    • New Joiners
+                    <span className="menu-label">New Joiners</span>
                   </button>
                   <button
+                    type="button"
+                    className={`menu-item ${selectedReport === 'employee' && employeeReportType === 'probation' ? 'active' : ''}`}
                     onClick={() => selectEmployeeReport('probation')}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      marginBottom: '4px',
-                      background: selectedReport === 'employee' && employeeReportType === 'probation' ? '#3b82f6' : 'transparent',
-                      color: '#fff',
-                      border: 'none',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                    }}
                   >
-                    • Probation Period
+                    <span className="menu-label">Probation Period</span>
                   </button>
                 </div>
               )}
-            </div>
 
-            <div style={{ marginBottom: '12px' }}>
               <button
+                type="button"
+                className={`menu-item ${expandedSections.leave ? 'active' : ''}`}
                 onClick={() => toggleSection('leave')}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  background: '#1e3a8a',
-                  color: '#fff',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  fontWeight: '600',
-                  borderRadius: '4px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
               >
-                📅 Leave Report
-                <span>{expandedSections.leave ? '▼' : '▶'}</span>
+                <span className="menu-icon">📅</span>
+                <span className="menu-label">Leave Report</span>
+                <span className="submenu-arrow">{expandedSections.leave ? '▼' : '▶'}</span>
               </button>
               {expandedSections.leave && (
-                <div style={{ paddingLeft: '12px', marginTop: '8px' }}>
+                <div className="submenu-children">
                   <button
-                    className={`${selectedReport === 'leaves' ? 'active' : ''}`}
-                    onClick={() => {
-                      setSelectedReport('leaves');
-                      setExpandedSections((prev) => ({ ...prev, leave: true }));
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      marginBottom: '4px',
-                      background: selectedReport === 'leaves' ? '#3b82f6' : 'transparent',
-                      color: '#fff',
-                      border: 'none',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                    }}
+                    type="button"
+                    className={`menu-item ${selectedReport === 'leaves' ? 'active' : ''}`}
+                    onClick={() => { setSelectedReport('leaves'); }}
                   >
-                    View Leave Report
+                    <span className="menu-label">View Leave Report</span>
                   </button>
                 </div>
               )}
-            </div>
 
-            <div style={{ marginBottom: '12px' }}>
               <button
+                type="button"
+                className={`menu-item ${expandedSections.attendance ? 'active' : ''}`}
                 onClick={() => toggleSection('attendance')}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  background: '#1e3a8a',
-                  color: '#fff',
-                  border: 'none',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  fontWeight: '600',
-                  borderRadius: '4px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
               >
-                ✓ Attendance Report
-                <span>{expandedSections.attendance ? '▼' : '▶'}</span>
+                <span className="menu-icon">✓</span>
+                <span className="menu-label">Attendance Report</span>
+                <span className="submenu-arrow">{expandedSections.attendance ? '▼' : '▶'}</span>
               </button>
               {expandedSections.attendance && (
-                <div style={{ paddingLeft: '12px', marginTop: '8px' }}>
+                <div className="submenu-children">
                   <button
-                    className={`${selectedReport === 'attendance' ? 'active' : ''}`}
-                    onClick={() => {
-                      setSelectedReport('attendance');
-                      setExpandedSections((prev) => ({ ...prev, attendance: true }));
-                    }}
-                    style={{
-                      width: '100%',
-                      padding: '8px 12px',
-                      marginBottom: '4px',
-                      background: selectedReport === 'attendance' ? '#3b82f6' : 'transparent',
-                      color: '#fff',
-                      border: 'none',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      borderRadius: '4px',
-                      fontSize: '14px',
-                    }}
+                    type="button"
+                    className={`menu-item ${selectedReport === 'attendance' ? 'active' : ''}`}
+                    onClick={() => { setSelectedReport('attendance'); }}
                   >
-                    View Attendance Report
+                    <span className="menu-label">View Attendance Report</span>
                   </button>
                 </div>
               )}
+            </nav>
+          </aside>
+          <section className="reports-content report-body">
+            <div className="reports-content-header">
+              <h2>{selected?.title}</h2>
+              <p>{selected?.description}</p>
             </div>
 
-            <hr style={{ borderColor: 'rgba(255,255,255,0.2)', margin: '12px 0' }} />
+            <div className="report-controls-top">
+              {selected?.hasYearFilter && (
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>
+                    Year:
+                  </label>
+                  <select
+                    value={selectedYear}
+                    onChange={(e) => {
+                      setSelectedYear(parseInt(e.target.value, 10));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    {yearOptions.map((year) => (
+                      <option key={year} value={year}>
+                        {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-            <button onClick={() => navigate('/admin')} style={{ opacity: 0.7 }}>
-              ← Back to Dashboard
-            </button>
-          </nav>
-        </aside>
-
-        <main className="reports-main">
-          <div className="reports-content-header">
-            <h2>{selected?.title}</h2>
-            <p>{selected?.description}</p>
-          </div>
-
-          <div className="report-controls-top">
-            {selected?.hasYearFilter && (
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>
-                  Year:
-                </label>
-                <select
-                  value={selectedYear}
-                  onChange={(e) => {
-                    setSelectedYear(parseInt(e.target.value, 10));
+              {selectedReport === 'employee' && employeeReportType === 'employment' && (
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>
+                    Employment:
+                  </label>
+                  <select value={employmentFilter} onChange={(e) => {
+                    setEmploymentFilter(e.target.value);
                     setCurrentPage(1);
-                  }}
-                >
-                  {yearOptions.map((year) => (
-                    <option key={year} value={year}>
-                      {year}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
+                  }}>
+                    <option value="all">All</option>
+                    <option value="Full Time">Full Time</option>
+                    <option value="Part Time">Part Time</option>
+                  </select>
+                </div>
+              )}
 
-            {selectedReport === 'employee' && employeeReportType === 'employment' && (
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                 <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>
-                  Employment:
+                  Department:
                 </label>
-                <select value={employmentFilter} onChange={(e) => {
-                  setEmploymentFilter(e.target.value);
+                <select value={departmentFilter} onChange={(e) => {
+                  setDepartmentFilter(e.target.value);
                   setCurrentPage(1);
                 }}>
-                  <option value="all">All</option>
-                  <option value="Full Time">Full Time</option>
-                  <option value="Part Time">Part Time</option>
+                  <option value="All">All</option>
+                  <option value="HR">HR</option>
+                  <option value="IT">IT</option>
+                  <option value="Non IT">Non IT</option>
+                  <option value="Admin">Admin</option>
                 </select>
               </div>
-            )}
 
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>
-                Department:
-              </label>
-              <select value={departmentFilter} onChange={(e) => {
-                setDepartmentFilter(e.target.value);
-                setCurrentPage(1);
-              }}>
-                <option value="All">All</option>
-                <option value="HR">HR</option>
-                <option value="IT">IT</option>
-                <option value="Non IT">Non IT</option>
-                <option value="Admin">Admin</option>
-              </select>
+              {selected?.hasDownload && reportForDownload && (
+                <button type="button" className="create-btn" onClick={() => downloadReport(reportForDownload)}>
+                  Download
+                </button>
+              )}
             </div>
 
-            {selected?.hasDownload && reportForDownload && (
-              <button type="button" className="create-btn" onClick={() => downloadReport(reportForDownload)}>
-                Download
-              </button>
-            )}
-          </div>
-
-          {loading ? (
-            <p style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
-              Loading report data...
-            </p>
-          ) : error ? (
-            <p style={{ padding: '24px', textAlign: 'center', color: '#dc2626' }}>{error}</p>
-          ) : !selected ? (
-            <p style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>Please select a report.</p>
-          ) : selected.rows.length === 0 ? (
-            <p style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
-              No records found for this report.
-            </p>
-          ) : (
-            <>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0' }}>
-                <span style={{ color: '#374151', fontSize: '14px' }}>
-                  Showing {Math.min((currentPage - 1) * rowsPerPage + 1, selected.totalRows)}
-                  {' - '}
-                  {Math.min(currentPage * rowsPerPage, selected.totalRows)} of {selected.totalRows}
-                </span>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <button
-                    type="button"
-                    className="create-btn"
-                    style={{ opacity: currentPage === 1 ? 0.5 : 1 }}
-                    disabled={currentPage === 1}
-                    onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                  >
-                    Previous
-                  </button>
-                  <button
-                    type="button"
-                    className="create-btn"
-                    style={{ opacity: currentPage === totalPages ? 0.5 : 1 }}
-                    disabled={currentPage === totalPages}
-                    onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
-                  >
-                    Next
-                  </button>
+            {loading ? (
+              <p style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
+                Loading report data...
+              </p>
+            ) : error ? (
+              <p style={{ padding: '24px', textAlign: 'center', color: '#dc2626' }}>{error}</p>
+            ) : !selected ? (
+              <p style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>Please select a report.</p>
+            ) : selected.rows.length === 0 ? (
+              <p style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
+                No records found for this report.
+              </p>
+            ) : (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0' }}>
+                  <span style={{ color: '#374151', fontSize: '14px' }}>
+                    Showing {Math.min((currentPage - 1) * rowsPerPage + 1, selected.totalRows)}
+                    {' - '}
+                    {Math.min(currentPage * rowsPerPage, selected.totalRows)} of {selected.totalRows}
+                  </span>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <button
+                      type="button"
+                      className="create-btn"
+                      style={{ opacity: currentPage === 1 ? 0.5 : 1 }}
+                      disabled={currentPage === 1}
+                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                    >
+                      Previous
+                    </button>
+                    <button
+                      type="button"
+                      className="create-btn"
+                      style={{ opacity: currentPage === totalPages ? 0.5 : 1 }}
+                      disabled={currentPage === totalPages}
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                    >
+                      Next
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div className="reports-table-wrapper">
-                <table className="report-table">
-                  <thead>
-                    <tr>
-                      {selected.columns.map((column) => (
-                        <th key={column}>{column}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {selected.rows.map((row, index) => (
-                      <tr key={row.id || index}>
-                        <td>{index + 1}</td>
-                        {Object.keys(row)
-                          .filter((key) => key !== 'id')
-                          .map((field) => (
-                            <td key={field}>{row[field]}</td>
-                          ))}
+                <div className="reports-table-wrapper">
+                  <table className="report-table">
+                    <thead>
+                      <tr>
+                        {selected.columns.map((column) => (
+                          <th key={column}>{column}</th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </>
-          )}
-        </main>
+                    </thead>
+                    <tbody>
+                      {selected.rows.map((row, index) => (
+                        <tr key={row.id || index}>
+                          <td>{index + 1}</td>
+                          {Object.keys(row)
+                            .filter((key) => key !== 'id')
+                            .map((field) => (
+                              <td key={field}>{row[field]}</td>
+                            ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )}
+          </section>
+        </div>
       </div>
-    </div>
+    </AdminLayout>
   );
 }
 

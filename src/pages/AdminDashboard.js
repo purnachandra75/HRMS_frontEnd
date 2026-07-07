@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getEmployeesPage, deleteEmployee } from '../services/employeeService';
+import AdminLayout from '../components/AdminLayout';
 import '../styles/Dashboard.css';
 
 function AdminDashboard({ userName, onLogout }) {
@@ -82,54 +83,8 @@ function AdminDashboard({ userName, onLogout }) {
   };
 
   return (
-    <div className="dashboard-container">
-      <header className="dashboard-header">
-        <h1>Admin Dashboard</h1>
-        <div className="header-info">
-          <span>Welcome, {userName}!</span>
-          <button onClick={handleLogout} className="logout-btn">Logout</button>
-        </div>
-      </header>
-
-      <div className="reports-layout admin-dashboard-layout">
-        <aside className="reports-sidebar">
-          <h2>Dashboard</h2>
-          <nav>
-            <button type="button" className="active" onClick={showEmployeeDetails}>
-              Employee Details
-            </button>
-            <button type="button" onClick={() => navigate('/admin/leaves')}>
-              Leave Management
-            </button>
-            <button type="button" onClick={() => navigate('/admin/reports')}>
-              Reports
-            </button>
-            <button type="button" onClick={() => navigate('/admin/holidays')}>
-              Holidays
-            </button>
-            <button type="button" onClick={() => navigate('/admin/attendance')}>
-              Attendance
-            </button>
-            <button type="button" onClick={() => navigate('/admin/payroll')}>
-              Payroll
-            </button>
-            <button type="button" onClick={() => navigate('/admin/payroll-report')}>
-              Payroll Report
-            </button>
-            <hr className="reports-sidebar-divider" />
-            <button type="button" onClick={() => navigate('/admin/employee/new')}>
-              + Create Employee
-            </button>
-          </nav>
-        </aside>
-
-        <main className="reports-main">
-          <div className="reports-content-header">
-            <h2>Employee Details</h2>
-            <p>View and manage all employee records in one place.</p>
-          </div>
-
-          <div className="employees-section admin-employees-section" ref={employeeDetailsRef}>
+    <AdminLayout userName={userName} onLogout={onLogout} activeItem="dashboard" title="Employee Details" subtitle="View and manage all employee records in one place.">
+      <div className="employees-section admin-employees-section" ref={employeeDetailsRef}>
             <div className="employees-header">
               <div className="header-left">
                 <h2>All Employees</h2>
@@ -228,10 +183,7 @@ function AdminDashboard({ userName, onLogout }) {
               </>
             )}
           </div>
-        </main>
-      </div>
-
-    </div>
+    </AdminLayout>
   );
 }
 

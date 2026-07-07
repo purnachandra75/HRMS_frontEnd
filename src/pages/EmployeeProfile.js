@@ -32,7 +32,7 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
     { id: 'education', label: 'Education Details', icon: '🎓' },
     { id: 'documents', label: 'Document Details', icon: '📄' },
     { id: 'emergency', label: 'Emergency Contact', icon: '🚨' },
-    { id: 'leaves', label: 'Leave Report', icon: '📋' },
+   
   ];
 
   useEffect(() => {
@@ -385,7 +385,7 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
   const isEmployeeSelfService = userRole === 'employee' && !isAdminView && !isCreateMode;
   const pageTitle = isCreateMode ? 'Create Employee' : isAdminView ? 'Employee Details' : 'Employee Profile';
   const pageSubtitle = isEmployeeSelfService
-    ? 'Review and update your profile details, documents, and leave report.'
+    ? 'Review and update your profile details, documents.'
     : null;
 
   const profileBody = !isEditing ? (

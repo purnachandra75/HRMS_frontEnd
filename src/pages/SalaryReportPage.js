@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getAllEmployees } from '../services/employeeService';
+import AdminLayout from '../components/AdminLayout';
 import '../styles/Dashboard.css';
 import '../styles/Leave.css';
 
@@ -58,15 +59,7 @@ function SalaryReportPage({ userName, onLogout }) {
   }));
 
   return (
-    <div className="dashboard-container">
-      <header className="dashboard-header">
-        <h1>Employee Salary Report</h1>
-        <div className="header-info">
-          <span>Welcome, {userName}!</span>
-          <button onClick={onLogout} className="logout-btn">Logout</button>
-        </div>
-      </header>
-
+    <AdminLayout userName={userName} onLogout={onLogout} activeItem="salary-report" title="Employee Salary Report">
       <main className="dashboard-main">
         <div className="dashboard-cards" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: '30px' }}>
           <div className="dashboard-card clickable" onClick={() => navigate('/admin')}>
@@ -122,7 +115,7 @@ function SalaryReportPage({ userName, onLogout }) {
           )}
         </section>
       </main>
-    </div>
+    </AdminLayout>
   );
 }
 

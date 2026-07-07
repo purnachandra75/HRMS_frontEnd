@@ -1,9 +1,20 @@
 import { leaveTypes } from '../config/leaveConfig';
 
 export const DEFAULT_LEAVE_BALANCES = {
-  casual: 8,
-  sick: 9,
-  paid: 5,
+  casual: 18,
+  sick: 6,
+  paid: 12,
+};
+
+const normalizeLeaveTypeKey = (leaveType) => {
+  if (!leaveType) return null;
+  const normalized = String(leaveType).trim().toLowerCase();
+  if (DEFAULT_LEAVE_BALANCES[normalized] !== undefined) {
+    return normalized;
+  }
+  return Object.keys(DEFAULT_LEAVE_BALANCES).find(
+    (key) => key.toLowerCase() === normalized
+  ) || null;
 };
 
 export function formatLeaveType(type) {
@@ -15,17 +26,22 @@ export function normalizeLeaveBalances(balances, fallbackBalances = DEFAULT_LEAV
 
   if (Array.isArray(balances)) {
     balances.forEach((item) => {
-      if (item?.leaveType && item.balance !== undefined) {
-        normalizedBalances[item.leaveType] = Number(item.balance) || 0;
+      const normalizedKey = normalizeLeaveTypeKey(item?.leaveType);
+      if (normalizedKey && item.balance !== undefined) {
+        normalizedBalances[normalizedKey] = Number(item.balance) || 0;
       }
     });
   } else if (typeof balances === 'object' && balances !== null) {
     if (balances.leaveType && balances.balance !== undefined) {
-      normalizedBalances[balances.leaveType] = Number(balances.balance) || 0;
+      const normalizedKey = normalizeLeaveTypeKey(balances.leaveType);
+      if (normalizedKey) {
+        normalizedBalances[normalizedKey] = Number(balances.balance) || 0;
+      }
     } else {
       Object.entries(balances).forEach(([key, value]) => {
-        if (leaveTypes[key] !== undefined) {
-          normalizedBalances[key] = Number(value) || 0;
+        const normalizedKey = normalizeLeaveTypeKey(key);
+        if (normalizedKey) {
+          normalizedBalances[normalizedKey] = Number(value) || 0;
         }
       });
     }
