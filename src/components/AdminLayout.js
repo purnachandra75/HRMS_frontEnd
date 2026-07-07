@@ -6,6 +6,19 @@ import '../styles/Dashboard.css';
 export default function AdminLayout({ userName, onLogout, activeItem, title, subtitle, children }) {
   const navigate = useNavigate();
 
+  const sidebarTitles = {
+    dashboard: 'Employee Details',
+    leaves: 'Leave Management',
+    reports: 'Reports',
+    holidays: 'Holidays',
+    attendance: 'Attendance',
+    payroll: 'Payroll',
+    'payroll-report': 'Payroll Report',
+    'salary-report': 'Salary Report',
+  };
+
+  const sidebarTitle = sidebarTitles[activeItem] || 'Admin Portal';
+
   return (
     <div className="dashboard-container admin-layout-shell">
       <AdminHeader userName={userName} onLogout={onLogout} title={title} />

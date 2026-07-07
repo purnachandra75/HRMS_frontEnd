@@ -13,7 +13,7 @@ export default function AdminHeader({ userName, onLogout, title }) {
   return (
     <header className="dashboard-header employee-fixed-header">
       <div>
-        <h1>{title || 'Admin Dashboard'}</h1>
+        <h1>{'Admin Dashboard'}</h1>
       </div>
       <div className="header-info">
         <span>Welcome, {userName}!</span>
