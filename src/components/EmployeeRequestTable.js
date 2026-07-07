@@ -1,4 +1,5 @@
 import { formatLeaveType } from '../utils/leaveUtils';
+import { formatDateDDMMYYYY } from '../utils/dateFormat';
 
 export default function EmployeeRequestTable({ requests }) {
   if (!requests || requests.length === 0) {
@@ -43,11 +44,11 @@ export default function EmployeeRequestTable({ requests }) {
               <tr key={request.id}>
                 <td>{request.id}</td>
                 <td>{formatLeaveType(request.leaveType || request.type)}</td>
-                <td>{request.fromDate ? new Date(request.fromDate).toLocaleDateString() : 'N/A'}</td>
-                <td>{request.toDate ? new Date(request.toDate).toLocaleDateString() : 'N/A'}</td>
+                <td>{formatDateDDMMYYYY(request.fromDate)}</td>
+                <td>{formatDateDDMMYYYY(request.toDate)}</td>
                 <td>{request.days}</td>
                 <td>{request.status}</td>
-                <td>{request.createdAt || 'N/A'}</td>
+                <td>{formatDateDDMMYYYY(request.createdAt)}</td>
               </tr>
             ))}
           </tbody>

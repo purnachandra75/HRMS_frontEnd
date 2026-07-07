@@ -17,6 +17,11 @@ import PayrollPage from './pages/PayrollPage';
 import PayrollReportPage from './pages/PayrollReportPage';
 import AdminHolidaysPage from './pages/AdminHolidaysPage';
 import EmployeeHolidaysPage from './pages/EmployeeHolidaysPage';
+import EssentialsPage from './pages/EssentialsPage';
+import OfferLetterForm from './OfferLetterForm';
+import ExperienceLetter from './pages/ExperienceLetter';
+import RelievingLetter from './pages/RelievingLetter';
+import LetterOfIntent from './pages/LetterOfIntent';
 import './App.css';
 
 
@@ -178,6 +183,56 @@ function App() {
             }
           />
 
+          <Route
+            path="/admin/essentials"
+            element={
+              isAuthenticated && userRole === 'admin' ? (
+                <EssentialsPage userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/admin/essentials/offer-letter"
+            element={
+              isAuthenticated && userRole === 'admin' ? (
+                <OfferLetterForm />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/admin/essentials/experience-letter"
+            element={
+              isAuthenticated && userRole === 'admin' ? (
+                <ExperienceLetter />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/admin/essentials/relieving-letter"
+            element={
+              isAuthenticated && userRole === 'admin' ? (
+                <RelievingLetter />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/admin/essentials/letter-of-intent"
+            element={
+              isAuthenticated && userRole === 'admin' ? (
+                <LetterOfIntent />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
           <Route
             path="/employee/leaves"
             element={

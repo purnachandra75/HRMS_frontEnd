@@ -1124,6 +1124,30 @@
   font-size: 14px;
 }
 
+.essentials-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  gap: 20px;
+}
+
+.essentials-card {
+  min-height: 130px;
+  padding: 24px;
+  border-radius: 12px;
+  background: white;
+  color: #1f2937;
+  border: 1px solid #eef2ff;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  text-align: left;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.essentials-card:hover {
+  border-color: #667eea;
+  box-shadow: 0 8px 22px rgba(102, 126, 234, 0.18);
+}
+
 .reports-table-wrapper {
   background: white;
   border-radius: 12px;
