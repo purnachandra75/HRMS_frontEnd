@@ -30,7 +30,7 @@ function ExperienceLetter() {
       return;
     }
 
-    const url = `http://localhost:8080/api/employee/${employeeId.trim()}`;
+    const url = `http://localhost:8080/api/employee/${employeeId.trim()}/experience`;
     setIsSearching(true);
     setError("");
     setEmployee(null);

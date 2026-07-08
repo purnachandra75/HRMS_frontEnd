@@ -48,9 +48,7 @@ export default function AdminLayout({ userName, onLogout, activeItem, title, sub
             <button type="button" className={activeItem === 'payroll-report' ? 'active' : ''} onClick={() => navigate('/admin/payroll-report')}>
               Payroll Report
             </button>
-            <button type="button" className={activeItem === 'salary-report' ? 'active' : ''} onClick={() => navigate('/admin/salary-report')}>
-              Salary Report
-            </button>
+            
             <button type="button" className={activeItem === 'essentials' ? 'active' : ''} onClick={() => navigate('/admin/essentials')}>
               Essentials
             </button>

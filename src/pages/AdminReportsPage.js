@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { getEmployeesPage } from '../services/employeeService';
 import AdminLayout from '../components/AdminLayout';
+import { getEmploymentTypeLabel, matchesEmploymentFilter } from '../utils/reportUtils';
 import '../styles/Dashboard.css';
 import '../styles/Leave.css';
 
@@ -14,7 +15,7 @@ function AdminReportsPage({ userName, onLogout }) {
   const [employmentFilter, setEmploymentFilter] = useState('all');
   const [departmentFilter, setDepartmentFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
-  const rowsPerPage = 2;
+  const rowsPerPage = 10;
   const [backendTotal, setBackendTotal] = useState(0);
   const [backendTotalPages, setBackendTotalPages] = useState(1);
   const [expandedSections, setExpandedSections] = useState({
@@ -46,14 +47,14 @@ function AdminReportsPage({ userName, onLogout }) {
         if (selectedReport === 'employee') {
           if (employeeReportType === 'status') {
             params.status = 'inactive';
-          } else {
+          } else if (employeeReportType !== 'all') {
             params.status = 'active';
           }
 
           if (employeeReportType === 'employment' && employmentFilter) {
-            const normalizedEmployment = employmentFilter.trim();
-            if (normalizedEmployment.toLowerCase() !== 'all') {
-              params.employeeType = normalizedEmployment;
+            const normalizedEmployment = String(employmentFilter || '').trim().toLowerCase();
+            if (normalizedEmployment !== 'all') {
+              params.employeeType = normalizedEmployment === 'full' ? 'Full Time' : 'Part Time';
             }
           }
         }
@@ -99,9 +100,7 @@ function AdminReportsPage({ userName, onLogout }) {
     );
   };
 
-  const nonAdminEmployees = employees.filter(
-    (employee) => (employee.role || '').toLowerCase() !== 'admin'
-  );
+  const nonAdminEmployees = employees;
 
   const activeEmployees = nonAdminEmployees.filter((employee) => {
     const status = (employee.employeeStatus || '').toLowerCase();
@@ -113,11 +112,11 @@ function AdminReportsPage({ userName, onLogout }) {
   );
 
   const partTimeEmployees = activeEmployees.filter((employee) =>
-    (employee.employeeType || '').toLowerCase().includes('part time')
+    matchesEmploymentFilter(employee.employeeType, 'part')
   );
 
   const fullTimeEmployees = activeEmployees.filter((employee) =>
-    (employee.employeeType || '').toLowerCase().includes('full time')
+    matchesEmploymentFilter(employee.employeeType, 'full')
   );
 
   const allTypeEmployees = [...fullTimeEmployees, ...partTimeEmployees];
@@ -187,7 +186,7 @@ function AdminReportsPage({ userName, onLogout }) {
     salary: {
       title: 'Salary Reports',
       description: 'Review salary records for active employees only.',
-      rows: salaryEmployees.map((employee, index) => ({
+      rows: activeEmployees.map((employee, index) => ({
         id: employee.id || index,
         name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
         department: employee.department || 'N/A',
@@ -230,6 +229,18 @@ function AdminReportsPage({ userName, onLogout }) {
   };
 
   const employeeReports = {
+    all: {
+      title: 'All Employees',
+      description: 'View all employees (both active and inactive).',
+      rows: employees.map((employee, index) => ({
+        id: employee.id || index,
+        name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
+        status: employee.employeeStatus || 'N/A',
+        department: employee.department || 'N/A',
+      })),
+      columns: ['#', 'Employee Name', 'Status', 'Department'],
+      hasDownload: true,
+    },
     status: {
       title: 'Employee Exit Report',
       description: 'See employees with inactive status (resigned, terminated, or inactive).',
@@ -245,14 +256,14 @@ function AdminReportsPage({ userName, onLogout }) {
     employment: {
       title: 'Employment Type Report',
       description: 'View active employees by employment type with a full/part filter.',
-      rows: employees.map((employee, index) => ({
-        id: employee.id || index,
-        name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
-        type: (employee.employeeType || 'N/A').replace(/\b(full|part)\b/i, (match) =>
-          match.toLowerCase() === 'full' ? 'Full-Time' : 'Part-Time'
-        ),
-        department: employee.department || 'N/A',
-      })),
+      rows: employees
+        .filter((employee) => matchesEmploymentFilter(employee.employeeType, employmentFilter))
+        .map((employee, index) => ({
+          id: employee.id || index,
+          name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
+          type: getEmploymentTypeLabel(employee.employeeType),
+          department: employee.department || 'N/A',
+        })),
       columns: ['#', 'Employee Name', 'Employment Type', 'Department'],
       hasDownload: true,
     },
@@ -354,8 +365,12 @@ function AdminReportsPage({ userName, onLogout }) {
     ? selectedReportData.rows
     : [];
 
-  const filteredRows = visibleRows.filter((row) => matchesDepartment(row.department));
   const isBackendPagedReport = ['salary', 'leaves', 'attendance', 'employee'].includes(selectedReport);
+
+  // For backend-paged reports, backend already filtered by department, so don't filter again
+  const filteredRows = isBackendPagedReport 
+    ? visibleRows 
+    : visibleRows.filter((row) => matchesDepartment(row.department));
 
   const totalRows = isBackendPagedReport ? backendTotal : filteredRows.length;
   const totalPages = isBackendPagedReport
@@ -487,6 +502,13 @@ function AdminReportsPage({ userName, onLogout }) {
                 <div className="submenu-children">
                   <button
                     type="button"
+                    className={`menu-item ${selectedReport === 'employee' && employeeReportType === 'all' ? 'active' : ''}`}
+                    onClick={() => selectEmployeeReport('all')}
+                  >
+                    <span className="menu-label">All Employees</span>
+                  </button>
+                  <button
+                    type="button"
                     className={`menu-item ${selectedReport === 'employee' && employeeReportType === 'status' ? 'active' : ''}`}
                     onClick={() => selectEmployeeReport('status')}
                   >
@@ -597,8 +619,8 @@ function AdminReportsPage({ userName, onLogout }) {
                     setCurrentPage(1);
                   }}>
                     <option value="all">All</option>
-                    <option value="Full Time">Full Time</option>
-                    <option value="Part Time">Part Time</option>
+                    <option value="full">Full Time</option>
+                    <option value="part">Part Time</option>
                   </select>
                 </div>
               )}
