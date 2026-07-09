@@ -22,7 +22,14 @@ function LeavePage({ userName, onLogout }) {
     setLoading(true);
     try {
       const data = await getLeaveRequests();
-      setRequests(Array.isArray(data) ? data : []);
+      const requestsArray = Array.isArray(data) ? data : [];
+      // Sort by createdAt in descending order (newest first)
+      const sortedRequests = requestsArray.sort((a, b) => {
+        const dateA = new Date(a.createdAt || a.id).getTime();
+        const dateB = new Date(b.createdAt || b.id).getTime();
+        return dateB - dateA;
+      });
+      setRequests(sortedRequests);
       setError(null);
     } catch (err) {
       console.error('Failed to load leave requests:', err);

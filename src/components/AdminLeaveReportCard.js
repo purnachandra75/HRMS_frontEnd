@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { getLeaveRequests, getLeaveBalances } from '../services/leaveService';
+import { calculateDaysBetween } from '../utils/leaveUtils';
 
 export default function AdminLeaveReportCard() {
   const [allRequests, setAllRequests] = useState([]);
@@ -116,7 +117,8 @@ export default function AdminLeaveReportCard() {
     filteredData.forEach(request => {
       if (request.status === 'Approved' || request.status === 'approved') {
         const type = (request.leaveType || request.type || '').toLowerCase();
-        const days = request.days || 0;
+        // Always calculate working days from dates to ensure consistency
+        const days = calculateDaysBetween(request.fromDate, request.toDate) || request.days || 0;
         
         if (type === 'casual') stats.casual += days;
         else if (type === 'sick') stats.sick += days;

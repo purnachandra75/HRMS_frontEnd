@@ -1,7 +1,15 @@
-import { formatLeaveType } from '../utils/leaveUtils';
+import { formatLeaveType, calculateDaysBetween } from '../utils/leaveUtils';
 import { formatDateDDMMYYYY } from '../utils/dateFormat';
 
 export default function EmployeeRequestTable({ requests }) {
+  const getCorrectDays = (request) => {
+    // Always calculate working days from dates to ensure consistency
+    if (request.fromDate && request.toDate) {
+      const calculatedDays = calculateDaysBetween(request.fromDate, request.toDate);
+      return calculatedDays > 0 ? calculatedDays : (request.days || 0);
+    }
+    return request.days || 0;
+  };
   if (!requests || requests.length === 0) {
     return (
       <section className="section-box">
@@ -46,7 +54,7 @@ export default function EmployeeRequestTable({ requests }) {
                 <td>{formatLeaveType(request.leaveType || request.type)}</td>
                 <td>{formatDateDDMMYYYY(request.fromDate)}</td>
                 <td>{formatDateDDMMYYYY(request.toDate)}</td>
-                <td>{request.days}</td>
+                <td>{getCorrectDays(request)}</td>
                 <td>{request.status}</td>
                 <td>{formatDateDDMMYYYY(request.createdAt)}</td>
               </tr>

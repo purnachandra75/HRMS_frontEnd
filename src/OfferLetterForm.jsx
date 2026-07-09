@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import AdminLayout from "./components/AdminLayout";
 import "./App.css";
 import { formatDateDDMMYYYY } from "./utils/dateFormat";
 
@@ -215,7 +216,7 @@ function OfferFooter() {
   );
 }
 
-function OfferLetterForm() {
+function OfferLetterForm({ userName, onLogout }) {
   const pdfRef = useRef(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [offerLetter, setOfferLetter] = useState({
@@ -374,7 +375,14 @@ function OfferLetterForm() {
   };
 
   return (
-    <div className="letter-generator-page offer-letter-page">
+    <AdminLayout
+      userName={userName}
+      onLogout={onLogout}
+      activeItem="essentials"
+      title="Generate Offer Letter"
+      subtitle="Enter employee details and salary to generate an Offer Letter PDF."
+    >
+      <div className="letter-generator-page offer-letter-page">
       <style>{`
         .offer-pdf-root {
           position: fixed;
@@ -979,7 +987,8 @@ function OfferLetterForm() {
                 <OfferFooter />
               </div>
       </div>
-    </div>
+      </div>
+    </AdminLayout>
   );
 }
 

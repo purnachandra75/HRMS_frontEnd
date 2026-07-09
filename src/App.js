@@ -197,7 +197,7 @@ function App() {
             path="/admin/essentials/offer-letter"
             element={
               isAuthenticated && userRole === 'admin' ? (
-                <OfferLetterForm />
+                <OfferLetterForm userName={userName} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/login" />
               )
@@ -207,7 +207,7 @@ function App() {
             path="/admin/essentials/experience-letter"
             element={
               isAuthenticated && userRole === 'admin' ? (
-                <ExperienceLetter />
+                <ExperienceLetter userName={userName} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/login" />
               )
@@ -217,7 +217,7 @@ function App() {
             path="/admin/essentials/relieving-letter"
             element={
               isAuthenticated && userRole === 'admin' ? (
-                <RelievingLetter />
+                <RelievingLetter userName={userName} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/login" />
               )
@@ -227,7 +227,7 @@ function App() {
             path="/admin/essentials/letter-of-intent"
             element={
               isAuthenticated && userRole === 'admin' ? (
-                <LetterOfIntent />
+                <LetterOfIntent userName={userName} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/login" />
               )

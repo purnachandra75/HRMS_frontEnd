@@ -31,6 +31,21 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
     loadEmployeeData();
   }, [userId]);
 
+  useEffect(() => {
+    // Refresh balances periodically to ensure they stay in sync with approvals
+    const balanceRefreshInterval = setInterval(() => {
+      if (userId) {
+        getLeaveBalances(userId).then((balancesData) => {
+          setBalances(normalizeLeaveBalances(balancesData));
+        }).catch((err) => {
+          console.error('Failed to refresh leave balances:', err);
+        });
+      }
+    }, 3000); // Refresh every 3 seconds
+
+    return () => clearInterval(balanceRefreshInterval);
+  }, [userId]);
+
   const loadEmployeeData = async () => {
     setLoading(true);
     let requestsData = [];
@@ -50,7 +65,15 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
       console.error('Failed to load leave balances:', balanceError);
     }
 
-    setRequests(Array.isArray(requestsData) ? requestsData : []);
+    // Sort by createdAt in descending order (newest first)
+    const requestsArray = Array.isArray(requestsData) ? requestsData : [];
+    const sortedRequests = requestsArray.sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.id).getTime();
+      const dateB = new Date(b.createdAt || b.id).getTime();
+      return dateB - dateA;
+    });
+
+    setRequests(sortedRequests);
     setBalances(normalizeLeaveBalances(balancesData));
     setError(loadError || null);
     setLoading(false);
@@ -91,7 +114,7 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
       console.log('Submitting leave request:', requestData);
       
       const newRequest = await createLeaveRequest(requestData);
-      setRequests([...requests, newRequest]);
+      setRequests([newRequest, ...requests]);
       setFormData({
         type: 'casual',
         fromDate: '',
@@ -161,10 +184,27 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
               >
                 Monthly Report
               </button>
+
+              <button
+                className="action-btn"
+                onClick={() => loadEmployeeData()}
+              >
+                🔄 Refresh
+              </button>
             </div>
           </section>
-            {/* Leave Balance Cards */}
-            <LeaveBalances balances={balances} />
+            {/* Leave Balance Cards - Always Display */}
+            {Object.keys(balances).length > 0 ? (
+              <LeaveBalances balances={balances} />
+            ) : (
+              <section className="section-box">
+                <div className="cards-row">
+                  <div className="info-card"><span>Casual Leaves</span><strong>0</strong></div>
+                  <div className="info-card"><span>Sick Leaves</span><strong>0</strong></div>
+                  <div className="info-card"><span>Paid Leaves</span><strong>0</strong></div>
+                </div>
+              </section>
+            )}
 
             {/* Content Section - Changes based on active tab */}
             {activeTab === 'dashboard' && (

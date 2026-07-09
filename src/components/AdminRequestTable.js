@@ -1,6 +1,14 @@
-import { formatLeaveType } from '../utils/leaveUtils';
+import { formatLeaveType, calculateDaysBetween } from '../utils/leaveUtils';
 
 export default function AdminRequestTable({ requests, onStatusChange }) {
+  const getCorrectDays = (request) => {
+    // Always calculate working days from dates to ensure consistency
+    if (request.fromDate && request.toDate) {
+      const calculatedDays = calculateDaysBetween(request.fromDate, request.toDate);
+      return calculatedDays > 0 ? calculatedDays : (request.days || 0);
+    }
+    return request.days || 0;
+  };
   console.log('AdminRequestTable - requests:', requests);
   if (!requests || requests.length === 0) {
     return (
@@ -48,7 +56,7 @@ export default function AdminRequestTable({ requests, onStatusChange }) {
                   <div className="small-text">{request.employeeId}</div>
                 </td>
                 <td>{formatLeaveType(request.leaveType)}</td>
-                <td>{request.days}</td>
+                <td>{getCorrectDays(request)}</td>
                 <td>{request.status}</td>
                 <td>
                   {request.status === 'Pending' ? (

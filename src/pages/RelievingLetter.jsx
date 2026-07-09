@@ -1,13 +1,14 @@
 import React, { useRef, useState } from "react";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import AdminLayout from "../components/AdminLayout";
 
 import logo from "../assets/ProminentLogo.png";
 import sign from "../assets/Sign.jpg";
 import watermark from "../assets/p2.jpg";
 import { formatDateDDMMYYYY } from "../utils/dateFormat";
 
-function RelievingLetter() {
+function RelievingLetter({ userName, onLogout }) {
   const pdfRef = useRef();
   const [employeeId, setEmployeeId] = useState("");
   const [employee, setEmployee] = useState(null);
@@ -81,7 +82,7 @@ function RelievingLetter() {
     return formatDateDDMMYYYY(new Date());
   };
 
-  return (
+  const letterContent = (
     <div className="letter-generator-page">
       <section className="letter-search-card">
         <div className="letter-search-header">
@@ -163,6 +164,18 @@ function RelievingLetter() {
       </div>
       </section>
     </div>
+  );
+
+  return (
+    <AdminLayout
+      userName={userName}
+      onLogout={onLogout}
+      activeItem="essentials"
+      title="Generate Relieving Letter"
+      subtitle="Search by employee ID and generate a relieving letter PDF."
+    >
+      {letterContent}
+    </AdminLayout>
   );
 }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import EmployeeRequestTable from './EmployeeRequestTable';
 import { getEmployeeLeaveRequests, getLeaveBalances } from '../services/leaveService';
-import { normalizeLeaveBalances } from '../utils/leaveUtils';
+import { normalizeLeaveBalances, calculateDaysBetween } from '../utils/leaveUtils';
 
 export default function LeaveReportCard({ userId }) {
   const [leaveData, setLeaveData] = useState(null);
@@ -49,7 +49,9 @@ export default function LeaveReportCard({ userId }) {
         if (fromDate.getFullYear() === selectedYear || toDate.getFullYear() === selectedYear) {
           const month = fromDate.getMonth();
           if (month >= 0 && month < 12) {
-            monthlyData[month] += request.days || 0;
+            // Always calculate working days from dates to ensure consistency
+            const correctDays = calculateDaysBetween(request.fromDate, request.toDate) || request.days || 0;
+            monthlyData[month] += correctDays;
           }
         }
       }

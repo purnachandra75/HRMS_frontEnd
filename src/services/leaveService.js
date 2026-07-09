@@ -99,6 +99,29 @@ const ensureLeaveBalancesForCurrentYear = (employeeId) => {
   return saveLeaveBalancesToStorage(employeeId, { ...DEFAULT_LEAVE_BALANCES });
 };
 
+// Calculate working days (excluding weekends) between two dates
+const calculateWorkingDaysBetween = (fromDate, toDate) => {
+  if (!fromDate || !toDate) return 0;
+  const from = new Date(fromDate);
+  const to = new Date(toDate);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) {
+    return 0;
+  }
+
+  let workingDays = 0;
+  const current = new Date(from);
+
+  while (current <= to) {
+    const day = current.getDay();
+    if (day !== 0 && day !== 6) {
+      workingDays += 1;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+
+  return workingDays;
+};
+
 const getLeaveRequestsFromStorage = () => {
   return loadFromStorage(STORAGE_KEYS.leaveRequests) || [];
 };
@@ -140,6 +163,11 @@ const applyLeaveBalanceChange = (employeeId, leaveType, days) => {
   return balances;
 };
 
+const clearCachedLeaveBalances = (employeeId) => {
+  const storageKey = buildStorageKey(STORAGE_KEYS.leaveBalances, employeeId);
+  localStorage.removeItem(storageKey);
+};
+
 const updateLocalLeaveRequestStatus = (requestId, status) => {
   const requests = getLeaveRequestsFromStorage();
   const updatedRequests = requests.map((request) => {
@@ -149,10 +177,22 @@ const updateLocalLeaveRequestStatus = (requestId, status) => {
 
     const previousStatus = (request.status || '').toLowerCase();
     const newStatus = String(status);
-    const updatedRequest = { ...request, status: newStatus };
+    
+    // Always calculate correct working days from dates
+    const correctDays = calculateWorkingDaysBetween(request.fromDate, request.toDate);
+    const updatedRequest = { 
+      ...request, 
+      status: newStatus,
+      days: correctDays > 0 ? correctDays : (request.days || 0) // Update stored days with correct value
+    };
 
     if (previousStatus !== 'approved' && newStatus.toLowerCase() === 'approved') {
-      applyLeaveBalanceChange(request.employeeId, request.leaveType || request.type, request.days || 0);
+      // Use the correct calculated working days for deduction
+      const daysToDeduct = updatedRequest.days;
+      
+      applyLeaveBalanceChange(request.employeeId, request.leaveType || request.type, daysToDeduct);
+      // Clear cached balance to force fresh fetch on next request
+      clearCachedLeaveBalances(request.employeeId);
     }
 
     return updatedRequest;
@@ -293,22 +333,44 @@ export const updateLeaveRequestStatus = async (requestId, status) => {
       const existingRequest = requests.find((request) => String(request.id) === String(responseData.id));
       if (existingRequest) {
         const previousStatus = (existingRequest.status || '').toLowerCase();
-        updateRequestInStorage(responseData);
+        // Calculate correct working days from dates
+        const fromDate = responseData.fromDate || existingRequest.fromDate;
+        const toDate = responseData.toDate || existingRequest.toDate;
+        const correctDays = calculateWorkingDaysBetween(fromDate, toDate);
+        const calculatedDays = correctDays > 0 ? correctDays : (responseData.days || existingRequest.days || 0);
+        
+        // Update the response object with correct days before storing
+        const updatedResponseData = { ...responseData, days: calculatedDays };
+        updateRequestInStorage(updatedResponseData);
+        
         if (previousStatus !== 'approved' && (responseData.status || status).toLowerCase() === 'approved') {
+          // Use the correct calculated working days for deduction
           applyLeaveBalanceChange(
             responseData.employeeId || existingRequest.employeeId,
             responseData.leaveType || responseData.type || existingRequest.leaveType || existingRequest.type,
-            responseData.days || existingRequest.days || 0
+            calculatedDays
           );
+          // Clear cached balance to force fresh fetch on next request
+          clearCachedLeaveBalances(responseData.employeeId || existingRequest.employeeId);
         }
       } else {
-        updateRequestInStorage(responseData);
+        // Request not found in local storage, process new response
+        const correctDays = calculateWorkingDaysBetween(responseData.fromDate, responseData.toDate);
+        const calculatedDays = correctDays > 0 ? correctDays : (responseData.days || 0);
+        
+        // Update the response object with correct days before storing
+        const updatedResponseData = { ...responseData, days: calculatedDays };
+        updateRequestInStorage(updatedResponseData);
+        
         if ((responseData.status || status).toLowerCase() === 'approved') {
+          // Use the correct calculated working days for deduction
           applyLeaveBalanceChange(
             responseData.employeeId,
             responseData.leaveType || responseData.type,
-            responseData.days || 0
+            calculatedDays
           );
+          // Clear cached balance to force fresh fetch on next request
+          clearCachedLeaveBalances(responseData.employeeId);
         }
       }
     } else {
@@ -332,13 +394,15 @@ export const getLeaveBalances = async (employeeId) => {
       throw new Error('Failed to fetch leave balances');
     }
     const data = await response.json();
+    // Always save fresh data from server to update cache
+    return saveLeaveBalancesToStorage(employeeId, data);
+  } catch (error) {
+    console.error('Error fetching leave balances:', error);
+    // Only use cache as fallback if server fails
     const stored = getStoredLeaveBalances(employeeId);
     if (stored) {
       return stored;
     }
-    return saveLeaveBalancesToStorage(employeeId, data);
-  } catch (error) {
-    console.error('Error fetching leave balances:', error);
     return ensureLeaveBalancesForCurrentYear(employeeId);
   }
 };
