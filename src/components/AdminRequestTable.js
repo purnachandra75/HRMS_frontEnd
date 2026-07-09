@@ -1,6 +1,19 @@
 import { formatLeaveType, calculateDaysBetween } from '../utils/leaveUtils';
 
-export default function AdminRequestTable({ requests, onStatusChange }) {
+const statusOptions = [
+  { value: 'all', label: 'All Statuses' },
+  { value: 'pending', label: 'Pending' },
+  { value: 'approved', label: 'Approved' },
+  { value: 'rejected', label: 'Rejected' },
+];
+
+export default function AdminRequestTable({
+  requests,
+  totalRequests = 0,
+  statusFilter = 'all',
+  onStatusFilterChange,
+  onStatusChange,
+}) {
   const getCorrectDays = (request) => {
     // Always calculate working days from dates to ensure consistency
     if (request.fromDate && request.toDate) {
@@ -9,22 +22,11 @@ export default function AdminRequestTable({ requests, onStatusChange }) {
     }
     return request.days || 0;
   };
+
+  const showStatusFilter = typeof onStatusFilterChange === 'function';
+  const hasRequests = requests && requests.length > 0;
+
   console.log('AdminRequestTable - requests:', requests);
-  if (!requests || requests.length === 0) {
-    return (
-      <section className="section-box">
-        <div className="section-header">
-          <div>
-            <h2>Leave Requests</h2>
-            <p>Search requests by employee name or ID and approve or reject them.</p>
-          </div>
-        </div>
-        <div className="request-list">
-          <p>No leave requests found.</p>
-        </div>
-      </section>
-    );
-  }
 
   return (
     <section className="section-box">
@@ -33,7 +35,33 @@ export default function AdminRequestTable({ requests, onStatusChange }) {
           <h2>Leave Requests</h2>
           <p>Manage leave requests and approve or reject them.</p>
         </div>
+        {showStatusFilter && (
+          <div className="leave-filter-control">
+            <label htmlFor="leave-status-filter">Status</label>
+            <select
+              id="leave-status-filter"
+              className="filter-select"
+              value={statusFilter}
+              onChange={(event) => onStatusFilterChange(event.target.value)}
+            >
+              {statusOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
       </div>
+      {!hasRequests ? (
+        <div className="request-list">
+          <p>
+            {totalRequests > 0
+              ? `No ${statusFilter} leave requests found.`
+              : 'No leave requests found.'}
+          </p>
+        </div>
+      ) : (
       <div className="request-list">
         <table>
           <thead>
@@ -59,7 +87,7 @@ export default function AdminRequestTable({ requests, onStatusChange }) {
                 <td>{getCorrectDays(request)}</td>
                 <td>{request.status}</td>
                 <td>
-                  {request.status === 'Pending' ? (
+                  {(request.status || '').toLowerCase() === 'pending' ? (
                     <div className="action-buttons">
                       <button className="small-button" onClick={() => onStatusChange(request.id, 'Approved')}>
                         Approve
@@ -69,7 +97,9 @@ export default function AdminRequestTable({ requests, onStatusChange }) {
                       </button>
                     </div>
                   ) : (
-                    <span className="status-tag">{request.status}</span>
+                    <span className={`status-tag ${(request.status || '').toLowerCase()}`}>
+                      {request.status}
+                    </span>
                   )}
                 </td>
               </tr>
@@ -77,6 +107,7 @@ export default function AdminRequestTable({ requests, onStatusChange }) {
           </tbody>
         </table>
       </div>
+      )}
     </section>
   );
 }

@@ -32,6 +32,20 @@
   color: #6b7280;
 }
 
+.leave-filter-control {
+  display: flex;
+  flex: 0 0 220px;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.leave-filter-control label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2937;
+  text-transform: uppercase;
+}
+
 .secondary-button {
   background-color: #e5e7eb;
   color: #1f2937;
@@ -288,6 +302,11 @@
   }
 
   .section-header div {
+    flex: 1;
+    width: 100%;
+  }
+
+  .leave-filter-control {
     flex: 1;
     width: 100%;
   }

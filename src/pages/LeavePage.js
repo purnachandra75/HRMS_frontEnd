@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import AdminRequestTable from '../components/AdminRequestTable';
 import AdminLeaveReportCard from '../components/AdminLeaveReportCard';
 import AdminLayout from '../components/AdminLayout';
@@ -7,10 +6,48 @@ import { getLeaveRequests, updateLeaveRequestStatus } from '../services/leaveSer
 import '../styles/Dashboard.css';
 import '../styles/Leave.css';
 
+const getRequestTimestamp = (request) => {
+  const dateFields = [
+    request?.createdAt,
+    request?.submittedAt,
+    request?.requestedAt,
+    request?.updatedAt,
+  ];
+
+  for (const dateValue of dateFields) {
+    if (dateValue) {
+      const parsedDate = new Date(dateValue).getTime();
+      if (!Number.isNaN(parsedDate)) {
+        return parsedDate;
+      }
+    }
+  }
+
+  const numericId = Number(request?.id);
+  return Number.isNaN(numericId) ? 0 : numericId;
+};
+
+const sortNewestRequestsFirst = (requestList) => {
+  return [...requestList].sort((a, b) => {
+    const dateDifference = getRequestTimestamp(b) - getRequestTimestamp(a);
+    if (dateDifference !== 0) {
+      return dateDifference;
+    }
+
+    const numericIdA = Number(a?.id);
+    const numericIdB = Number(b?.id);
+    if (!Number.isNaN(numericIdA) && !Number.isNaN(numericIdB)) {
+      return numericIdB - numericIdA;
+    }
+
+    return String(b?.id || '').localeCompare(String(a?.id || ''));
+  });
+};
+
 function LeavePage({ userName, onLogout }) {
-  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('requests'); // requests, monthly-report
   const [requests, setRequests] = useState([]);
+  const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -23,12 +60,7 @@ function LeavePage({ userName, onLogout }) {
     try {
       const data = await getLeaveRequests();
       const requestsArray = Array.isArray(data) ? data : [];
-      // Sort by createdAt in descending order (newest first)
-      const sortedRequests = requestsArray.sort((a, b) => {
-        const dateA = new Date(a.createdAt || a.id).getTime();
-        const dateB = new Date(b.createdAt || b.id).getTime();
-        return dateB - dateA;
-      });
+      const sortedRequests = sortNewestRequestsFirst(requestsArray);
       setRequests(sortedRequests);
       setError(null);
     } catch (err) {
@@ -39,10 +71,20 @@ function LeavePage({ userName, onLogout }) {
     }
   };
 
+  const filteredRequests = requests.filter((request) => {
+    if (statusFilter === 'all') {
+      return true;
+    }
+
+    return (request.status || '').toLowerCase() === statusFilter;
+  });
+
   const handleStatusChange = async (requestId, status) => {
     try {
       await updateLeaveRequestStatus(requestId, status);
-      setRequests((current) => current.map(req => req.id === requestId ? { ...req, status } : req));
+      setRequests((current) => sortNewestRequestsFirst(
+        current.map(req => req.id === requestId ? { ...req, status } : req)
+      ));
     } catch (err) {
       console.error('Failed to update leave request:', err);
       alert('Failed to update leave request');
@@ -79,7 +121,13 @@ function LeavePage({ userName, onLogout }) {
       ) : (
         <>
           {activeTab === 'requests' && (
-            <AdminRequestTable requests={requests} onStatusChange={handleStatusChange} />
+            <AdminRequestTable
+              requests={filteredRequests}
+              totalRequests={requests.length}
+              statusFilter={statusFilter}
+              onStatusFilterChange={setStatusFilter}
+              onStatusChange={handleStatusChange}
+            />
           )}
           {activeTab === 'monthly-report' && (
             <AdminLeaveReportCard />

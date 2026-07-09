@@ -27,6 +27,36 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const getRequestTimestamp = (request) => {
+    const createdAt = request?.createdAt;
+    if (createdAt) {
+      const parsedDate = new Date(createdAt).getTime();
+      if (!Number.isNaN(parsedDate)) {
+        return parsedDate;
+      }
+    }
+
+    const numericId = Number(request?.id);
+    return Number.isNaN(numericId) ? 0 : numericId;
+  };
+
+  const sortNewestRequestsFirst = (requestList) => {
+    return [...requestList].sort((a, b) => {
+      const dateDifference = getRequestTimestamp(b) - getRequestTimestamp(a);
+      if (dateDifference !== 0) {
+        return dateDifference;
+      }
+
+      const numericIdA = Number(a?.id);
+      const numericIdB = Number(b?.id);
+      if (!Number.isNaN(numericIdA) && !Number.isNaN(numericIdB)) {
+        return numericIdB - numericIdA;
+      }
+
+      return String(b?.id || '').localeCompare(String(a?.id || ''));
+    });
+  };
+
   useEffect(() => {
     loadEmployeeData();
   }, [userId]);
@@ -65,13 +95,8 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
       console.error('Failed to load leave balances:', balanceError);
     }
 
-    // Sort by createdAt in descending order (newest first)
     const requestsArray = Array.isArray(requestsData) ? requestsData : [];
-    const sortedRequests = requestsArray.sort((a, b) => {
-      const dateA = new Date(a.createdAt || a.id).getTime();
-      const dateB = new Date(b.createdAt || b.id).getTime();
-      return dateB - dateA;
-    });
+    const sortedRequests = sortNewestRequestsFirst(requestsArray);
 
     setRequests(sortedRequests);
     setBalances(normalizeLeaveBalances(balancesData));
@@ -114,7 +139,7 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
       console.log('Submitting leave request:', requestData);
       
       const newRequest = await createLeaveRequest(requestData);
-      setRequests([newRequest, ...requests]);
+      setRequests((currentRequests) => sortNewestRequestsFirst([newRequest, ...currentRequests]));
       setFormData({
         type: 'casual',
         fromDate: '',

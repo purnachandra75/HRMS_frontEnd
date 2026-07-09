@@ -1,5 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
 import { getEmployeesPage } from '../services/employeeService';
+import { getLeaveRequests } from '../services/leaveService';
 import AdminLayout from '../components/AdminLayout';
 import { getEmploymentTypeLabel, matchesEmploymentFilter } from '../utils/reportUtils';
 import '../styles/Dashboard.css';
@@ -7,7 +8,9 @@ import '../styles/Leave.css';
 
 function AdminReportsPage({ userName, onLogout }) {
   const [employees, setEmployees] = useState([]);
+  const [leaveRequests, setLeaveRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
   const [selectedReport, setSelectedReport] = useState('salary');
   const [employeeReportType, setEmployeeReportType] = useState('status');
@@ -24,45 +27,62 @@ function AdminReportsPage({ userName, onLogout }) {
     leave: false,
     attendance: false,
   });
+  const getReportEmployeeParams = (page, size) => {
+    const trimmedDepartment = String(departmentFilter || '').trim();
+    const params = {
+      page,
+      size,
+    };
+
+    if (trimmedDepartment && trimmedDepartment.toLowerCase() !== 'all') {
+      params.department = trimmedDepartment;
+    }
+
+    if (selectedReport === 'salary' || selectedReport === 'leaves' || selectedReport === 'attendance') {
+      params.status = 'active';
+    }
+
+    if (selectedReport === 'employee') {
+      if (employeeReportType === 'status') {
+        params.status = 'inactive';
+      } else if (employeeReportType !== 'all') {
+        params.status = 'active';
+      }
+
+      if (employeeReportType === 'employment' && employmentFilter) {
+        const normalizedEmployment = String(employmentFilter || '').trim().toLowerCase();
+        if (normalizedEmployment !== 'all') {
+          params.employeeType = normalizedEmployment === 'full' ? 'Full Time' : 'Part Time';
+        }
+      }
+    }
+
+    return params;
+  };
+
   useEffect(() => {
     const loadReportPage = async () => {
       if (!['salary', 'leaves', 'attendance', 'employee'].includes(selectedReport)) return;
 
       setLoading(true);
       try {
-        const trimmedDepartment = String(departmentFilter || '').trim();
-        const params = {
-          page: currentPage,
-          size: rowsPerPage,
-        };
+        const params = getReportEmployeeParams(currentPage, rowsPerPage);
 
-        if (trimmedDepartment && trimmedDepartment.toLowerCase() !== 'all') {
-          params.department = trimmedDepartment;
-        }
+        const [
+          { employees: paged, total, totalPages },
+          leaveRequestsData,
+        ] = await Promise.all([
+          getEmployeesPage(params),
+          selectedReport === 'leaves' ? getLeaveRequests() : Promise.resolve(leaveRequests),
+        ]);
 
-        if (selectedReport === 'salary' || selectedReport === 'leaves' || selectedReport === 'attendance') {
-          params.status = 'active';
-        }
-
-        if (selectedReport === 'employee') {
-          if (employeeReportType === 'status') {
-            params.status = 'inactive';
-          } else if (employeeReportType !== 'all') {
-            params.status = 'active';
-          }
-
-          if (employeeReportType === 'employment' && employmentFilter) {
-            const normalizedEmployment = String(employmentFilter || '').trim().toLowerCase();
-            if (normalizedEmployment !== 'all') {
-              params.employeeType = normalizedEmployment === 'full' ? 'Full Time' : 'Part Time';
-            }
-          }
-        }
-
-        const { employees: paged, total, totalPages } = await getEmployeesPage(params);
         setEmployees(paged);
+        if (selectedReport === 'leaves') {
+          setLeaveRequests(Array.isArray(leaveRequestsData) ? leaveRequestsData : []);
+        }
         setBackendTotal(total ?? paged.length);
         setBackendTotalPages(totalPages ?? Math.max(1, Math.ceil((total ?? paged.length) / rowsPerPage)));
+        setError('');
       } catch (err) {
         console.error('Failed to load report page:', err);
         setError('Unable to load report data.');
@@ -102,59 +122,72 @@ function AdminReportsPage({ userName, onLogout }) {
 
   const nonAdminEmployees = employees;
 
-  const activeEmployees = nonAdminEmployees.filter((employee) => {
+  const getActiveEmployees = (employeeList) => employeeList.filter((employee) => {
     const status = (employee.employeeStatus || '').toLowerCase();
     return status !== 'inactive';
   });
 
-  const salaryEmployees = activeEmployees.filter(
-    (employee) => employee.ctc !== '' || employee.basicSalary !== ''
-  );
-
-  const partTimeEmployees = activeEmployees.filter((employee) =>
-    matchesEmploymentFilter(employee.employeeType, 'part')
-  );
-
-  const fullTimeEmployees = activeEmployees.filter((employee) =>
-    matchesEmploymentFilter(employee.employeeType, 'full')
-  );
-
-  const allTypeEmployees = [...fullTimeEmployees, ...partTimeEmployees];
-  const filteredTypeEmployees =
-    employmentFilter === 'all'
-      ? allTypeEmployees
-      : employmentFilter === 'full'
-      ? fullTimeEmployees
-      : partTimeEmployees;
+  const activeEmployees = getActiveEmployees(nonAdminEmployees);
 
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const newJoiners = activeEmployees.filter((employee) => {
+  const isWithinProbationPeriod = (employee) => {
     const joinedDate = getJoiningDate(employee);
     if (!joinedDate || Number.isNaN(joinedDate.getTime())) return false;
 
     joinedDate.setHours(0, 0, 0, 0);
     const diffDays = Math.floor((today - joinedDate) / (1000 * 60 * 60 * 24));
     return diffDays >= 0 && diffDays <= 180;
-  });
+  };
 
   const currentYear = new Date().getFullYear();
   const yearOptions = Array.from({ length: 11 }, (_, i) => currentYear - 5 + i);
 
-  const leavesReportRows = activeEmployees.map((employee, index) => {
-    const monthlyLeaves = Array(12).fill(0);
+  const getEmployeeId = (employee) => String(employee?.id ?? employee?.empId ?? '').trim();
 
-    if (employee.leaveHistory && Array.isArray(employee.leaveHistory)) {
-      employee.leaveHistory.forEach((leave) => {
-        if (leave.leaveDate) {
-          const leaveDate = new Date(leave.leaveDate);
-          if (leaveDate.getFullYear() === selectedYear) {
-            monthlyLeaves[leaveDate.getMonth()]++;
-          }
-        }
-      });
+  const getLeaveEmployeeId = (leave) => String(
+    leave?.employeeId ??
+    leave?.empId ??
+    leave?.employee?.employeeId ??
+    leave?.employee?.empId ??
+    leave?.employee?.id ??
+    ''
+  ).trim();
+
+  const addLeaveDaysToMonths = (monthlyLeaves, request) => {
+    if ((request.status || '').toLowerCase() !== 'approved') {
+      return;
     }
+
+    const fromDate = new Date(request.fromDate);
+    const toDate = new Date(request.toDate);
+    if (Number.isNaN(fromDate.getTime()) || Number.isNaN(toDate.getTime()) || fromDate > toDate) {
+      return;
+    }
+
+    const currentDate = new Date(fromDate);
+    currentDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(toDate);
+    endDate.setHours(0, 0, 0, 0);
+
+    while (currentDate <= endDate) {
+      const day = currentDate.getDay();
+      if (currentDate.getFullYear() === selectedYear && day !== 0 && day !== 6) {
+        monthlyLeaves[currentDate.getMonth()] += 1;
+      }
+
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+  };
+
+  const buildLeavesReportRows = (employeeList, requestsList) => employeeList.map((employee, index) => {
+    const monthlyLeaves = Array(12).fill(0);
+    const employeeId = getEmployeeId(employee);
+
+    requestsList
+      .filter((leave) => getLeaveEmployeeId(leave) === employeeId)
+      .forEach((leave) => addLeaveDaysToMonths(monthlyLeaves, leave));
 
     return {
       id: employee.id || index,
@@ -175,23 +208,66 @@ function AdminReportsPage({ userName, onLogout }) {
     };
   });
 
-  const attendanceReportRows = activeEmployees.map((employee, index) => ({
+  const buildAttendanceReportRows = (employeeList) => employeeList.map((employee, index) => ({
     id: employee.id || index,
     name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
     department: employee.department || 'N/A',
     status: employee.employeeStatus || 'Active',
   }));
 
+  const buildSalaryReportRows = (employeeList) => employeeList.map((employee, index) => ({
+    id: employee.id || index,
+    name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
+    department: employee.department || 'N/A',
+    salary: employee.ctc || employee.basicSalary || '0',
+  }));
+
+  const buildEmployeeReportRows = (employeeList, reportType) => {
+    if (reportType === 'employment') {
+      return employeeList
+        .filter((employee) => matchesEmploymentFilter(employee.employeeType, employmentFilter))
+        .map((employee, index) => ({
+          id: employee.id || index,
+          name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
+          type: getEmploymentTypeLabel(employee.employeeType),
+          department: employee.department || 'N/A',
+        }));
+    }
+
+    if (reportType === 'newJoiners' || reportType === 'probation') {
+      return employeeList.filter(isWithinProbationPeriod).map((employee, index) => {
+        const joinedDate = getJoiningDate(employee);
+        const joinedText =
+          joinedDate && !Number.isNaN(joinedDate.getTime())
+            ? joinedDate.toISOString().split('T')[0]
+            : 'N/A';
+
+        return {
+          id: employee.id || index,
+          name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
+          joined: joinedText,
+          department: employee.department || 'N/A',
+        };
+      });
+    }
+
+    return employeeList.map((employee, index) => ({
+      id: employee.id || index,
+      name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
+      status: employee.employeeStatus || 'N/A',
+      department: employee.department || 'N/A',
+    }));
+  };
+
+  const leavesReportRows = buildLeavesReportRows(activeEmployees, leaveRequests);
+  const attendanceReportRows = buildAttendanceReportRows(activeEmployees);
+  const salaryReportRows = buildSalaryReportRows(activeEmployees);
+
   const reportDetails = {
     salary: {
       title: 'Salary Reports',
       description: 'Review salary records for active employees only.',
-      rows: activeEmployees.map((employee, index) => ({
-        id: employee.id || index,
-        name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
-        department: employee.department || 'N/A',
-        salary: employee.ctc || employee.basicSalary || '0',
-      })),
+      rows: salaryReportRows,
       columns: ['#', 'Employee Name', 'Department', 'Salary'],
       hasDownload: true,
     },
@@ -232,78 +308,35 @@ function AdminReportsPage({ userName, onLogout }) {
     all: {
       title: 'All Employees',
       description: 'View all employees (both active and inactive).',
-      rows: employees.map((employee, index) => ({
-        id: employee.id || index,
-        name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
-        status: employee.employeeStatus || 'N/A',
-        department: employee.department || 'N/A',
-      })),
+      rows: buildEmployeeReportRows(employees, 'all'),
       columns: ['#', 'Employee Name', 'Status', 'Department'],
       hasDownload: true,
     },
     status: {
       title: 'Employee Exit Report',
       description: 'See employees with inactive status (resigned, terminated, or inactive).',
-      rows: employees.map((employee, index) => ({
-        id: employee.id || index,
-        name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
-        status: employee.employeeStatus || 'N/A',
-        department: employee.department || 'N/A',
-      })),
+      rows: buildEmployeeReportRows(employees, 'status'),
       columns: ['#', 'Employee Name', 'Status', 'Department'],
       hasDownload: true,
     },
     employment: {
       title: 'Employment Type Report',
       description: 'View active employees by employment type with a full/part filter.',
-      rows: employees
-        .filter((employee) => matchesEmploymentFilter(employee.employeeType, employmentFilter))
-        .map((employee, index) => ({
-          id: employee.id || index,
-          name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
-          type: getEmploymentTypeLabel(employee.employeeType),
-          department: employee.department || 'N/A',
-        })),
+      rows: buildEmployeeReportRows(employees, 'employment'),
       columns: ['#', 'Employee Name', 'Employment Type', 'Department'],
       hasDownload: true,
     },
     newJoiners: {
       title: 'New Joiners',
       description: 'Active employees who joined within the last 6 months (probation period).',
-      rows: employees.map((employee, index) => {
-        const joinedDate = getJoiningDate(employee);
-        const joinedText =
-          joinedDate && !Number.isNaN(joinedDate.getTime())
-            ? joinedDate.toISOString().split('T')[0]
-            : 'N/A';
-
-        return {
-          id: employee.id || index,
-          name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
-          joined: joinedText,
-          department: employee.department || 'N/A',
-        };
-      }),
+      rows: buildEmployeeReportRows(employees, 'newJoiners'),
       columns: ['#', 'Employee Name', 'Date Joined', 'Department'],
       hasDownload: true,
     },
     probation: {
       title: 'Probation Period',
       description: 'Active employees within 6 months of joining date (probation period).',
-      rows: employees.map((employee, index) => {
-        const joinedDate = getJoiningDate(employee);
-        const joinedText =
-          joinedDate && !Number.isNaN(joinedDate.getTime())
-            ? joinedDate.toISOString().split('T')[0]
-            : 'N/A';
-
-        return {
-          id: employee.id || index,
-          name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
-          joined: joinedText,
-          department: employee.department || 'N/A',
-        };
-      }),
+      rows: buildEmployeeReportRows(employees, 'probation'),
       columns: ['#', 'Employee Name', 'Date Joined', 'Department'],
       hasDownload: true,
     },
@@ -402,6 +435,71 @@ function AdminReportsPage({ userName, onLogout }) {
     }
   }, [currentPage, totalPages]);
 
+  const fetchAllReportEmployees = async () => {
+    const pageSize = 1000;
+    const allEmployees = [];
+    let page = 1;
+    let totalPagesToLoad = 1;
+
+    do {
+      const result = await getEmployeesPage(getReportEmployeeParams(page, pageSize));
+      const pageEmployees = Array.isArray(result.employees) ? result.employees : [];
+      allEmployees.push(...pageEmployees);
+
+      totalPagesToLoad = result.totalPages || Math.ceil((result.total || allEmployees.length) / pageSize) || 1;
+      if (pageEmployees.length === 0 || pageEmployees.length < pageSize) {
+        break;
+      }
+
+      page += 1;
+    } while (page <= totalPagesToLoad && page <= 100);
+
+    return allEmployees;
+  };
+
+  const buildCompleteReportForDownload = async () => {
+    if (!selectedReportData) {
+      return null;
+    }
+
+    const allReportEmployees = await fetchAllReportEmployees();
+    const activeReportEmployees = getActiveEmployees(allReportEmployees);
+
+    if (selectedReport === 'salary') {
+      return {
+        ...selectedReportData,
+        rows: buildSalaryReportRows(activeReportEmployees),
+      };
+    }
+
+    if (selectedReport === 'leaves') {
+      const allLeaveRequests = await getLeaveRequests();
+      return {
+        ...selectedReportData,
+        rows: buildLeavesReportRows(activeReportEmployees, Array.isArray(allLeaveRequests) ? allLeaveRequests : []),
+      };
+    }
+
+    if (selectedReport === 'attendance') {
+      return {
+        ...selectedReportData,
+        rows: buildAttendanceReportRows(activeReportEmployees),
+      };
+    }
+
+    if (selectedReport === 'employee') {
+      return {
+        ...selectedReportData,
+        rows: buildEmployeeReportRows(allReportEmployees, employeeReportType),
+      };
+    }
+
+    return {
+      ...selectedReportData,
+      rows: filteredRows,
+    };
+  };
+
   const downloadReport = (report) => {
     const headers = report.columns || [];
     const rows = (report.rows || []).map((row, index) => [
@@ -456,6 +554,23 @@ function AdminReportsPage({ userName, onLogout }) {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadReport = async () => {
+    if (!reportForDownload || downloading) {
+      return;
+    }
+
+    setDownloading(true);
+    try {
+      const completeReport = await buildCompleteReportForDownload();
+      downloadReport(completeReport || reportForDownload);
+    } catch (err) {
+      console.error('Failed to download complete report:', err);
+      alert('Unable to download the complete report. Please try again.');
+    } finally {
+      setDownloading(false);
+    }
   };
 
   return (
@@ -552,7 +667,10 @@ function AdminReportsPage({ userName, onLogout }) {
                   <button
                     type="button"
                     className={`menu-item ${selectedReport === 'leaves' ? 'active' : ''}`}
-                    onClick={() => { setSelectedReport('leaves'); }}
+                    onClick={() => {
+                      setSelectedReport('leaves');
+                      setCurrentPage(1);
+                    }}
                   >
                     <span className="menu-label">View Leave Report</span>
                   </button>
@@ -642,8 +760,8 @@ function AdminReportsPage({ userName, onLogout }) {
               </div>
 
               {selected?.hasDownload && reportForDownload && (
-                <button type="button" className="create-btn" onClick={() => downloadReport(reportForDownload)}>
-                  Download
+                <button type="button" className="create-btn" onClick={handleDownloadReport} disabled={downloading}>
+                  {downloading ? 'Exporting...' : 'Export All'}
                 </button>
               )}
             </div>
