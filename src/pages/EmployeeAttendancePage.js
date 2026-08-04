@@ -1,12 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
 import EmployeeLayout from '../components/EmployeeLayout';
 import { getEmployeeLeaveRequests } from '../services/leaveService';
 import { getHolidays } from '../services/holidayService';
+import { apiFetch } from '../utils/apiClient';
 import '../styles/EmployeeAttendance.css';
 
 function EmployeeAttendancePage({ userId, userName, onLogout }) {
-  const navigate = useNavigate();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [activeTab, setActiveTab] = useState('today');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -29,10 +28,10 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
     return new Date(year, month - 1, day);
   };
 
-  const loadAttendanceData = async () => {
+  const loadAttendanceData = useCallback(async () => {
     if (!userId) return;
     try {
-      const response = await fetch(`${API_BASE}/api/attendance/employee/${userId}`);
+      const response = await apiFetch(`${API_BASE}/api/attendance/employee/${userId}`);
       if (response.ok) {
         const data = await response.json();
         const mapped = data.map((record) => ({
@@ -49,12 +48,12 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
       console.error('Failed to load attendance data', error);
       setAllAttendanceData([]);
     }
-  };
+  }, [API_BASE, userId]);
 
-  const loadTodayAttendance = async () => {
+  const loadTodayAttendance = useCallback(async () => {
     if (!userId) return;
     try {
-      const response = await fetch(`${API_BASE}/api/attendance/today/${userId}`);
+      const response = await apiFetch(`${API_BASE}/api/attendance/today/${userId}`);
       if (response.ok) {
         const data = await response.json();
         setCheckedInToday(Boolean(data.checkInTime));
@@ -74,9 +73,9 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
       setTodayCheckInTime(null);
       setTodayCheckOutTime(null);
     }
-  };
+  }, [API_BASE, userId]);
 
-  const loadApprovedLeaveStatus = async () => {
+  const loadApprovedLeaveStatus = useCallback(async () => {
     if (!userId) return;
     try {
       const leaveRequests = await getEmployeeLeaveRequests(userId);
@@ -104,7 +103,7 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
       console.error('Failed to load approved leave status', error);
       setIsOnApprovedLeaveToday(false);
     }
-  };
+  }, [userId]);
 
   useEffect(() => {
     loadAttendanceData();
@@ -112,7 +111,7 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
     loadApprovedLeaveStatus();
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
-  }, [userId]);
+  }, [loadAttendanceData, loadTodayAttendance, loadApprovedLeaveStatus]);
 
   useEffect(() => {
     const loadHolidayData = async () => {
@@ -150,7 +149,7 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
     });
 
     try {
-      const response = await fetch(`${API_BASE}/api/attendance/checkin`, {
+      const response = await apiFetch(`${API_BASE}/api/attendance/checkin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ employeeId: userId, checkInTime }),
@@ -181,7 +180,7 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
     });
 
     try {
-      const response = await fetch(`${API_BASE}/api/attendance/checkout`, {
+      const response = await apiFetch(`${API_BASE}/api/attendance/checkout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ employeeId: userId, checkOutTime }),

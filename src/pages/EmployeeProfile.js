@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import EmployeeLayout from '../components/EmployeeLayout';
 import { createEmployee, getEmployeeProfile, getEmployeeById, updateEmployeeProfile, uploadEmployeeDocument } from '../services/employeeService';
+import { apiFetch } from '../utils/apiClient';
 import LeaveReportCard from '../components/LeaveReportCard';
 import '../styles/Profile.css';
 import '../styles/Leave.css';
@@ -28,6 +29,7 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
     { id: 'personal', label: 'Personal Details', icon: '👤' },
     { id: 'address', label: 'Address Details', icon: '📍' },
     { id: 'job', label: 'Job Details', icon: '💼' },
+    { id: 'project', label: 'Project Details', icon: '📁' },
     { id: 'salary', label: 'Salary Details', icon: '💰' },
     { id: 'education', label: 'Education Details', icon: '🎓' },
     { id: 'documents', label: 'Document Details', icon: '📄' },
@@ -35,20 +37,7 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
    
   ];
 
-  useEffect(() => {
-    if (!isCreateMode) {
-      loadEmployee();
-    }
-  }, [profileId]);
-
-  useEffect(() => {
-    const query = new URLSearchParams(location.search);
-    if (query.get('edit') === 'true' && canEdit) {
-      setIsEditing(true);
-    }
-  }, [location.search, canEdit]);
-
-  const loadEmployee = async () => {
+  const loadEmployee = useCallback(async () => {
     try {
       setLoading(true);
       const data = isAdminView ? await getEmployeeById(profileId) : await getEmployeeProfile(profileId);
@@ -60,13 +49,51 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [isAdminView, profileId]);
+
+  useEffect(() => {
+    if (!isCreateMode) {
+      loadEmployee();
+    }
+  }, [isCreateMode, loadEmployee]);
+
+  useEffect(() => {
+    const query = new URLSearchParams(location.search);
+    if (query.get('edit') === 'true' && canEdit) {
+      setIsEditing(true);
+    }
+  }, [location.search, canEdit]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
       [name]: value
+    }));
+  };
+
+  const handleProjectHistoryChange = (index, field, value) => {
+    setFormData((prev) => {
+      const projectHistory = [...(prev.projectHistory || [])];
+      projectHistory[index] = { ...projectHistory[index], [field]: value };
+      return { ...prev, projectHistory };
+    });
+  };
+
+  const handleAddProjectHistoryRow = () => {
+    setFormData((prev) => ({
+      ...prev,
+      projectHistory: [
+        ...(prev.projectHistory || []),
+        { projectName: '', projectManager: '', startDate: '', endDate: '' },
+      ],
+    }));
+  };
+
+  const handleRemoveProjectHistoryRow = (index) => {
+    setFormData((prev) => ({
+      ...prev,
+      projectHistory: (prev.projectHistory || []).filter((_, i) => i !== index),
     }));
   };
 
@@ -123,7 +150,26 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
     const employeeId = profileId || employee?.id || userId;
     if (!employeeId) return null;
 
-    return `http://localhost:8080/api/employees/${employeeId}/document/${docType}`;
+    const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+    return `${apiBase}/api/employees/${employeeId}/document/${docType}`;
+  };
+
+  const handleDocumentDownload = async (url, fileName) => {
+    try {
+      const response = await apiFetch(url);
+      if (!response.ok) throw new Error('Failed to download document');
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = fileName || 'document';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+    } catch (err) {
+      alert('Failed to download document');
+    }
   };
 
   const getFileName = (fileValue) => {
@@ -231,18 +277,34 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
   const currentSectionIndex = sections.findIndex(s => s.id === activeSection);
   const canGoNext = currentSectionIndex < sections.length - 1;
   const canGoPrevious = currentSectionIndex > 0;
-  const sectionReadOnly = !isAdminView && !isCreateMode && (activeSection === 'job' || activeSection === 'salary');
+  const sectionReadOnly = !isAdminView && !isCreateMode && (activeSection === 'job' || activeSection === 'salary' || activeSection === 'project');
 
   const renderSectionView = (id) => {
     const F = (label, value, isFile = false, fieldName = '') => {
-      const fileUrl = isFile ? getDocumentDownloadUrl(fieldName, value) : getFileUrl(value);
-      if (fileUrl) {
+      // Embedded values (data:/blob:/direct URLs already present on the record) can be linked
+      // to directly. Anything else falls back to the protected document API, which requires an
+      // Authorization header a plain <a href> can't send, so that case downloads via JS instead.
+      const embeddedUrl = getFileUrl(value);
+      const apiUrl = isFile && !embeddedUrl ? getDocumentDownloadUrl(fieldName, value) : null;
+
+      if (embeddedUrl) {
         return (
           <div className="info-item">
             <strong>{label}</strong>
-            <a href={fileUrl} target="_blank" rel="noopener noreferrer" download={getFileName(value)}>
+            <a href={embeddedUrl} target="_blank" rel="noopener noreferrer" download={getFileName(value)}>
               {getFileName(value)}
             </a>
+          </div>
+        );
+      }
+
+      if (apiUrl) {
+        return (
+          <div className="info-item">
+            <strong>{label}</strong>
+            <button type="button" className="doc-link-btn" onClick={() => handleDocumentDownload(apiUrl, getFileName(value))}>
+              {getFileName(value)}
+            </button>
           </div>
         );
       }
@@ -299,6 +361,46 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
               {F('Years of Experience:', employee.experience)}
               {F('Employee Category:', employee.employeeCategory)}
             </div>
+          </div>
+        );
+      case 'project':
+        return (
+          <div className="profile-section">
+            <h2>Project Details</h2>
+            <div className="quick-info">
+              {F('Work Status:', employee.workStatus || 'Bench')}
+              {employee.workStatus === 'Project' && F('Current Project:', employee.currentProjectName)}
+              {employee.workStatus === 'Project' && F('Project Manager:', employee.currentProjectManager)}
+              {employee.workStatus === 'Project' && F('Started On:', employee.currentProjectStartDate)}
+            </div>
+
+            <h3 style={{ marginTop: '24px' }}>Projects Worked</h3>
+            {Array.isArray(employee.projectHistory) && employee.projectHistory.length > 0 ? (
+              <div className="table-responsive">
+                <table className="report-table">
+                  <thead>
+                    <tr>
+                      <th>Project Name</th>
+                      <th>Project Manager</th>
+                      <th>Start Date</th>
+                      <th>End Date</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {employee.projectHistory.map((entry, index) => (
+                      <tr key={entry.id || index}>
+                        <td>{entry.projectName || '—'}</td>
+                        <td>{entry.projectManager || '—'}</td>
+                        <td>{entry.startDate || '—'}</td>
+                        <td>{entry.endDate || 'Ongoing'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p>No project history recorded.</p>
+            )}
           </div>
         );
       case 'salary':
@@ -848,6 +950,153 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
                     </div>
                   </div>
                 </form>
+              </section>
+            )}
+
+            {/* Project Details Section */}
+            {activeSection === 'project' && (
+              <section className="profile-section">
+                <h2>Project Details</h2>
+                {sectionReadOnly && (
+                  <p className="section-note">Project details are not editable in this profile editor.</p>
+                )}
+                <form className="profile-form">
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Work Status</label>
+                      <select
+                        name="workStatus"
+                        value={formData.workStatus || 'Bench'}
+                        onChange={handleInputChange}
+                        disabled={sectionReadOnly}
+                      >
+                        <option value="Bench">Bench</option>
+                        <option value="Project">Project</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {formData.workStatus === 'Project' && (
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Current Project Name</label>
+                        <input
+                          type="text"
+                          name="currentProjectName"
+                          value={formData.currentProjectName || ''}
+                          onChange={handleInputChange}
+                          placeholder="Enter project name"
+                          disabled={sectionReadOnly}
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>Project Manager</label>
+                        <input
+                          type="text"
+                          name="currentProjectManager"
+                          value={formData.currentProjectManager || ''}
+                          onChange={handleInputChange}
+                          placeholder="Enter project manager"
+                          disabled={sectionReadOnly}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {formData.workStatus === 'Project' && (
+                    <div className="form-row">
+                      <div className="form-group">
+                        <label>Started On</label>
+                        <input
+                          type="date"
+                          name="currentProjectStartDate"
+                          value={formData.currentProjectStartDate || ''}
+                          onChange={handleInputChange}
+                          disabled={sectionReadOnly}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </form>
+
+                <h3 style={{ marginTop: '24px' }}>Projects Worked</h3>
+                <div className="table-responsive">
+                  <table className="report-table">
+                    <thead>
+                      <tr>
+                        <th>Project Name</th>
+                        <th>Project Manager</th>
+                        <th>Start Date</th>
+                        <th>End Date</th>
+                        {!sectionReadOnly && <th>Action</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(formData.projectHistory || []).length === 0 ? (
+                        <tr>
+                          <td colSpan={sectionReadOnly ? 4 : 5} style={{ textAlign: 'center' }}>
+                            No project history recorded.
+                          </td>
+                        </tr>
+                      ) : (
+                        (formData.projectHistory || []).map((entry, index) => (
+                          <tr key={index}>
+                            <td>
+                              <input
+                                type="text"
+                                value={entry.projectName || ''}
+                                onChange={(e) => handleProjectHistoryChange(index, 'projectName', e.target.value)}
+                                placeholder="Project name"
+                                disabled={sectionReadOnly}
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="text"
+                                value={entry.projectManager || ''}
+                                onChange={(e) => handleProjectHistoryChange(index, 'projectManager', e.target.value)}
+                                placeholder="Project manager"
+                                disabled={sectionReadOnly}
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="date"
+                                value={entry.startDate || ''}
+                                onChange={(e) => handleProjectHistoryChange(index, 'startDate', e.target.value)}
+                                disabled={sectionReadOnly}
+                              />
+                            </td>
+                            <td>
+                              <input
+                                type="date"
+                                value={entry.endDate || ''}
+                                onChange={(e) => handleProjectHistoryChange(index, 'endDate', e.target.value)}
+                                disabled={sectionReadOnly}
+                              />
+                            </td>
+                            {!sectionReadOnly && (
+                              <td>
+                                <button
+                                  type="button"
+                                  className="small-button reject"
+                                  onClick={() => handleRemoveProjectHistoryRow(index)}
+                                >
+                                  Remove
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+                {!sectionReadOnly && (
+                  <button type="button" className="create-btn" style={{ marginTop: '12px' }} onClick={handleAddProjectHistoryRow}>
+                    + Add Project
+                  </button>
+                )}
               </section>
             )}
 

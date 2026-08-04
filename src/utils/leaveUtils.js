@@ -57,6 +57,30 @@ export function getTotalLeaveBalance(balances) {
   return Object.values(normalizedBalances).reduce((total, value) => total + (Number(value) || 0), 0);
 }
 
+// Returns working-day counts keyed by `${year}-${monthIndex}`, so a leave
+// range spanning multiple months is attributed to each month it actually covers.
+export function getWorkingDaysByMonth(fromDate, toDate) {
+  const result = {};
+  if (!fromDate || !toDate) return result;
+  const from = new Date(fromDate);
+  const to = new Date(toDate);
+  if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime()) || from > to) {
+    return result;
+  }
+
+  const current = new Date(from);
+  while (current <= to) {
+    const day = current.getDay();
+    if (day !== 0 && day !== 6) {
+      const key = `${current.getFullYear()}-${current.getMonth()}`;
+      result[key] = (result[key] || 0) + 1;
+    }
+    current.setDate(current.getDate() + 1);
+  }
+
+  return result;
+}
+
 export function calculateDaysBetween(fromDate, toDate) {
   if (!fromDate || !toDate) return 0;
   const from = new Date(fromDate);

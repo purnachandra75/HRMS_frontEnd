@@ -1,7 +1,9 @@
+import { apiFetch } from '../utils/apiClient';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
 export const runPayroll = async (payload) => {
-  const response = await fetch(`${API_BASE_URL}/api/payroll/process`, {
+  const response = await apiFetch(`${API_BASE_URL}/api/payroll/process`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -53,7 +55,7 @@ const fetchFirstAvailableJson = async (requests, fallbackMessage) => {
   let lastErrorMessage = fallbackMessage;
 
   for (const request of requests) {
-    const response = await fetch(request.url, request.options);
+    const response = await apiFetch(request.url, request.options);
 
     if (response.status === 404) {
       notFoundUrls.push(request.url);

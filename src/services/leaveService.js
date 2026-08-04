@@ -1,3 +1,5 @@
+import { apiFetch } from '../utils/apiClient';
+
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
 const DEFAULT_LEAVE_BALANCES = {
@@ -224,7 +226,7 @@ const mergeRequestsWithLocalFallback = (apiRequests) => {
 
 export const getLeaveRequests = async () => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/leave-requests`);
+    const response = await apiFetch(`${API_BASE_URL}/api/leave-requests`);
     if (!response.ok) {
       throw new Error('Failed to fetch leave requests');
     }
@@ -240,7 +242,7 @@ export const getLeaveRequests = async () => {
 
 export const getEmployeeLeaveRequests = async (employeeId) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/leave-requests/employee/${employeeId}`);
+    const response = await apiFetch(`${API_BASE_URL}/api/leave-requests/employee/${employeeId}`);
     if (!response.ok) {
       throw new Error('Failed to fetch employee leave requests');
     }
@@ -270,7 +272,7 @@ export const getEmployeeLeaveRequests = async (employeeId) => {
 
 export const createLeaveRequest = async (requestData) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/leave-requests`, {
+    const response = await apiFetch(`${API_BASE_URL}/api/leave-requests`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
@@ -317,10 +319,10 @@ export const createLeaveRequest = async (requestData) => {
 
 export const updateLeaveRequestStatus = async (requestId, status) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/leave-requests/${requestId}/status`, {
+    const response = await apiFetch(`${API_BASE_URL}/api/leave-requests/${requestId}/status`, {
       method: 'PATCH',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({ status })
     });
@@ -389,7 +391,7 @@ export const updateLeaveRequestStatus = async (requestId, status) => {
 
 export const getLeaveBalances = async (employeeId) => {
   try {
-    const response = await fetch(`${API_BASE_URL}/api/leave-balances/${employeeId}`);
+    const response = await apiFetch(`${API_BASE_URL}/api/leave-balances/${employeeId}`);
     if (!response.ok) {
       throw new Error('Failed to fetch leave balances');
     }

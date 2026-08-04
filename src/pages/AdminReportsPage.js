@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { getEmployeesPage } from '../services/employeeService';
 import { getLeaveRequests } from '../services/leaveService';
 import AdminLayout from '../components/AdminLayout';
@@ -27,7 +27,7 @@ function AdminReportsPage({ userName, onLogout }) {
     leave: false,
     attendance: false,
   });
-  const getReportEmployeeParams = (page, size) => {
+  const getReportEmployeeParams = useCallback((page, size) => {
     const trimmedDepartment = String(departmentFilter || '').trim();
     const params = {
       page,
@@ -58,7 +58,12 @@ function AdminReportsPage({ userName, onLogout }) {
     }
 
     return params;
-  };
+  }, [departmentFilter, selectedReport, employeeReportType, employmentFilter]);
+
+  const leaveRequestsRef = useRef(leaveRequests);
+  useEffect(() => {
+    leaveRequestsRef.current = leaveRequests;
+  }, [leaveRequests]);
 
   useEffect(() => {
     const loadReportPage = async () => {
@@ -73,7 +78,7 @@ function AdminReportsPage({ userName, onLogout }) {
           leaveRequestsData,
         ] = await Promise.all([
           getEmployeesPage(params),
-          selectedReport === 'leaves' ? getLeaveRequests() : Promise.resolve(leaveRequests),
+          selectedReport === 'leaves' ? getLeaveRequests() : Promise.resolve(leaveRequestsRef.current),
         ]);
 
         setEmployees(paged);
@@ -92,7 +97,7 @@ function AdminReportsPage({ userName, onLogout }) {
     };
 
     loadReportPage();
-  }, [selectedReport, employeeReportType, departmentFilter, employmentFilter, currentPage]);
+  }, [selectedReport, employeeReportType, departmentFilter, employmentFilter, currentPage, getReportEmployeeParams]);
 
   const parseDateOfJoining = (value) => {
     if (!value) return null;
@@ -103,7 +108,7 @@ function AdminReportsPage({ userName, onLogout }) {
       return new Date(year, month - 1, day);
     }
 
-    if (/^\d{2}[\/\-]\d{2}[\/\-]\d{4}$/.test(normalized)) {
+    if (/^\d{2}[/-]\d{2}[/-]\d{4}$/.test(normalized)) {
       const parts = normalized.includes('/') ? normalized.split('/') : normalized.split('-');
       const [first, second, year] = parts.map((part) => parseInt(part, 10));
       return first > 12 ? new Date(year, second - 1, first) : new Date(year, first - 1, second);

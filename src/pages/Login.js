@@ -18,7 +18,7 @@ function Login({ onLogin }) {
     try {
       const response = await loginUser(email, password);
       if (response.success) {
-        onLogin(response.userId, response.role, response.name);
+        onLogin(response.userId, response.role, response.name, response.token);
         navigate(response.role === 'admin' ? '/admin' : '/employee');
       } else {
         setError(response.message || 'Login failed');
@@ -64,9 +64,11 @@ function Login({ onLogin }) {
           </button>
         </form>
         <p className="auth-link">
+          <Link to="/forgot-password">Forgot password?</Link>
+        </p>
+        <p className="auth-link">
           Don't have an account? <Link to="/register">Register here</Link>
         </p>
-        
       </div>
     </div>
   );

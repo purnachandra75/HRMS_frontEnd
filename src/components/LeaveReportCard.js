@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import EmployeeRequestTable from './EmployeeRequestTable';
 import { getEmployeeLeaveRequests, getLeaveBalances } from '../services/leaveService';
-import { normalizeLeaveBalances, calculateDaysBetween } from '../utils/leaveUtils';
+import { normalizeLeaveBalances, getWorkingDaysByMonth } from '../utils/leaveUtils';
 
 export default function LeaveReportCard({ userId }) {
   const [leaveData, setLeaveData] = useState(null);
@@ -41,19 +41,14 @@ export default function LeaveReportCard({ userId }) {
     
     requests.forEach(request => {
       // Only count approved requests
-      if (request.status === 'Approved' || request.status === 'approved') {
-        const fromDate = new Date(request.fromDate);
-        const toDate = new Date(request.toDate);
-        
-        // Check if the request falls within the selected year
-        if (fromDate.getFullYear() === selectedYear || toDate.getFullYear() === selectedYear) {
-          const month = fromDate.getMonth();
-          if (month >= 0 && month < 12) {
-            // Always calculate working days from dates to ensure consistency
-            const correctDays = calculateDaysBetween(request.fromDate, request.toDate) || request.days || 0;
-            monthlyData[month] += correctDays;
+      if ((request.status || '').toLowerCase() === 'approved') {
+        const daysByMonth = getWorkingDaysByMonth(request.fromDate, request.toDate);
+        Object.entries(daysByMonth).forEach(([key, days]) => {
+          const [year, month] = key.split('-').map(Number);
+          if (year === selectedYear) {
+            monthlyData[month] += days;
           }
-        }
+        });
       }
     });
     

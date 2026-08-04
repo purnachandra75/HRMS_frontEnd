@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmployeeLayout from '../components/EmployeeLayout';
 import LeaveRequestForm from '../components/LeaveRequestForm';
@@ -12,6 +12,36 @@ import {
 import { calculateDaysBetween, getTotalLeaveBalance, normalizeLeaveBalances } from '../utils/leaveUtils';
 import '../styles/Dashboard.css';
 import '../styles/Leave.css';
+
+const getRequestTimestamp = (request) => {
+  const createdAt = request?.createdAt;
+  if (createdAt) {
+    const parsedDate = new Date(createdAt).getTime();
+    if (!Number.isNaN(parsedDate)) {
+      return parsedDate;
+    }
+  }
+
+  const numericId = Number(request?.id);
+  return Number.isNaN(numericId) ? 0 : numericId;
+};
+
+const sortNewestRequestsFirst = (requestList) => {
+  return [...requestList].sort((a, b) => {
+    const dateDifference = getRequestTimestamp(b) - getRequestTimestamp(a);
+    if (dateDifference !== 0) {
+      return dateDifference;
+    }
+
+    const numericIdA = Number(a?.id);
+    const numericIdB = Number(b?.id);
+    if (!Number.isNaN(numericIdA) && !Number.isNaN(numericIdB)) {
+      return numericIdB - numericIdA;
+    }
+
+    return String(b?.id || '').localeCompare(String(a?.id || ''));
+  });
+};
 
 function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
   const navigate = useNavigate();
@@ -27,56 +57,7 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const getRequestTimestamp = (request) => {
-    const createdAt = request?.createdAt;
-    if (createdAt) {
-      const parsedDate = new Date(createdAt).getTime();
-      if (!Number.isNaN(parsedDate)) {
-        return parsedDate;
-      }
-    }
-
-    const numericId = Number(request?.id);
-    return Number.isNaN(numericId) ? 0 : numericId;
-  };
-
-  const sortNewestRequestsFirst = (requestList) => {
-    return [...requestList].sort((a, b) => {
-      const dateDifference = getRequestTimestamp(b) - getRequestTimestamp(a);
-      if (dateDifference !== 0) {
-        return dateDifference;
-      }
-
-      const numericIdA = Number(a?.id);
-      const numericIdB = Number(b?.id);
-      if (!Number.isNaN(numericIdA) && !Number.isNaN(numericIdB)) {
-        return numericIdB - numericIdA;
-      }
-
-      return String(b?.id || '').localeCompare(String(a?.id || ''));
-    });
-  };
-
-  useEffect(() => {
-    loadEmployeeData();
-  }, [userId]);
-
-  useEffect(() => {
-    // Refresh balances periodically to ensure they stay in sync with approvals
-    const balanceRefreshInterval = setInterval(() => {
-      if (userId) {
-        getLeaveBalances(userId).then((balancesData) => {
-          setBalances(normalizeLeaveBalances(balancesData));
-        }).catch((err) => {
-          console.error('Failed to refresh leave balances:', err);
-        });
-      }
-    }, 3000); // Refresh every 3 seconds
-
-    return () => clearInterval(balanceRefreshInterval);
-  }, [userId]);
-
-  const loadEmployeeData = async () => {
+  const loadEmployeeData = useCallback(async () => {
     setLoading(true);
     let requestsData = [];
     let balancesData = {};
@@ -102,7 +83,26 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
     setBalances(normalizeLeaveBalances(balancesData));
     setError(loadError || null);
     setLoading(false);
-  };
+  }, [userId]);
+
+  useEffect(() => {
+    loadEmployeeData();
+  }, [loadEmployeeData]);
+
+  useEffect(() => {
+    // Refresh balances periodically to ensure they stay in sync with approvals
+    const balanceRefreshInterval = setInterval(() => {
+      if (userId) {
+        getLeaveBalances(userId).then((balancesData) => {
+          setBalances(normalizeLeaveBalances(balancesData));
+        }).catch((err) => {
+          console.error('Failed to refresh leave balances:', err);
+        });
+      }
+    }, 3000); // Refresh every 3 seconds
+
+    return () => clearInterval(balanceRefreshInterval);
+  }, [userId]);
 
   const handleFormChange = (newFormData) => {
     setFormData(newFormData);

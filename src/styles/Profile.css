@@ -486,6 +486,17 @@
   margin-bottom: 5px;
 }
 
+.doc-link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  color: #0d6efd;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+
 .view-hint {
   color: #999;
   font-size: 14px;

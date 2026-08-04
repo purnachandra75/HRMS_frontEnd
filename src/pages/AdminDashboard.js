@@ -13,13 +13,14 @@ function AdminDashboard({ userName, onLogout }) {
   const [pageSize, setPageSize] = useState(5);
   const RECORDS_PER_PAGE = 5;
   const navigate = useNavigate();
-  const employeeDetailsRef = useRef(null);
+  const latestRequestIdRef = useRef(0);
 
   useEffect(() => {
     loadEmployees(currentPage, searchQuery.trim());
   }, [currentPage, searchQuery]);
 
   const loadEmployees = async (page, query) => {
+    const requestId = ++latestRequestIdRef.current;
     setLoading(true);
     try {
       const { employees: data, total, pageSize: responsePageSize } = await getEmployeesPage({
@@ -27,13 +28,15 @@ function AdminDashboard({ userName, onLogout }) {
         size: RECORDS_PER_PAGE,
         searchQuery: query,
       });
+      if (requestId !== latestRequestIdRef.current) return;
       setEmployees(data);
       setTotalEmployees(total);
       setPageSize(responsePageSize || RECORDS_PER_PAGE);
     } catch (err) {
+      if (requestId !== latestRequestIdRef.current) return;
       console.error('Failed to load employees:', err);
     } finally {
-      setLoading(false);
+      if (requestId === latestRequestIdRef.current) setLoading(false);
     }
   };
 
@@ -50,17 +53,6 @@ function AdminDashboard({ userName, onLogout }) {
       } catch (err) {
         alert('Failed to delete employee');
       }
-    }
-  };
-
-  const handleLogout = () => {
-    onLogout();
-    navigate('/login');
-  };
-
-  const showEmployeeDetails = () => {
-    if (employeeDetailsRef.current) {
-      employeeDetailsRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
 
@@ -84,7 +76,7 @@ function AdminDashboard({ userName, onLogout }) {
 
   return (
     <AdminLayout userName={userName} onLogout={onLogout} activeItem="dashboard" title="Employee Details" subtitle="View and manage all employee records in one place.">
-      <div className="employees-section admin-employees-section" ref={employeeDetailsRef}>
+      <div className="employees-section admin-employees-section">
             <div className="employees-header">
               <div className="header-left">
                 <h2>All Employees</h2>

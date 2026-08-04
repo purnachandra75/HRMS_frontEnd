@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { getAllEmployees } from '../services/employeeService';
 import { runPayroll } from '../services/payrollService';
 import AdminLayout from '../components/AdminLayout';
@@ -7,7 +6,6 @@ import '../styles/Dashboard.css';
 import '../styles/Payroll.css';
 
 function PayrollPage({ userName, onLogout }) {
-  const navigate = useNavigate();
   const [employees, setEmployees] = useState([]);
   const [includedEmployeeIds, setIncludedEmployeeIds] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -43,11 +41,6 @@ function PayrollPage({ userName, onLogout }) {
 
     loadEmployees();
   }, []);
-
-  const handleLogout = () => {
-    onLogout();
-    navigate('/login');
-  };
 
   const handleToggleEmployee = (employeeId) => {
     const key = String(employeeId);

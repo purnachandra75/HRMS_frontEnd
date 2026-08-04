@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { getPayrollReport, updatePayrollStatus } from '../services/payrollService';
 import AdminLayout from '../components/AdminLayout';
 import '../styles/Dashboard.css';
@@ -65,7 +64,6 @@ const normalizePayrollRecord = (record, selectedMonth, selectedYear) => {
 const getPayrollRowKey = (row) => `${row.payrollId || row.employeeId}-${row.month}-${row.year}`;
 
 function PayrollReportPage({ userName, onLogout }) {
-  const navigate = useNavigate();
   const [reportRows, setReportRows] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -82,11 +80,6 @@ function PayrollReportPage({ userName, onLogout }) {
     setError('');
     setStatusMessage('');
   }, [selectedMonth, selectedYear]);
-
-  const handleLogout = () => {
-    onLogout();
-    navigate('/login');
-  };
 
   const handleLoadReport = async () => {
     setLoading(true);

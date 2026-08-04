@@ -7,6 +7,7 @@ import logo from "../assets/ProminentLogo.png";
 import sign from "../assets/Sign.jpg";
 import watermark from "../assets/p2.jpg";
 import { formatDateDDMMYYYY } from "../utils/dateFormat";
+import { apiFetch } from "../utils/apiClient";
 
 function ExperienceLetter({ userName, onLogout }) {
   const pdfRef = useRef();
@@ -31,14 +32,15 @@ function ExperienceLetter({ userName, onLogout }) {
       return;
     }
 
-    const url = `http://localhost:8080/api/employee/${employeeId.trim()}/experience`;
+    const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+    const url = `${apiBase}/api/employee/${employeeId.trim()}/experience`;
     setIsSearching(true);
     setError("");
     setEmployee(null);
     setManualRelievingDate("");
 
     try {
-      const response = await fetch(url);
+      const response = await apiFetch(url);
       if (!response.ok) throw new Error("Employee not found");
       const data = await response.json();
       setEmployee(normalizeEmployee(data));

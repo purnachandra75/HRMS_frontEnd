@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:8080/api/employees';
+const API_ROOT = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+const API_BASE_URL = `${API_ROOT}/api/employees`;
 
 const flattenEmployee = (employee) => {
   if (!employee) return null;
@@ -36,6 +37,20 @@ const flattenEmployee = (employee) => {
     shiftTiming: employee.jobDetails?.shiftTiming || '',
     experience: employee.jobDetails?.experience || '',
     employeeCategory: employee.jobDetails?.employeeCategory || '',
+    workStatus: employee.jobDetails?.workStatus || 'Bench',
+    currentProjectName: employee.jobDetails?.currentProjectName || '',
+    currentProjectManager: employee.jobDetails?.currentProjectManager || '',
+    currentProjectStartDate: employee.jobDetails?.currentProjectStartDate || '',
+
+    projectHistory: Array.isArray(employee.projectHistory)
+      ? employee.projectHistory.map((entry) => ({
+          id: entry.id,
+          projectName: entry.projectName || '',
+          projectManager: entry.projectManager || '',
+          startDate: entry.startDate || '',
+          endDate: entry.endDate || '',
+        }))
+      : [],
 
     basicSalary: employee.salaryDetails?.basicSalary || '',
     bonus: employee.salaryDetails?.bonus || '',
@@ -165,7 +180,21 @@ const buildEmployeePayload = (profileData) => ({
     shiftTiming: profileData.shiftTiming || null,
     experience: profileData.experience || null,
     employeeCategory: profileData.employeeCategory || null,
+    workStatus: profileData.workStatus || null,
+    currentProjectName: profileData.workStatus === 'Project' ? (profileData.currentProjectName || null) : null,
+    currentProjectManager: profileData.workStatus === 'Project' ? (profileData.currentProjectManager || null) : null,
+    currentProjectStartDate: profileData.workStatus === 'Project' ? (profileData.currentProjectStartDate || null) : null,
   },
+  projectHistory: Array.isArray(profileData.projectHistory)
+    ? profileData.projectHistory
+        .filter((entry) => (entry.projectName || '').trim() || (entry.projectManager || '').trim())
+        .map((entry) => ({
+          projectName: entry.projectName || null,
+          projectManager: entry.projectManager || null,
+          startDate: entry.startDate || null,
+          endDate: entry.endDate || null,
+        }))
+    : [],
   salaryDetails: {
     basicSalary: profileData.basicSalary || null,
     bonus: profileData.bonus || null,
@@ -195,14 +224,6 @@ const buildEmployeePayload = (profileData) => ({
     emergencyAddress: profileData.emergencyAddress || null,
   },
 });
-
-const normalizeFileField = (value) => {
-  if (!value) return null;
-  if (typeof value === 'object' && value.content) {
-    return value.content;
-  }
-  return value;
-};
 
 const normalizeDepartment = (department) => {
   if (!department) return null;
@@ -238,7 +259,7 @@ export const getEmployeesPage = async ({ page = 1, size = 2, department = '', em
 
   let requestUrl = API_BASE_URL;
   if (searchQuery) {
-    requestUrl = 'http://localhost:8080/api/employee/getemployee';
+    requestUrl = `${API_ROOT}/api/employee/getemployee`;
     params.search = searchQuery.trim();
   }
 

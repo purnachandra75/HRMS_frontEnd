@@ -25,7 +25,7 @@ export default function AdminLayout({ userName, onLogout, activeItem, title, sub
 
       <div className="reports-layout admin-dashboard-layout">
         <aside className="reports-sidebar">
-          <h2>Dashboard</h2>
+          <h2>{sidebarTitle}</h2>
           <nav>
             <button type="button" className={activeItem === 'dashboard' ? 'active' : ''} onClick={() => navigate('/admin')}>
               Employee Details

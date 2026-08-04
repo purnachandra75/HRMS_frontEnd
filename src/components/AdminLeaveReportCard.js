@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getLeaveRequests, getLeaveBalances } from '../services/leaveService';
-import { calculateDaysBetween } from '../utils/leaveUtils';
+import { getLeaveRequests } from '../services/leaveService';
+import { getWorkingDaysByMonth } from '../utils/leaveUtils';
 
 export default function AdminLeaveReportCard() {
   const [allRequests, setAllRequests] = useState([]);
@@ -115,15 +115,17 @@ export default function AdminLeaveReportCard() {
     };
 
     filteredData.forEach(request => {
-      if (request.status === 'Approved' || request.status === 'approved') {
+      if ((request.status || '').toLowerCase() === 'approved') {
         const type = (request.leaveType || request.type || '').toLowerCase();
-        // Always calculate working days from dates to ensure consistency
-        const days = calculateDaysBetween(request.fromDate, request.toDate) || request.days || 0;
-        
+        // Only count the days that actually fall within the applied month/year,
+        // so a leave range spanning two months isn't counted in full in both.
+        const daysByMonth = getWorkingDaysByMonth(request.fromDate, request.toDate);
+        const days = daysByMonth[`${appliedYear}-${appliedMonth - 1}`] || 0;
+
         if (type === 'casual') stats.casual += days;
         else if (type === 'sick') stats.sick += days;
         else if (type === 'paid') stats.paid += days;
-        
+
         stats.total += days;
       }
     });

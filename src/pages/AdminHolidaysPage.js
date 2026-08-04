@@ -1,11 +1,9 @@
-import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from 'react';
 import '../styles/Dashboard.css';
 import { getAllYears, getHolidays, createHoliday, deleteHoliday } from '../services/holidayService';
 import AdminLayout from '../components/AdminLayout';
 
 function AdminHolidaysPage({ userName, onLogout }) {
-  const navigate = useNavigate();
   const [year, setYear] = useState(new Date().getFullYear());
   const [years, setYears] = useState([]);
   const [holidays, setHolidays] = useState([]);
@@ -25,11 +23,7 @@ function AdminHolidaysPage({ userName, onLogout }) {
     loadYears();
   }, []);
 
-  useEffect(() => {
-    loadHolidays();
-  }, [year]);
-
-  const loadHolidays = async () => {
+  const loadHolidays = useCallback(async () => {
     setLoading(true);
     try {
       const data = await getHolidays(year);
@@ -40,7 +34,11 @@ function AdminHolidaysPage({ userName, onLogout }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [year]);
+
+  useEffect(() => {
+    loadHolidays();
+  }, [loadHolidays]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -70,11 +68,6 @@ function AdminHolidaysPage({ userName, onLogout }) {
       console.error('Failed to delete holiday', err);
       alert(err?.response?.data?.message || 'Failed to delete');
     }
-  };
-
-  const handleLogout = () => {
-    onLogout();
-    navigate('/login');
   };
 
   return (

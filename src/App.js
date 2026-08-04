@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import AdminDashboard from './pages/AdminDashboard';
 import EmployeeDashboard from './pages/EmployeeDashboard';
 import EmployeeProfile from './pages/EmployeeProfile';
@@ -22,6 +24,7 @@ import OfferLetterForm from './OfferLetterForm';
 import ExperienceLetter from './pages/ExperienceLetter';
 import RelievingLetter from './pages/RelievingLetter';
 import LetterOfIntent from './pages/LetterOfIntent';
+import { setUnauthorizedHandler } from './utils/apiClient';
 import './App.css';
 
 
@@ -42,12 +45,12 @@ function App() {
     }
   }, []);
 
-  const handleLogin = (userId, role, name) => {
+  const handleLogin = (userId, role, name, token) => {
     setIsAuthenticated(true);
     setUserRole(role);
     setUserId(userId);
     setUserName(name);
-    localStorage.setItem('user', JSON.stringify({ id: userId, role, name }));
+    localStorage.setItem('user', JSON.stringify({ id: userId, role, name, token }));
   };
 
   const handleLogout = () => {
@@ -57,6 +60,17 @@ function App() {
     setUserName(null);
     localStorage.removeItem('user');
   };
+
+  // Any API call that comes back 401 (expired/invalid token) drops the user back to /login,
+  // instead of leaving the app showing stale data behind a dead session.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      handleLogout();
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
+    });
+  }, []);
 
   return (
     <Router>
@@ -80,6 +94,28 @@ function App() {
                 <Navigate to={userRole === 'admin' ? '/admin' : '/employee'} />
               ) : (
                 <Register />
+              )
+            }
+          />
+
+          <Route
+            path="/forgot-password"
+            element={
+              isAuthenticated ? (
+                <Navigate to={userRole === 'admin' ? '/admin' : '/employee'} />
+              ) : (
+                <ForgotPassword />
+              )
+            }
+          />
+
+          <Route
+            path="/reset-password"
+            element={
+              isAuthenticated ? (
+                <Navigate to={userRole === 'admin' ? '/admin' : '/employee'} />
+              ) : (
+                <ResetPassword />
               )
             }
           />
