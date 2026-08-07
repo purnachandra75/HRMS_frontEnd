@@ -478,6 +478,8 @@
 .info-item {
   text-align: left;
   padding: 10px;
+  min-width: 0;
+  overflow-wrap: break-word;
 }
 
 .info-item strong {

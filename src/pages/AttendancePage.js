@@ -1,12 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { getAttendanceRecords } from '../services/attendanceService';
 import '../styles/Dashboard.css';
 import AttendanceFilters from '../components/AttendanceFilters';
+import AdminLayout from '../components/AdminLayout';
 
 function AttendancePage({ userName, onLogout }) {
-  const navigate = useNavigate();
-  const [currentTime, setCurrentTime] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
@@ -14,11 +12,6 @@ function AttendancePage({ userName, onLogout }) {
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-    return () => clearInterval(timer);
-  }, []);
 
   useEffect(() => {
     loadAttendanceRecords();
@@ -40,18 +33,6 @@ function AttendancePage({ userName, onLogout }) {
       setLoading(false);
     }
   };
-
-  const dateString = currentTime.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
-
-  const timeString = currentTime.toLocaleTimeString([], {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
 
   const months = [
     'All Months',
@@ -88,62 +69,14 @@ function AttendancePage({ userName, onLogout }) {
   const absentCount = filteredRecords.filter((record) => record.status === 'ABSENT').length;
   const lateCount = filteredRecords.filter((record) => record.status === 'LATE').length;
 
-  const handleLogout = () => {
-    onLogout();
-    navigate('/login');
-  };
-
   return (
-    <div className="dashboard-container attendance-page-admin">
-      <header className="dashboard-header attendance-page-header">
-        <div>
-          <h1>Admin Attendance Portal</h1>
-          <p>Review employee attendance, view daily time logs, and export attendance details.</p>
-        </div>
-        <div className="header-info">
-          <span>{dateString}</span>
-          <span>{timeString}</span>
-          <button className="logout-btn" type="button" onClick={handleLogout}>
-            Logout
-          </button>
-        </div>
-      </header>
-
-      <div className="reports-layout admin-dashboard-layout">
-        <aside className="reports-sidebar">
-          <h2>Dashboard</h2>
-          <nav>
-            <button type="button" onClick={() => navigate('/admin')}>
-              Employee Details
-            </button>
-            <button type="button" onClick={() => navigate('/admin/leaves')}>
-              Leave Management
-            </button>
-            <button type="button" onClick={() => navigate('/admin/reports')}>
-              Reports
-            </button>
-            <button className="active" type="button" onClick={() => navigate('/admin/attendance')}>
-              Attendance
-            </button>
-            <button type="button" onClick={() => navigate('/admin/payroll')}>
-              Payroll
-            </button>
-            <button type="button" onClick={() => navigate('/admin/payroll-report')}>
-              Payroll Report
-            </button>
-            <hr className="reports-sidebar-divider" />
-            <button type="button" onClick={() => navigate('/admin/employee/new')}>
-              + Create Employee
-            </button>
-          </nav>
-        </aside>
-
-        <main className="reports-main attendance-main">
-          <div className="reports-content-header">
-            <h2>Attendance Records</h2>
-            <p>Review employee attendance, filter by employee and month, and inspect daily time logs.</p>
-          </div>
-
+    <AdminLayout
+      userName={userName}
+      onLogout={onLogout}
+      activeItem="attendance"
+      title="Attendance Records"
+      subtitle="Review employee attendance, filter by employee and month, and inspect daily time logs."
+    >
           {loading ? (
             <div className="attendance-loading">Loading attendance data...</div>
           ) : error ? (
@@ -245,9 +178,7 @@ function AttendancePage({ userName, onLogout }) {
               </div>
             </>
           )}
-        </main>
-      </div>
-    </div>
+    </AdminLayout>
   );
 }
 

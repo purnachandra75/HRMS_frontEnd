@@ -123,3 +123,38 @@ export const updatePayrollStatus = async ({ payrollId, employeeId, month, year, 
 
   return fetchFirstAvailableJson(requests, 'Failed to update payroll status');
 };
+
+export const updatePayslipMode = async ({ payrollId, employeeId, month, year, manualPayslip }) => {
+  const response = await apiFetch(`${API_BASE_URL}/api/payroll/${payrollId}/payslip-mode`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ employeeId, month, year, manualPayslip }),
+  });
+
+  return parseJsonResponse(response, 'Failed to update payslip mode');
+};
+
+export const uploadManualPayslip = async (payrollId, file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await apiFetch(`${API_BASE_URL}/api/payroll/${payrollId}/payslip`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    let message = 'Failed to upload payslip';
+    try {
+      const errorData = await response.json();
+      message = errorData.message || errorData.error || message;
+    } catch (error) {
+      // Keep the default message when the response is not JSON.
+    }
+    throw new Error(message);
+  }
+};
+
+export const getManualPayslipUrl = (payrollId) => `${API_BASE_URL}/api/payroll/${payrollId}/payslip`;

@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import EmployeeLayout from '../components/EmployeeLayout';
 import { getEmployeeProfile } from '../services/employeeService';
 import { getEmployeeLeaveRequests } from '../services/leaveService';
-import { getPayrollReport } from '../services/payrollService';
+import { getPayrollReport, getManualPayslipUrl } from '../services/payrollService';
+import { apiFetch } from '../utils/apiClient';
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import '../styles/Dashboard.css';
@@ -154,6 +155,9 @@ const isAmountCredited = (status) => {
   return ['amount credited', 'credited', 'amount_credited', 'paid', 'payment credited'].includes(value);
 };
 
+const getPayrollManualFlag = (record) => Boolean(record.manualPayslip);
+const getPayrollHasFile = (record) => Boolean(record.hasPayslipFile);
+
 function PayslipGeneratorPage({ userId, userName, onLogout }) {
   const [employee, setEmployee] = useState(null);
   const [leaveRequests, setLeaveRequests] = useState([]);
@@ -164,6 +168,8 @@ function PayslipGeneratorPage({ userId, userName, onLogout }) {
   const [checkingPayroll, setCheckingPayroll] = useState(false);
   const [canGeneratePayslip, setCanGeneratePayslip] = useState(false);
   const [payrollMessage, setPayrollMessage] = useState('');
+  const [manualPayslipPayrollId, setManualPayslipPayrollId] = useState(null);
+  const [downloadingManualPayslip, setDownloadingManualPayslip] = useState(false);
   const payslipRef = useRef(null);
 
   useEffect(() => {
@@ -194,6 +200,7 @@ function PayslipGeneratorPage({ userId, userName, onLogout }) {
   useEffect(() => {
     setCanGeneratePayslip(false);
     setPayrollMessage('');
+    setManualPayslipPayrollId(null);
   }, [selectedMonth, selectedYear]);
 
   const handleGeneratePayslip = async () => {
@@ -202,6 +209,7 @@ function PayslipGeneratorPage({ userId, userName, onLogout }) {
     const employeeName = buildEmployeeName(employee);
     setCheckingPayroll(true);
     setCanGeneratePayslip(false);
+    setManualPayslipPayrollId(null);
     setPayrollMessage('');
     setError('');
 
@@ -219,6 +227,16 @@ function PayslipGeneratorPage({ userId, userName, onLogout }) {
       });
 
       if (employeePayroll && isAmountCredited(getPayrollCreditStatus(employeePayroll))) {
+        if (getPayrollManualFlag(employeePayroll)) {
+          if (getPayrollHasFile(employeePayroll)) {
+            setManualPayslipPayrollId(employeePayroll.payrollId);
+            setPayrollMessage('Payroll amount credited. Payslip is ready to download.');
+          } else {
+            setPayrollMessage('Payslip will be available once uploaded by admin.');
+          }
+          return;
+        }
+
         setCanGeneratePayslip(true);
         setPayrollMessage('Payroll amount credited. Payslip is ready to download.');
         return;
@@ -231,6 +249,29 @@ function PayslipGeneratorPage({ userId, userName, onLogout }) {
       setError(err.message || 'Unable to verify payroll status.');
     } finally {
       setCheckingPayroll(false);
+    }
+  };
+
+  const handleDownloadManualPayslip = async () => {
+    if (!manualPayslipPayrollId) return;
+    setDownloadingManualPayslip(true);
+    try {
+      const response = await apiFetch(getManualPayslipUrl(manualPayslipPayrollId));
+      if (!response.ok) throw new Error('Failed to download payslip');
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = 'Payslip.pdf';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => window.URL.revokeObjectURL(blobUrl), 1000);
+    } catch (err) {
+      console.error('Failed to download payslip:', err);
+      setError(err.message || 'Failed to download payslip');
+    } finally {
+      setDownloadingManualPayslip(false);
     }
   };
 
@@ -405,14 +446,27 @@ function PayslipGeneratorPage({ userId, userName, onLogout }) {
               <p className="pf-empty pf-error">{error}</p>
             ) : !employee ? (
               <p className="pf-empty">No employee available for payslip generation.</p>
-            ) : payrollMessage && !canGeneratePayslip ? (
+            ) : payrollMessage && !canGeneratePayslip && !manualPayslipPayrollId ? (
               <p className="pf-empty pf-error">{payrollMessage}</p>
-            ) : payrollMessage && canGeneratePayslip ? (
+            ) : payrollMessage && (canGeneratePayslip || manualPayslipPayrollId) ? (
               <div className="payroll-run-result">
                 <p className="payroll-run-title">{payrollMessage}</p>
               </div>
             ) : (
               <p className="pf-empty">Select month and year, then click Generate Payslip.</p>
+            )}
+
+            {manualPayslipPayrollId && (
+              <div className="pf-actions pf-inline-action">
+                <button
+                  type="button"
+                  className="create-btn"
+                  onClick={handleDownloadManualPayslip}
+                  disabled={downloadingManualPayslip}
+                >
+                  {downloadingManualPayslip ? 'Downloading...' : 'Download Payslip'}
+                </button>
+              </div>
             )}
 
             {payslip && (

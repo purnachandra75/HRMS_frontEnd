@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getPayrollReport, updatePayrollStatus } from '../services/payrollService';
+import { getPayrollReport, updatePayrollStatus, updatePayslipMode, uploadManualPayslip } from '../services/payrollService';
 import AdminLayout from '../components/AdminLayout';
 import '../styles/Dashboard.css';
 import '../styles/Payroll.css';
@@ -58,6 +58,8 @@ const normalizePayrollRecord = (record, selectedMonth, selectedYear) => {
     designation: record.designation || record.employee?.designation || 'N/A',
     amount,
     status: normalizeStatus(record.creditStatus ?? record.paymentStatus ?? record.status),
+    manualPayslip: Boolean(record.manualPayslip),
+    hasPayslipFile: Boolean(record.hasPayslipFile),
   };
 };
 
@@ -71,6 +73,7 @@ function PayrollReportPage({ userName, onLogout }) {
   const [reportLoaded, setReportLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [updatingKey, setUpdatingKey] = useState('');
+  const [payslipUpdatingKey, setPayslipUpdatingKey] = useState('');
   const [error, setError] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
 
@@ -140,6 +143,65 @@ function PayrollReportPage({ userName, onLogout }) {
     }
   };
 
+  const handlePayslipModeToggle = async (row) => {
+    const rowKey = getPayrollRowKey(row);
+    const manualPayslip = !row.manualPayslip;
+    const previousRows = reportRows;
+
+    setPayslipUpdatingKey(rowKey);
+    setError('');
+    setStatusMessage('');
+
+    try {
+      await updatePayslipMode({
+        payrollId: row.payrollId,
+        employeeId: row.employeeId,
+        month: row.month,
+        year: row.year,
+        manualPayslip,
+      });
+      setReportRows((currentRows) =>
+        currentRows.map((currentRow) =>
+          getPayrollRowKey(currentRow) === rowKey
+            ? { ...currentRow, manualPayslip }
+            : currentRow
+        )
+      );
+    } catch (err) {
+      console.error('Failed to update payslip mode:', err);
+      setReportRows(previousRows);
+      setError(err.message || 'Failed to update payslip mode');
+    } finally {
+      setPayslipUpdatingKey('');
+    }
+  };
+
+  const handlePayslipFileUpload = async (row, file) => {
+    if (!file) return;
+    const rowKey = getPayrollRowKey(row);
+
+    setPayslipUpdatingKey(rowKey);
+    setError('');
+    setStatusMessage('');
+
+    try {
+      await uploadManualPayslip(row.payrollId, file);
+      setReportRows((currentRows) =>
+        currentRows.map((currentRow) =>
+          getPayrollRowKey(currentRow) === rowKey
+            ? { ...currentRow, manualPayslip: true, hasPayslipFile: true }
+            : currentRow
+        )
+      );
+      setStatusMessage('Payslip uploaded successfully.');
+    } catch (err) {
+      console.error('Failed to upload payslip:', err);
+      setError(err.message || 'Failed to upload payslip');
+    } finally {
+      setPayslipUpdatingKey('');
+    }
+  };
+
   const monthOptions = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December',
@@ -188,6 +250,7 @@ function PayrollReportPage({ userName, onLogout }) {
               <th>Amount</th>
               <th>Status</th>
               <th>Action</th>
+              <th>Payslip</th>
             </tr>
           </thead>
           <tbody>
@@ -195,6 +258,7 @@ function PayrollReportPage({ userName, onLogout }) {
               const rowKey = getPayrollRowKey(row);
               const isUpdating = updatingKey === rowKey;
               const isCredited = row.status === 'Amount Credited';
+              const isPayslipUpdating = payslipUpdatingKey === rowKey;
 
               return (
                 <tr key={rowKey}>
@@ -225,6 +289,29 @@ function PayrollReportPage({ userName, onLogout }) {
                     >
                       {isUpdating ? 'Updating...' : isCredited ? 'Credited' : 'Update'}
                     </button>
+                  </td>
+                  <td>
+                    <label className="payroll-toggle">
+                      <input
+                        type="checkbox"
+                        checked={row.manualPayslip}
+                        disabled={isPayslipUpdating}
+                        onChange={() => handlePayslipModeToggle(row)}
+                      />
+                      Manual Upload
+                    </label>
+                    {row.manualPayslip && (
+                      <div className="payroll-payslip-upload">
+                        <input
+                          type="file"
+                          disabled={isPayslipUpdating}
+                          onChange={(e) => handlePayslipFileUpload(row, e.target.files[0])}
+                        />
+                        {row.hasPayslipFile && (
+                          <span className="payroll-payslip-uploaded">Uploaded</span>
+                        )}
+                      </div>
+                    )}
                   </td>
                 </tr>
               );
