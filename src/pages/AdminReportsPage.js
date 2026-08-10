@@ -2,10 +2,20 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { getEmployeesPage } from '../services/employeeService';
 import { getLeaveRequests } from '../services/leaveService';
+import { getAttendanceReportPage } from '../services/attendanceService';
 import AdminLayout from '../components/AdminLayout';
 import { getEmploymentTypeLabel } from '../utils/reportUtils';
 import '../styles/Dashboard.css';
 import '../styles/Leave.css';
+
+const mapAttendanceReportRow = (row, index) => ({
+  id: row.empId ?? index,
+  name: row.fullName || 'N/A',
+  department: row.department || 'N/A',
+  month: row.month || '',
+  presentDays: row.presentDays ?? 0,
+  workingDays: row.workingDays ?? 0,
+});
 
 function AdminReportsPage({ userName, onLogout }) {
   const location = useLocation();
@@ -22,12 +32,14 @@ function AdminReportsPage({ userName, onLogout }) {
     () => new URLSearchParams(location.search).get('type') || 'status'
   );
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [employmentFilter, setEmploymentFilter] = useState('all');
   const [departmentFilter, setDepartmentFilter] = useState('All');
   const [currentPage, setCurrentPage] = useState(1);
   const rowsPerPage = 10;
   const [backendTotal, setBackendTotal] = useState(0);
   const [backendTotalPages, setBackendTotalPages] = useState(1);
+  const [attendanceReportRowsData, setAttendanceReportRowsData] = useState([]);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -87,6 +99,23 @@ function AdminReportsPage({ userName, onLogout }) {
 
       setLoading(true);
       try {
+        if (selectedReport === 'attendance') {
+          const trimmedDepartment = String(departmentFilter || '').trim();
+          const { rows, total, totalPages } = await getAttendanceReportPage({
+            page: currentPage,
+            size: rowsPerPage,
+            department: trimmedDepartment,
+            status: 'active',
+            year: selectedYear,
+            month: selectedMonth,
+          });
+          setAttendanceReportRowsData(rows.map(mapAttendanceReportRow));
+          setBackendTotal(total ?? rows.length);
+          setBackendTotalPages(totalPages ?? Math.max(1, Math.ceil((total ?? rows.length) / rowsPerPage)));
+          setError('');
+          return;
+        }
+
         const params = getReportEmployeeParams(currentPage, rowsPerPage);
 
         const [
@@ -113,7 +142,7 @@ function AdminReportsPage({ userName, onLogout }) {
     };
 
     loadReportPage();
-  }, [selectedReport, employeeReportType, departmentFilter, employmentFilter, currentPage, getReportEmployeeParams]);
+  }, [selectedReport, employeeReportType, departmentFilter, employmentFilter, currentPage, getReportEmployeeParams, selectedYear, selectedMonth]);
 
   const parseDateOfJoining = (value) => {
     if (!value) return null;
@@ -220,12 +249,10 @@ function AdminReportsPage({ userName, onLogout }) {
     };
   });
 
-  const buildAttendanceReportRows = (employeeList) => employeeList.map((employee, index) => ({
-    id: employee.id || index,
-    name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
-    department: employee.department || 'N/A',
-    status: employee.employeeStatus || 'Active',
-  }));
+  const monthNames = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
 
   const buildSalaryReportRows = (employeeList) => employeeList.map((employee, index) => ({
     id: employee.id || index,
@@ -270,7 +297,6 @@ function AdminReportsPage({ userName, onLogout }) {
   };
 
   const leavesReportRows = buildLeavesReportRows(employees, leaveRequests);
-  const attendanceReportRows = buildAttendanceReportRows(employees);
   const salaryReportRows = buildSalaryReportRows(employees);
 
   const reportDetails = {
@@ -306,11 +332,13 @@ function AdminReportsPage({ userName, onLogout }) {
       hasYearFilter: true,
     },
     attendance: {
-      title: 'Attendance Report',
-      description: 'View attendance records for all active employees.',
-      rows: attendanceReportRows,
-      columns: ['#', 'Employee Name', 'Department', 'Status'],
+      title: `Attendance Report (${monthNames[selectedMonth - 1]} ${selectedYear})`,
+      description: 'View present days against working days for active employees in the selected month.',
+      rows: attendanceReportRowsData,
+      columns: ['#', 'Employee Name', 'Department', 'Month', 'Present Days', 'Working Days'],
       hasDownload: true,
+      hasYearFilter: true,
+      hasMonthFilter: true,
     },
   };
 
@@ -400,9 +428,46 @@ function AdminReportsPage({ userName, onLogout }) {
     return allEmployees;
   };
 
+  const fetchAllAttendanceReportRows = async () => {
+    const pageSize = 1000;
+    const allRows = [];
+    let page = 1;
+    let totalPagesToLoad = 1;
+    const trimmedDepartment = String(departmentFilter || '').trim();
+
+    do {
+      const result = await getAttendanceReportPage({
+        page,
+        size: pageSize,
+        department: trimmedDepartment,
+        status: 'active',
+        year: selectedYear,
+        month: selectedMonth,
+      });
+      const pageRows = Array.isArray(result.rows) ? result.rows : [];
+      allRows.push(...pageRows);
+
+      totalPagesToLoad = result.totalPages || Math.ceil((result.total || allRows.length) / pageSize) || 1;
+      if (pageRows.length === 0 || pageRows.length < pageSize) {
+        break;
+      }
+
+      page += 1;
+    } while (page <= totalPagesToLoad && page <= 100);
+
+    return allRows.map(mapAttendanceReportRow);
+  };
+
   const buildCompleteReportForDownload = async () => {
     if (!selectedReportData) {
       return null;
+    }
+
+    if (selectedReport === 'attendance') {
+      return {
+        ...selectedReportData,
+        rows: await fetchAllAttendanceReportRows(),
+      };
     }
 
     const allReportEmployees = await fetchAllReportEmployees();
@@ -419,13 +484,6 @@ function AdminReportsPage({ userName, onLogout }) {
       return {
         ...selectedReportData,
         rows: buildLeavesReportRows(allReportEmployees, Array.isArray(allLeaveRequests) ? allLeaveRequests : []),
-      };
-    }
-
-    if (selectedReport === 'attendance') {
-      return {
-        ...selectedReportData,
-        rows: buildAttendanceReportRows(allReportEmployees),
       };
     }
 
@@ -534,6 +592,27 @@ function AdminReportsPage({ userName, onLogout }) {
                     {yearOptions.map((year) => (
                       <option key={year} value={year}>
                         {year}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {selected?.hasMonthFilter && (
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>
+                    Month:
+                  </label>
+                  <select
+                    value={selectedMonth}
+                    onChange={(e) => {
+                      setSelectedMonth(parseInt(e.target.value, 10));
+                      setCurrentPage(1);
+                    }}
+                  >
+                    {monthNames.map((name, idx) => (
+                      <option key={name} value={idx + 1}>
+                        {name}
                       </option>
                     ))}
                   </select>
