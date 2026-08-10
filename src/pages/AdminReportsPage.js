@@ -8,6 +8,8 @@ import { getEmploymentTypeLabel } from '../utils/reportUtils';
 import '../styles/Dashboard.css';
 import '../styles/Leave.css';
 
+const toISODate = (date) => date.toISOString().split('T')[0];
+
 const mapAttendanceReportRow = (row, index) => ({
   id: row.empId ?? index,
   name: row.fullName || 'N/A',
@@ -82,6 +84,14 @@ function AdminReportsPage({ userName, onLogout }) {
         if (normalizedEmployment !== 'all') {
           params.employeeType = normalizedEmployment === 'full' ? 'Full Time' : 'Part Time';
         }
+      }
+
+      if (employeeReportType === 'newJoiners' || employeeReportType === 'probation') {
+        const today = new Date();
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - 180);
+        params.joinedFrom = toISODate(cutoff);
+        params.joinedTo = toISODate(today);
       }
     }
 
@@ -168,18 +178,6 @@ function AdminReportsPage({ userName, onLogout }) {
       employee.jobDetails?.dateOfJoining ||
       employee.jobDetails?.joinedDate
     );
-  };
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const isWithinProbationPeriod = (employee) => {
-    const joinedDate = getJoiningDate(employee);
-    if (!joinedDate || Number.isNaN(joinedDate.getTime())) return false;
-
-    joinedDate.setHours(0, 0, 0, 0);
-    const diffDays = Math.floor((today - joinedDate) / (1000 * 60 * 60 * 24));
-    return diffDays >= 0 && diffDays <= 180;
   };
 
   const currentYear = new Date().getFullYear();
@@ -272,7 +270,9 @@ function AdminReportsPage({ userName, onLogout }) {
     }
 
     if (reportType === 'newJoiners' || reportType === 'probation') {
-      return employeeList.filter(isWithinProbationPeriod).map((employee, index) => {
+      // The employee list is already scoped to the last 180 days by the backend
+      // (joinedFrom/joinedTo params), so no client-side date filtering needed here.
+      return employeeList.map((employee, index) => {
         const joinedDate = getJoiningDate(employee);
         const joinedText =
           joinedDate && !Number.isNaN(joinedDate.getTime())

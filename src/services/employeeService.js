@@ -243,7 +243,7 @@ const normalizeStatus = (status) => {
   return status.trim();
 };
 
-export const getEmployeesPage = async ({ page = 1, size = 2, department = '', employeeType = '', status = '', searchQuery = '' }) => {
+export const getEmployeesPage = async ({ page = 1, size = 2, department = '', employeeType = '', status = '', searchQuery = '', joinedFrom = '', joinedTo = '' }) => {
   const params = {
     page: Math.max(0, page - 1),
     size,
@@ -256,6 +256,8 @@ export const getEmployeesPage = async ({ page = 1, size = 2, department = '', em
   if (normalizedDepartment) params.department = normalizedDepartment;
   if (trimmedEmployeeType) params.employeeType = trimmedEmployeeType;
   if (normalizedStatus) params.status = normalizedStatus;
+  if (joinedFrom) params.joinedFrom = joinedFrom;
+  if (joinedTo) params.joinedTo = joinedTo;
 
   let requestUrl = API_BASE_URL;
   if (searchQuery) {

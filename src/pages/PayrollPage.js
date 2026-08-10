@@ -88,47 +88,47 @@ function PayrollPage({ userName, onLogout }) {
     }
   };
 
-  const filteredEmployees = useMemo(() => {
+  // ID must match exactly (searching "1" should not also return 10, 11, 12...);
+  // the rest stay substring matches since that's expected for text search.
+  const matchesEmployeeSearch = (employee, query) => {
+    if (!query) return true;
+    if (String(employee.id ?? '').toLowerCase() === query) return true;
+
+    const fullName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim();
+    return [
+      fullName,
+      employee.email,
+      employee.phone,
+      employee.department,
+      employee.designation,
+    ].some((field) => field?.toString().toLowerCase().includes(query));
+  };
+
+  // Included/excluded employees are split from the full roster first, so the two
+  // search boxes stay independent - text typed in one can't hide results in the other.
+  const includedEmployeesUnfiltered = useMemo(
+    () => employees.filter((employee) => includedEmployeeIds.includes(String(employee.id))),
+    [employees, includedEmployeeIds]
+  );
+
+  const excludedEmployeesUnfiltered = useMemo(
+    () => employees.filter((employee) => !includedEmployeeIds.includes(String(employee.id))),
+    [employees, includedEmployeeIds]
+  );
+
+  const includedEmployees = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return employees;
+    if (!query) return includedEmployeesUnfiltered;
 
-    return employees.filter((employee) => {
-      const fullName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim();
-      return [
-        employee.id,
-        fullName,
-        employee.email,
-        employee.phone,
-        employee.department,
-        employee.designation,
-      ].some((field) => field?.toString().toLowerCase().includes(query));
-    });
-  }, [employees, searchQuery]);
-
-  const includedEmployees = filteredEmployees.filter((employee) =>
-    includedEmployeeIds.includes(String(employee.id))
-  );
-
-  const excludedEmployees = filteredEmployees.filter((employee) =>
-    !includedEmployeeIds.includes(String(employee.id))
-  );
+    return includedEmployeesUnfiltered.filter((employee) => matchesEmployeeSearch(employee, query));
+  }, [includedEmployeesUnfiltered, searchQuery]);
 
   const filteredExcludedEmployees = useMemo(() => {
     const query = excludedSearchQuery.trim().toLowerCase();
-    if (!query) return excludedEmployees;
+    if (!query) return excludedEmployeesUnfiltered;
 
-    return excludedEmployees.filter((employee) => {
-      const fullName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim();
-      return [
-        employee.id,
-        fullName,
-        employee.email,
-        employee.phone,
-        employee.department,
-        employee.designation,
-      ].some((field) => field?.toString().toLowerCase().includes(query));
-    });
-  }, [excludedEmployees, excludedSearchQuery]);
+    return excludedEmployeesUnfiltered.filter((employee) => matchesEmployeeSearch(employee, query));
+  }, [excludedEmployeesUnfiltered, excludedSearchQuery]);
 
   const activeEmployeeCount = employees.length;
   const includedCount = includedEmployeeIds.length;
@@ -224,17 +224,6 @@ function PayrollPage({ userName, onLogout }) {
 
           <section className="payroll-section">
             <div className="payroll-toolbar">
-              <div className="header-left">
-                <div className="search-bar payroll-search-bar">
-                  <input
-                    type="text"
-                    className="search-input"
-                    placeholder="Search by ID, name, email, department, or designation"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </div>
-              </div>
               <div className="payroll-toolbar-actions">
                 <div className="payroll-period-controls">
                   <label>
@@ -335,6 +324,15 @@ function PayrollPage({ userName, onLogout }) {
                   <div className="payroll-group-header">
                     <h3>Included Employees</h3>
                     <span>{includedEmployees.length} employees</span>
+                  </div>
+                  <div className="payroll-group-search">
+                    <input
+                      type="text"
+                      className="search-input"
+                      placeholder="Search by ID, name, email, department, or designation"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
                   </div>
                   {renderPayrollTable(
                     includedEmployees,
