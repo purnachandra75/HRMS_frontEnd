@@ -16,7 +16,7 @@
 }
 
 .payroll-summary-card {
-  background: linear-gradient(135deg, #0f172a 0%, #334155 100%);
+  background: linear-gradient(135deg, var(--color-chrome-start) 0%, var(--color-chrome-end) 100%);
   color: white;
   border-radius: 14px;
   padding: 20px;
@@ -206,8 +206,8 @@
 }
 
 .payroll-status-select:focus {
-  outline: 2px solid rgba(102, 126, 234, 0.35);
-  border-color: #667eea;
+  outline: 2px solid rgba(17, 24, 39, 0.35);
+  border-color: var(--color-primary);
 }
 
 .payroll-status-credited {
@@ -239,15 +239,16 @@
   padding: 10px 14px;
   border: 0;
   border-radius: 10px;
-  background: linear-gradient(135deg, #2563eb, #4f46e5);
+  background: var(--color-primary);
   color: white;
   font: inherit;
   font-weight: 700;
   cursor: pointer;
-  transition: transform 0.15s ease, opacity 0.15s ease;
+  transition: transform 0.15s ease, opacity 0.15s ease, background-color 0.15s ease;
 }
 
 .payroll-action-btn:hover:not(:disabled) {
+  background: var(--color-primary-dark);
   transform: translateY(-1px);
 }
 
@@ -274,7 +275,7 @@
 .payroll-toggle input {
   width: 18px;
   height: 18px;
-  accent-color: #667eea;
+  accent-color: var(--color-primary);
   cursor: pointer;
 }
 

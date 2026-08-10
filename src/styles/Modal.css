@@ -28,7 +28,7 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-chrome-start) 0%, var(--color-chrome-end) 100%);
   color: white;
 }
 
@@ -71,7 +71,7 @@
 }
 
 .modal-section h4 {
-  color: #667eea;
+  color: var(--color-primary);
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 15px;
@@ -108,8 +108,8 @@
 
 .modal-form input:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.12);
 }
 
 .error-message {
@@ -149,7 +149,7 @@
 }
 
 .save-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   color: white;
   padding: 10px 20px;
   border: none;
@@ -161,8 +161,9 @@
 }
 
 .save-btn:hover:not(:disabled) {
+  background: var(--color-primary-dark);
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 5px 15px rgba(17, 24, 39, 0.35);
 }
 
 .save-btn:disabled {

@@ -35,9 +35,39 @@
 }
 
 :root {
-  --accent: #2563eb;
-  --accent-2: #0ea5a4;
-  --accent-soft: #eff6ff;
+  /* Brand */
+  --color-primary: #111827;
+  --color-primary-dark: #000000;
+  --color-primary-darker: #000000;
+  --color-primary-light: #f3f4f6;
+
+  /* Structural chrome (headers, sidebars) */
+  --color-chrome-start: #1e293b;
+  --color-chrome-end: #334155;
+
+  /* Semantic */
+  --color-success: #16a34a;
+  --color-success-dark: #15803d;
+  --color-success-light: #dcfce7;
+  --color-warning: #d97706;
+  --color-warning-light: #fef3c7;
+  --color-danger: #dc2626;
+  --color-danger-dark: #b91c1c;
+  --color-danger-light: #fee2e2;
+  --color-info: #0284c7;
+  --color-info-light: #e0f2fe;
+
+  /* Neutrals */
+  --color-text: #1f2937;
+  --color-text-muted: #6b7280;
+  --color-border: #e5e7eb;
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+
+  /* Legacy aliases (kept so existing usages below still resolve) */
+  --accent: #111827;
+  --accent-2: #0d9488;
+  --accent-soft: #f3f4f6;
   --border: #e5e7eb;
   --muted: #6b7280;
   --shadow: 0 12px 28px rgba(15, 23, 42, 0.08);
@@ -163,10 +193,14 @@
   min-width: 210px;
   border: none;
   color: #fff;
-  background: linear-gradient(135deg, var(--accent), #3742a4);
+  background: var(--color-primary);
   padding: 12px 20px;
   border-radius: 10px;
   font-weight: 700;
+}
+
+.primary-button:hover {
+  background: var(--color-primary-dark);
 }
 
 .action-row {
@@ -193,9 +227,13 @@
 .generate-button {
   padding: 10px 16px;
   border-radius: 10px;
-  background: linear-gradient(90deg, var(--accent), var(--accent-2));
+  background: var(--color-primary);
   color: white;
   border: none;
+}
+
+.generate-button:hover {
+  background: var(--color-primary-dark);
 }
 
 .generate-button:disabled,

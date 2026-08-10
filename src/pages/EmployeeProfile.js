@@ -20,7 +20,26 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
   const [formData, setFormData] = useState({});
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('profile-sidebar-collapsed') === '1';
+    } catch {
+      return false;
+    }
+  });
   const navigate = useNavigate();
+
+  const toggleSidebarCollapsed = () => {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem('profile-sidebar-collapsed', next ? '1' : '0');
+      } catch {
+        // localStorage unavailable (private mode, etc.) - collapse still works for this session
+      }
+      return next;
+    });
+  };
 
   const canEdit = true;
 
@@ -490,31 +509,47 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
     ? 'Review and update your profile details, documents.'
     : null;
 
+  const renderProfileSidebar = (sectionsToShow) => (
+    <aside className={`profile-sidebar${sidebarCollapsed ? ' collapsed' : ''}`}>
+      <button
+        type="button"
+        className="profile-sidebar-toggle"
+        onClick={toggleSidebarCollapsed}
+        title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        {sidebarCollapsed ? '»' : '«'}
+      </button>
+      <div className="sidebar-header">
+        {!sidebarCollapsed && <h3>Profile Sections</h3>}
+      </div>
+      <nav className="sidebar-menu">
+        {sectionsToShow.map((section) => (
+          <button
+            key={section.id}
+            className={`menu-item ${activeSection === section.id ? 'active' : ''}`}
+            title={section.label}
+            onClick={() => setActiveSection(section.id)}
+          >
+            <span className="menu-icon">{section.icon}</span>
+            {!sidebarCollapsed && <span className="menu-label">{section.label}</span>}
+          </button>
+        ))}
+      </nav>
+      {!sidebarCollapsed && (
+        <div className="sidebar-footer">
+          <p className="section-counter">
+            {currentSectionIndex + 1} / {sections.length}
+          </p>
+        </div>
+      )}
+    </aside>
+  );
+
   const profileBody = !isEditing ? (
         // View Mode - show sidebar and view sections; edit button placed below header on right
         <div className="profile-content">
-          <aside className="profile-sidebar">
-            <div className="sidebar-header">
-              <h3>Profile Sections</h3>
-            </div>
-            <nav className="sidebar-menu">
-              {sections.map((section) => (
-                <button
-                  key={section.id}
-                  className={`menu-item ${activeSection === section.id ? 'active' : ''}`}
-                  onClick={() => setActiveSection(section.id)}
-                >
-                  <span className="menu-icon">{section.icon}</span>
-                  <span className="menu-label">{section.label}</span>
-                </button>
-              ))}
-            </nav>
-            <div className="sidebar-footer">
-              <p className="section-counter">
-                {currentSectionIndex + 1} / {sections.length}
-              </p>
-            </div>
-          </aside>
+          {renderProfileSidebar(sections)}
 
           <main className="profile-main">
             {canEdit && (
@@ -534,30 +569,7 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
         // Edit Mode - Sidebar with Sections
         <div className="profile-content">
           {/* Sidebar Menu */}
-          <aside className="profile-sidebar">
-            <div className="sidebar-header">
-              <h3>Profile Sections</h3>
-            </div>
-            <nav className="sidebar-menu">
-              {sections
-                .filter(section => isEditing ? section.id !== 'leaves' : true)
-                .map((section) => (
-                <button
-                  key={section.id}
-                  className={`menu-item ${activeSection === section.id ? 'active' : ''}`}
-                  onClick={() => setActiveSection(section.id)}
-                >
-                  <span className="menu-icon">{section.icon}</span>
-                  <span className="menu-label">{section.label}</span>
-                </button>
-              ))}
-            </nav>
-            <div className="sidebar-footer">
-              <p className="section-counter">
-                {currentSectionIndex + 1} / {sections.length}
-              </p>
-            </div>
-          </aside>
+          {renderProfileSidebar(sections.filter((section) => section.id !== 'leaves'))}
 
           {/* Main Content */}
           <main className="profile-main">

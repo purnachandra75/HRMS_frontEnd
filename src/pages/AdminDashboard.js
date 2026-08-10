@@ -92,7 +92,7 @@ function AdminDashboard({ userName, onLogout }) {
               </div>
               <button onClick={() => navigate('/admin/employee/new')} className="create-btn">Create Employee</button>
             </div>
-            
+
             {loading ? (
               <p>Loading employees...</p>
             ) : employees.length === 0 ? (

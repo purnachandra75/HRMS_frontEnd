@@ -1,19 +1,26 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { getEmployeesPage } from '../services/employeeService';
 import { getLeaveRequests } from '../services/leaveService';
 import AdminLayout from '../components/AdminLayout';
-import { getEmploymentTypeLabel, matchesEmploymentFilter } from '../utils/reportUtils';
+import { getEmploymentTypeLabel } from '../utils/reportUtils';
 import '../styles/Dashboard.css';
 import '../styles/Leave.css';
 
 function AdminReportsPage({ userName, onLogout }) {
+  const location = useLocation();
   const [employees, setEmployees] = useState([]);
   const [leaveRequests, setLeaveRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [downloading, setDownloading] = useState(false);
   const [error, setError] = useState('');
-  const [selectedReport, setSelectedReport] = useState('salary');
-  const [employeeReportType, setEmployeeReportType] = useState('status');
+  const [selectedReport, setSelectedReport] = useState(() => {
+    const report = new URLSearchParams(location.search).get('report');
+    return ['salary', 'leaves', 'attendance', 'employee'].includes(report) ? report : 'salary';
+  });
+  const [employeeReportType, setEmployeeReportType] = useState(
+    () => new URLSearchParams(location.search).get('type') || 'status'
+  );
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [employmentFilter, setEmploymentFilter] = useState('all');
   const [departmentFilter, setDepartmentFilter] = useState('All');
@@ -21,12 +28,21 @@ function AdminReportsPage({ userName, onLogout }) {
   const rowsPerPage = 10;
   const [backendTotal, setBackendTotal] = useState(0);
   const [backendTotalPages, setBackendTotalPages] = useState(1);
-  const [expandedSections, setExpandedSections] = useState({
-    payroll: true,
-    employee: false,
-    leave: false,
-    attendance: false,
-  });
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const report = params.get('report');
+    const type = params.get('type');
+
+    if (report && ['salary', 'leaves', 'attendance', 'employee'].includes(report)) {
+      setSelectedReport(report);
+    }
+    if (report === 'employee' && type) {
+      setEmployeeReportType(type);
+    }
+    setCurrentPage(1);
+  }, [location.search]);
+
   const getReportEmployeeParams = useCallback((page, size) => {
     const trimmedDepartment = String(departmentFilter || '').trim();
     const params = {
@@ -125,15 +141,6 @@ function AdminReportsPage({ userName, onLogout }) {
     );
   };
 
-  const nonAdminEmployees = employees;
-
-  const getActiveEmployees = (employeeList) => employeeList.filter((employee) => {
-    const status = (employee.employeeStatus || '').toLowerCase();
-    return status !== 'inactive';
-  });
-
-  const activeEmployees = getActiveEmployees(nonAdminEmployees);
-
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -229,14 +236,12 @@ function AdminReportsPage({ userName, onLogout }) {
 
   const buildEmployeeReportRows = (employeeList, reportType) => {
     if (reportType === 'employment') {
-      return employeeList
-        .filter((employee) => matchesEmploymentFilter(employee.employeeType, employmentFilter))
-        .map((employee, index) => ({
-          id: employee.id || index,
-          name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
-          type: getEmploymentTypeLabel(employee.employeeType),
-          department: employee.department || 'N/A',
-        }));
+      return employeeList.map((employee, index) => ({
+        id: employee.id || index,
+        name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
+        type: getEmploymentTypeLabel(employee.employeeType),
+        department: employee.department || 'N/A',
+      }));
     }
 
     if (reportType === 'newJoiners' || reportType === 'probation') {
@@ -264,9 +269,9 @@ function AdminReportsPage({ userName, onLogout }) {
     }));
   };
 
-  const leavesReportRows = buildLeavesReportRows(activeEmployees, leaveRequests);
-  const attendanceReportRows = buildAttendanceReportRows(activeEmployees);
-  const salaryReportRows = buildSalaryReportRows(activeEmployees);
+  const leavesReportRows = buildLeavesReportRows(employees, leaveRequests);
+  const attendanceReportRows = buildAttendanceReportRows(employees);
+  const salaryReportRows = buildSalaryReportRows(employees);
 
   const reportDetails = {
     salary: {
@@ -347,54 +352,6 @@ function AdminReportsPage({ userName, onLogout }) {
     },
   };
 
-  const matchesDepartment = (dept) => {
-    const filter = String(departmentFilter || '').trim().toLowerCase().replace(/-/g, ' ');
-    if (!filter || filter === 'all') return true;
-
-    const normalized = String(dept || '').trim().toLowerCase();
-
-    if (!normalized) return false;
-
-    if (filter === 'non it') {
-      return !/\bit\b/.test(normalized);
-    }
-
-    if (filter === 'hr') {
-      return (
-        /\bhr\b/.test(normalized) ||
-        normalized.includes('hr department') ||
-        normalized.includes('human resources')
-      );
-    }
-
-    if (filter === 'it') {
-      return /\bit\b/.test(normalized) || normalized.includes('it department');
-    }
-
-    if (filter === 'admin') {
-      return normalized.includes('admin');
-    }
-
-    return normalized.replace(/-/g, ' ') === filter;
-  };
-
-  const toggleSection = (section) => {
-    setExpandedSections((prev) => ({ ...prev, [section]: !prev[section] }));
-  };
-
-  const selectPayrollReport = (report) => {
-    setSelectedReport(report);
-    setCurrentPage(1);
-    setExpandedSections((prev) => ({ ...prev, payroll: true }));
-  };
-
-  const selectEmployeeReport = (reportType) => {
-    setEmployeeReportType(reportType);
-    setSelectedReport('employee');
-    setCurrentPage(1);
-    setExpandedSections((prev) => ({ ...prev, employee: true }));
-  };
-
   const selectedReportData = selectedReport === 'employee'
     ? employeeReports[employeeReportType]
     : reportDetails[selectedReport];
@@ -403,42 +360,23 @@ function AdminReportsPage({ userName, onLogout }) {
     ? selectedReportData.rows
     : [];
 
-  const isBackendPagedReport = ['salary', 'leaves', 'attendance', 'employee'].includes(selectedReport);
-
-  // For backend-paged reports, backend already filtered by department, so don't filter again
-  const filteredRows = isBackendPagedReport 
-    ? visibleRows 
-    : visibleRows.filter((row) => matchesDepartment(row.department));
-
-  const totalRows = isBackendPagedReport ? backendTotal : filteredRows.length;
-  const totalPages = isBackendPagedReport
-    ? backendTotalPages
-    : Math.max(1, Math.ceil(totalRows / rowsPerPage));
-
-  const currentPageRows = isBackendPagedReport
-    ? visibleRows
-    : filteredRows.slice(
-        (currentPage - 1) * rowsPerPage,
-        currentPage * rowsPerPage
-      );
-
   const selected = selectedReportData
     ? {
         ...selectedReportData,
-        rows: currentPageRows,
-        totalRows,
+        rows: visibleRows,
+        totalRows: backendTotal,
       }
     : null;
 
   const reportForDownload = selectedReportData
-    ? { ...selectedReportData, rows: currentPageRows }
+    ? { ...selectedReportData, rows: visibleRows }
     : null;
 
   useEffect(() => {
-    if (currentPage > totalPages) {
+    if (currentPage > backendTotalPages) {
       setCurrentPage(1);
     }
-  }, [currentPage, totalPages]);
+  }, [currentPage, backendTotalPages]);
 
   const fetchAllReportEmployees = async () => {
     const pageSize = 1000;
@@ -468,12 +406,11 @@ function AdminReportsPage({ userName, onLogout }) {
     }
 
     const allReportEmployees = await fetchAllReportEmployees();
-    const activeReportEmployees = getActiveEmployees(allReportEmployees);
 
     if (selectedReport === 'salary') {
       return {
         ...selectedReportData,
-        rows: buildSalaryReportRows(activeReportEmployees),
+        rows: buildSalaryReportRows(allReportEmployees),
       };
     }
 
@@ -481,27 +418,20 @@ function AdminReportsPage({ userName, onLogout }) {
       const allLeaveRequests = await getLeaveRequests();
       return {
         ...selectedReportData,
-        rows: buildLeavesReportRows(activeReportEmployees, Array.isArray(allLeaveRequests) ? allLeaveRequests : []),
+        rows: buildLeavesReportRows(allReportEmployees, Array.isArray(allLeaveRequests) ? allLeaveRequests : []),
       };
     }
 
     if (selectedReport === 'attendance') {
       return {
         ...selectedReportData,
-        rows: buildAttendanceReportRows(activeReportEmployees),
-      };
-    }
-
-    if (selectedReport === 'employee') {
-      return {
-        ...selectedReportData,
-        rows: buildEmployeeReportRows(allReportEmployees, employeeReportType),
+        rows: buildAttendanceReportRows(allReportEmployees),
       };
     }
 
     return {
       ...selectedReportData,
-      rows: filteredRows,
+      rows: buildEmployeeReportRows(allReportEmployees, employeeReportType),
     };
   };
 
@@ -582,129 +512,7 @@ function AdminReportsPage({ userName, onLogout }) {
     <AdminLayout userName={userName} onLogout={onLogout} activeItem="reports" title="Admin Reports">
 
       <div className="reports-page-content">
-        <div className="reports-page-grid with-submenu">
-          <aside className="reports-submenu profile-sidebar reports-submenu-container">
-            <div className="sidebar-header">
-              <h3>Report Sections</h3>
-            </div>
-            <nav className="sidebar-menu">
-              <button
-                type="button"
-                className={`menu-item ${expandedSections.payroll ? 'active' : ''}`}
-                onClick={() => toggleSection('payroll')}
-              >
-                <span className="menu-icon">💰</span>
-                <span className="menu-label">Payroll</span>
-                <span className="submenu-arrow">{expandedSections.payroll ? '▼' : '▶'}</span>
-              </button>
-              {expandedSections.payroll && (
-                <div className="submenu-children">
-                  <button
-                    type="button"
-                    className={`menu-item ${selectedReport === 'salary' ? 'active' : ''}`}
-                    onClick={() => selectPayrollReport('salary')}
-                  >
-                    <span className="menu-label">Salary Report</span>
-                  </button>
-                </div>
-              )}
-
-              <button
-                type="button"
-                className={`menu-item ${expandedSections.employee ? 'active' : ''}`}
-                onClick={() => toggleSection('employee')}
-              >
-                <span className="menu-icon">👥</span>
-                <span className="menu-label">Employee Reports</span>
-                <span className="submenu-arrow">{expandedSections.employee ? '▼' : '▶'}</span>
-              </button>
-              {expandedSections.employee && (
-                <div className="submenu-children">
-                  <button
-                    type="button"
-                    className={`menu-item ${selectedReport === 'employee' && employeeReportType === 'all' ? 'active' : ''}`}
-                    onClick={() => selectEmployeeReport('all')}
-                  >
-                    <span className="menu-label">All Employees</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`menu-item ${selectedReport === 'employee' && employeeReportType === 'status' ? 'active' : ''}`}
-                    onClick={() => selectEmployeeReport('status')}
-                  >
-                    <span className="menu-label">Employee Exit Report</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`menu-item ${selectedReport === 'employee' && employeeReportType === 'employment' ? 'active' : ''}`}
-                    onClick={() => selectEmployeeReport('employment')}
-                  >
-                    <span className="menu-label">Employment Type Report</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`menu-item ${selectedReport === 'employee' && employeeReportType === 'newJoiners' ? 'active' : ''}`}
-                    onClick={() => selectEmployeeReport('newJoiners')}
-                  >
-                    <span className="menu-label">New Joiners</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`menu-item ${selectedReport === 'employee' && employeeReportType === 'probation' ? 'active' : ''}`}
-                    onClick={() => selectEmployeeReport('probation')}
-                  >
-                    <span className="menu-label">Probation Period</span>
-                  </button>
-                </div>
-              )}
-
-              <button
-                type="button"
-                className={`menu-item ${expandedSections.leave ? 'active' : ''}`}
-                onClick={() => toggleSection('leave')}
-              >
-                <span className="menu-icon">📅</span>
-                <span className="menu-label">Leave Report</span>
-                <span className="submenu-arrow">{expandedSections.leave ? '▼' : '▶'}</span>
-              </button>
-              {expandedSections.leave && (
-                <div className="submenu-children">
-                  <button
-                    type="button"
-                    className={`menu-item ${selectedReport === 'leaves' ? 'active' : ''}`}
-                    onClick={() => {
-                      setSelectedReport('leaves');
-                      setCurrentPage(1);
-                    }}
-                  >
-                    <span className="menu-label">View Leave Report</span>
-                  </button>
-                </div>
-              )}
-
-              <button
-                type="button"
-                className={`menu-item ${expandedSections.attendance ? 'active' : ''}`}
-                onClick={() => toggleSection('attendance')}
-              >
-                <span className="menu-icon">✓</span>
-                <span className="menu-label">Attendance Report</span>
-                <span className="submenu-arrow">{expandedSections.attendance ? '▼' : '▶'}</span>
-              </button>
-              {expandedSections.attendance && (
-                <div className="submenu-children">
-                  <button
-                    type="button"
-                    className={`menu-item ${selectedReport === 'attendance' ? 'active' : ''}`}
-                    onClick={() => { setSelectedReport('attendance'); }}
-                  >
-                    <span className="menu-label">View Attendance Report</span>
-                  </button>
-                </div>
-              )}
-            </nav>
-          </aside>
-          <section className="reports-content report-body">
+        <section className="reports-content report-body">
             <div className="reports-content-header">
               <h2>{selected?.title}</h2>
               <p>{selected?.description}</p>
@@ -804,9 +612,9 @@ function AdminReportsPage({ userName, onLogout }) {
                     <button
                       type="button"
                       className="create-btn"
-                      style={{ opacity: currentPage === totalPages ? 0.5 : 1 }}
-                      disabled={currentPage === totalPages}
-                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                      style={{ opacity: currentPage === backendTotalPages ? 0.5 : 1 }}
+                      disabled={currentPage === backendTotalPages}
+                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, backendTotalPages))}
                     >
                       Next
                     </button>
@@ -837,8 +645,7 @@ function AdminReportsPage({ userName, onLogout }) {
                 </div>
               </>
             )}
-          </section>
-        </div>
+        </section>
       </div>
     </AdminLayout>
   );

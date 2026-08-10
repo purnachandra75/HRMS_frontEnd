@@ -4,7 +4,7 @@
 }
 
 .profile-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, var(--color-chrome-start) 0%, var(--color-chrome-end) 100%);
   color: white;
   padding: 20px 30px;
   display: flex;
@@ -91,7 +91,7 @@
 }
 
 .edit-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   color: white;
   padding: 10px 20px;
   border: none;
@@ -102,8 +102,9 @@
 }
 
 .edit-btn:hover {
+  background: var(--color-primary-dark);
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 5px 15px rgba(17, 24, 39, 0.35);
 }
 
 .cancel-btn {
@@ -132,7 +133,7 @@
 }
 
 .form-section h3 {
-  color: #667eea;
+  color: var(--color-primary);
   margin-bottom: 15px;
   font-size: 18px;
 }
@@ -171,8 +172,8 @@
 .form-group textarea:focus,
 .form-group select:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.12);
 }
 
 .form-group input:disabled,
@@ -191,7 +192,7 @@
 }
 
 .save-btn {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   color: white;
   padding: 12px 30px;
   border: none;
@@ -203,8 +204,9 @@
 }
 
 .save-btn:hover:not(:disabled) {
+  background: var(--color-primary-dark);
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+  box-shadow: 0 5px 15px rgba(17, 24, 39, 0.35);
 }
 
 .save-btn:disabled {
@@ -218,7 +220,7 @@
   align-items: center;
   min-height: 100vh;
   font-size: 18px;
-  color: #667eea;
+  color: var(--color-primary);
 }
 
 /* Edit View Container with Sidebar */
@@ -248,7 +250,7 @@
 
 .sidebar-header h4 {
   margin: 0;
-  color: #667eea;
+  color: var(--color-primary);
   font-size: 16px;
   font-weight: 600;
 }
@@ -277,13 +279,13 @@
 
 .section-btn:hover {
   background-color: #f8f9fa;
-  color: #667eea;
+  color: var(--color-primary);
 }
 
 .section-btn.active {
-  background-color: #f0f0ff;
-  border-left-color: #667eea;
-  color: #667eea;
+  background-color: var(--color-primary-light);
+  border-left-color: var(--color-primary);
+  color: var(--color-primary);
   font-weight: 600;
 }
 
@@ -301,7 +303,7 @@
 
 .section-num {
   font-size: 12px;
-  background-color: #667eea;
+  background-color: var(--color-primary);
   color: white;
   width: 22px;
   height: 22px;
@@ -349,9 +351,9 @@
 }
 
 .nav-btn:hover:not(:disabled) {
-  background-color: #667eea;
+  background-color: var(--color-primary);
   color: white;
-  border-color: #667eea;
+  border-color: var(--color-primary);
   transform: translateY(-2px);
 }
 
@@ -454,7 +456,7 @@
 }
 
 .view-card h2 {
-  color: #667eea;
+  color: var(--color-primary);
   font-size: 24px;
   margin-bottom: 10px;
 }
@@ -483,7 +485,7 @@
 }
 
 .info-item strong {
-  color: #667eea;
+  color: var(--color-primary);
   display: block;
   margin-bottom: 5px;
 }
@@ -493,7 +495,7 @@
   border: none;
   padding: 0;
   margin: 0;
-  color: #0d6efd;
+  color: var(--color-primary);
   text-decoration: underline;
   cursor: pointer;
   font: inherit;
@@ -531,18 +533,59 @@
   position: static;
   max-height: none;
   overflow: visible;
+  transition: flex-basis 0.25s ease;
+}
+
+.profile-sidebar.collapsed {
+  flex: 0 0 68px;
+}
+
+.profile-sidebar-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  margin: 10px 10px 0 auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 50%;
+  background: white;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  transition: background-color 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.profile-sidebar.collapsed .profile-sidebar-toggle {
+  margin: 10px auto 0;
+}
+
+.profile-sidebar-toggle:hover {
+  background: #f1f5f9;
+  color: var(--color-primary);
+  transform: scale(1.08);
+}
+
+.profile-sidebar.collapsed .sidebar-header {
+  padding: 4px 0 12px;
+}
+
+.profile-sidebar.collapsed .menu-item {
+  justify-content: center;
+  padding: 14px 8px;
 }
 
 .sidebar-header {
   padding: 20px;
   border-bottom: 2px solid #f0f0f0;
-  background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);
+  background: linear-gradient(135deg, #4f46e515 0%, #4338ca15 100%);
   border-radius: 8px 8px 0 0;
 }
 
 .sidebar-header h3 {
   margin: 0;
-  color: #667eea;
+  color: var(--color-primary);
   font-size: 16px;
   font-weight: 600;
 }
@@ -575,13 +618,13 @@
 
 .menu-item:hover {
   background-color: #f8f9fa;
-  color: #667eea;
+  color: var(--color-primary);
 }
 
 .menu-item.active {
-  background-color: #f0f0ff;
-  border-left-color: #667eea;
-  color: #667eea;
+  background-color: var(--color-primary-light);
+  border-left-color: var(--color-primary);
+  color: var(--color-primary);
   font-weight: 600;
 }
 
@@ -638,7 +681,7 @@
 }
 
 .profile-section h2 {
-  color: #667eea;
+  color: var(--color-primary);
   font-size: 22px;
   margin-bottom: 20px;
   padding-bottom: 15px;
@@ -685,8 +728,8 @@
 .profile-form textarea:focus,
 .profile-form select:focus {
   outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.12);
   background-color: #f8f9ff;
 }
 
@@ -719,9 +762,9 @@
 }
 
 .section-navigation .nav-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: var(--color-primary);
   color: white;
-  border-color: #667eea;
+  border-color: var(--color-primary);
   transform: translateY(-2px);
 }
 
@@ -731,7 +774,7 @@
 }
 
 .section-info {
-  color: #667eea;
+  color: var(--color-primary);
   font-weight: 600;
   font-size: 14px;
   flex: 1;
@@ -834,7 +877,7 @@
 }
 
 .profile-loading {
-  color: #667eea;
+  color: var(--color-primary);
 }
 
 .profile-error {
@@ -848,8 +891,10 @@
     gap: 15px;
   }
 
-  .profile-sidebar {
+  .profile-sidebar,
+  .profile-sidebar.collapsed {
     flex: 0 0 auto;
+    width: 100%;
     position: static;
   }
 
