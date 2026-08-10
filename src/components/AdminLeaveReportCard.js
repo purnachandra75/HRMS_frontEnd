@@ -1,15 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { getLeaveRequests } from '../services/leaveService';
+import React, { useState } from 'react';
+import { getLeaveRequestsPage } from '../services/leaveService';
 import { getWorkingDaysByMonth } from '../utils/leaveUtils';
 
+const REPORT_PAGE_SIZE = 500;
+
 export default function AdminLeaveReportCard() {
-  const [allRequests, setAllRequests] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
-  const [appliedSearchTerm, setAppliedSearchTerm] = useState('');
   const [appliedMonth, setAppliedMonth] = useState(new Date().getMonth() + 1);
   const [appliedYear, setAppliedYear] = useState(new Date().getFullYear());
   const [hasSearched, setHasSearched] = useState(false);
@@ -31,79 +32,30 @@ export default function AdminLeaveReportCard() {
 
   const years = [2024, 2025, 2026, 2027];
 
-  useEffect(() => {
-    loadLeaveData();
-  }, []);
-
-  const loadLeaveData = async () => {
+  const handleViewReport = async () => {
+    const monthValue = selectedMonth;
+    const yearValue = selectedYear;
+    setAppliedMonth(monthValue);
+    setAppliedYear(yearValue);
+    setHasSearched(true);
     setLoading(true);
+    setError(null);
     try {
-      const data = await getLeaveRequests();
-      setAllRequests(data);
+      const { requests } = await getLeaveRequestsPage({
+        search: searchTerm,
+        month: monthValue,
+        year: yearValue,
+        size: REPORT_PAGE_SIZE,
+      });
+      setFilteredData(Array.isArray(requests) ? requests : []);
     } catch (err) {
-      console.error('Failed to load leave requests:', err);
-      setAllRequests([]);
+      console.error('Failed to load leave report:', err);
+      setError('Failed to load leave report.');
+      setFilteredData([]);
     } finally {
       setLoading(false);
     }
   };
-
-  const getSearchableValues = (request) => {
-    const values = [];
-
-    const addValue = (value) => {
-      if (value !== null && value !== undefined && value !== '') {
-        values.push(String(value).toLowerCase());
-      }
-    };
-
-    addValue(request.empId);
-    addValue(request.employeeId);
-    addValue(request.employee?.empId);
-    addValue(request.employee?.employeeId);
-    addValue(request.employeeName);
-    addValue(request.employee?.fullName);
-    addValue(request.employee?.name);
-    addValue(request.name);
-
-    return values;
-  };
-
-  const handleViewReport = () => {
-    setAppliedSearchTerm(searchTerm.trim());
-    setAppliedMonth(selectedMonth);
-    setAppliedYear(selectedYear);
-    setHasSearched(true);
-  };
-
-  // Filter data based on search term, month, and year
-  useEffect(() => {
-    if (!hasSearched) {
-      setFilteredData([]);
-      return;
-    }
-
-    let filtered = allRequests.filter(request => {
-      const fromDate = new Date(request.fromDate);
-      const toDate = new Date(request.toDate);
-      
-      // Check if request falls within selected month and year
-      const isInSelectedMonth = (
-        (fromDate.getFullYear() === appliedYear && fromDate.getMonth() + 1 === appliedMonth) ||
-        (toDate.getFullYear() === appliedYear && toDate.getMonth() + 1 === appliedMonth)
-      );
-
-      if (!isInSelectedMonth) return false;
-
-      // Filter by search term (employee name or employee ID)
-      const searchLower = appliedSearchTerm.toLowerCase();
-      const matchesSearch = !searchLower || getSearchableValues(request).some(value => value.includes(searchLower));
-
-      return matchesSearch;
-    });
-
-    setFilteredData(filtered);
-  }, [allRequests, appliedSearchTerm, appliedMonth, appliedYear, hasSearched]);
 
   // Calculate total days by leave type for filtered data
   const calculateStats = () => {
@@ -136,10 +88,6 @@ export default function AdminLeaveReportCard() {
   const stats = calculateStats();
   const monthName = months.find(m => m.value === appliedMonth)?.label || 'January';
 
-  if (loading) {
-    return <div className="loading">Loading leave data...</div>;
-  }
-
   return (
     <div className="admin-report-container">
       <div className="report-section">
@@ -158,9 +106,9 @@ export default function AdminLeaveReportCard() {
             </div>
             <div className="filter-group">
               <label>Month</label>
-              <select 
+              <select
                 className="filter-select"
-                value={selectedMonth} 
+                value={selectedMonth}
                 onChange={(e) => setSelectedMonth(Number(e.target.value))}
               >
                 {months.map(month => (
@@ -170,9 +118,9 @@ export default function AdminLeaveReportCard() {
             </div>
             <div className="filter-group">
               <label>Year</label>
-              <select 
+              <select
                 className="filter-select"
-                value={selectedYear} 
+                value={selectedYear}
                 onChange={(e) => setSelectedYear(Number(e.target.value))}
               >
                 {years.map(year => (
@@ -184,6 +132,7 @@ export default function AdminLeaveReportCard() {
               <button
                 type="button"
                 onClick={handleViewReport}
+                disabled={loading}
                 style={{
                   padding: '8px 14px',
                   border: 'none',
@@ -195,13 +144,21 @@ export default function AdminLeaveReportCard() {
                   marginTop: '20px'
                 }}
               >
-                View Report
+                {loading ? 'Loading...' : 'View Report'}
               </button>
             </div>
           </div>
         </div>
 
-        {hasSearched ? (
+        {error && <div className="error-message">{error}</div>}
+
+        {!hasSearched ? (
+          <div className="no-data">
+            <p>Enter an employee ID or name, choose a month and year, then click View Report.</p>
+          </div>
+        ) : loading ? (
+          <div className="loading">Loading leave data...</div>
+        ) : (
           <>
             {/* Summary Cards */}
             <div className="report-summary">
@@ -231,10 +188,10 @@ export default function AdminLeaveReportCard() {
             <div className="report-title">
               <h3>Leave Details - {monthName} {appliedYear}</h3>
             </div>
-            
+
             {filteredData.length === 0 ? (
               <div className="no-data">
-                <p>{appliedSearchTerm ? `No leave records found for ${monthName} ${appliedYear}` : 'Enter an employee ID or name to view the report.'}</p>
+                <p>{`No leave records found for ${monthName} ${appliedYear}`}</p>
               </div>
             ) : (
               <div className="table-responsive">
@@ -275,10 +232,6 @@ export default function AdminLeaveReportCard() {
               </div>
             )}
           </>
-        ) : (
-          <div className="no-data">
-            <p>Enter an employee ID or name, choose a month and year, then click View Report.</p>
-          </div>
         )}
       </div>
     </div>
