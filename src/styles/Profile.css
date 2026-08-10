@@ -91,7 +91,7 @@
 }
 
 .edit-btn {
-  background: var(--color-primary);
+  background: var(--color-edit);
   color: white;
   padding: 10px 20px;
   border: none;
@@ -102,9 +102,9 @@
 }
 
 .edit-btn:hover {
-  background: var(--color-primary-dark);
+  background: var(--color-edit-dark);
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(17, 24, 39, 0.35);
+  box-shadow: 0 5px 15px rgba(37, 99, 235, 0.35);
 }
 
 .cancel-btn {
@@ -792,24 +792,6 @@
   color: white;
   font-weight: 500;
   font-size: 16px;
-}
-
-.edit-btn {
-  background-color: rgba(255, 255, 255, 0.2);
-  color: white;
-  padding: 10px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
-  transition: all 0.3s;
-}
-
-.edit-btn:hover {
-  background-color: rgba(255, 255, 255, 0.3);
-  border-color: white;
-  transform: translateY(-2px);
 }
 
 .edit-actions {
