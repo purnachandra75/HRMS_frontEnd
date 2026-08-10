@@ -240,6 +240,36 @@ export const getLeaveRequests = async () => {
   }
 };
 
+// Server-side paginated + status-filtered fetch (used by the admin Leave Requests table).
+// `page` is 1-based on the frontend; converted to the backend's 0-based page index.
+export const getLeaveRequestsPage = async ({ page = 1, size = 10, status = '' } = {}) => {
+  const params = new URLSearchParams();
+  params.append('page', Math.max(0, page - 1));
+  params.append('size', size);
+
+  const normalizedStatus = status && status.trim().toLowerCase() !== 'all' ? status.trim() : '';
+  if (normalizedStatus) {
+    params.append('status', normalizedStatus);
+  }
+
+  const response = await apiFetch(`${API_BASE_URL}/api/leave-requests?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch leave requests');
+  }
+  const data = await response.json();
+
+  if (Array.isArray(data)) {
+    return { requests: data, total: data.length, pageSize: size, totalPages: 1 };
+  }
+
+  return {
+    requests: Array.isArray(data.content) ? data.content : [],
+    total: data.totalElements ?? 0,
+    pageSize: data.size ?? size,
+    totalPages: data.totalPages ?? 1,
+  };
+};
+
 export const getEmployeeLeaveRequests = async (employeeId) => {
   try {
     const response = await apiFetch(`${API_BASE_URL}/api/leave-requests/employee/${employeeId}`);

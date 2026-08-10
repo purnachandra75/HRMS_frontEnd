@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getEmployeesPage, deleteEmployee } from '../services/employeeService';
+import { getEmployeesPage, getEmployeeById, deleteEmployee } from '../services/employeeService';
 import AdminLayout from '../components/AdminLayout';
 import '../styles/Dashboard.css';
 
@@ -19,10 +19,30 @@ function AdminDashboard({ userName, onLogout }) {
     loadEmployees(currentPage, searchQuery.trim());
   }, [currentPage, searchQuery]);
 
+  // A short all-digit query (e.g. "5", "23") is treated as an employee ID lookup
+  // rather than a general text search, so it only ever returns the exact ID match
+  // instead of the backend's fuzzy "search" endpoint pulling in unrelated records
+  // whose phone/other fields merely contain that substring.
+  const isEmployeeIdQuery = (query) => /^\d{1,6}$/.test(query);
+
   const loadEmployees = async (page, query) => {
     const requestId = ++latestRequestIdRef.current;
     setLoading(true);
     try {
+      if (isEmployeeIdQuery(query)) {
+        let match = null;
+        try {
+          match = await getEmployeeById(Number(query));
+        } catch (lookupErr) {
+          match = null;
+        }
+        if (requestId !== latestRequestIdRef.current) return;
+        setEmployees(match ? [match] : []);
+        setTotalEmployees(match ? 1 : 0);
+        setPageSize(RECORDS_PER_PAGE);
+        return;
+      }
+
       const { employees: data, total, pageSize: responsePageSize } = await getEmployeesPage({
         page,
         size: RECORDS_PER_PAGE,

@@ -2,47 +2,11 @@ import React, { useState, useEffect } from 'react';
 import AdminRequestTable from '../components/AdminRequestTable';
 import AdminLeaveReportCard from '../components/AdminLeaveReportCard';
 import AdminLayout from '../components/AdminLayout';
-import { getLeaveRequests, updateLeaveRequestStatus } from '../services/leaveService';
+import { getLeaveRequestsPage, updateLeaveRequestStatus } from '../services/leaveService';
 import '../styles/Dashboard.css';
 import '../styles/Leave.css';
 
-const getRequestTimestamp = (request) => {
-  const dateFields = [
-    request?.createdAt,
-    request?.submittedAt,
-    request?.requestedAt,
-    request?.updatedAt,
-  ];
-
-  for (const dateValue of dateFields) {
-    if (dateValue) {
-      const parsedDate = new Date(dateValue).getTime();
-      if (!Number.isNaN(parsedDate)) {
-        return parsedDate;
-      }
-    }
-  }
-
-  const numericId = Number(request?.id);
-  return Number.isNaN(numericId) ? 0 : numericId;
-};
-
-const sortNewestRequestsFirst = (requestList) => {
-  return [...requestList].sort((a, b) => {
-    const dateDifference = getRequestTimestamp(b) - getRequestTimestamp(a);
-    if (dateDifference !== 0) {
-      return dateDifference;
-    }
-
-    const numericIdA = Number(a?.id);
-    const numericIdB = Number(b?.id);
-    if (!Number.isNaN(numericIdA) && !Number.isNaN(numericIdB)) {
-      return numericIdB - numericIdA;
-    }
-
-    return String(b?.id || '').localeCompare(String(a?.id || ''));
-  });
-};
+const ROWS_PER_PAGE = 10;
 
 function LeavePage({ userName, onLogout }) {
   const [activeTab, setActiveTab] = useState('requests'); // requests, monthly-report
@@ -50,18 +14,26 @@ function LeavePage({ userName, onLogout }) {
   const [statusFilter, setStatusFilter] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalRequests, setTotalRequests] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
 
   useEffect(() => {
-    loadLeaveRequests();
-  }, []);
+    loadLeaveRequests(currentPage, statusFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, statusFilter]);
 
-  const loadLeaveRequests = async () => {
+  const loadLeaveRequests = async (page, status) => {
     setLoading(true);
     try {
-      const data = await getLeaveRequests();
-      const requestsArray = Array.isArray(data) ? data : [];
-      const sortedRequests = sortNewestRequestsFirst(requestsArray);
-      setRequests(sortedRequests);
+      const { requests: data, total, totalPages: pages } = await getLeaveRequestsPage({
+        page,
+        size: ROWS_PER_PAGE,
+        status,
+      });
+      setRequests(Array.isArray(data) ? data : []);
+      setTotalRequests(total ?? 0);
+      setTotalPages(Math.max(1, pages ?? 1));
       setError(null);
     } catch (err) {
       console.error('Failed to load leave requests:', err);
@@ -71,20 +43,15 @@ function LeavePage({ userName, onLogout }) {
     }
   };
 
-  const filteredRequests = requests.filter((request) => {
-    if (statusFilter === 'all') {
-      return true;
-    }
-
-    return (request.status || '').toLowerCase() === statusFilter;
-  });
+  const handleStatusFilterChange = (value) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
+  };
 
   const handleStatusChange = async (requestId, status) => {
     try {
       await updateLeaveRequestStatus(requestId, status);
-      setRequests((current) => sortNewestRequestsFirst(
-        current.map(req => req.id === requestId ? { ...req, status } : req)
-      ));
+      await loadLeaveRequests(currentPage, statusFilter);
     } catch (err) {
       console.error('Failed to update leave request:', err);
       alert('Failed to update leave request');
@@ -121,13 +88,38 @@ function LeavePage({ userName, onLogout }) {
       ) : (
         <>
           {activeTab === 'requests' && (
-            <AdminRequestTable
-              requests={filteredRequests}
-              totalRequests={requests.length}
-              statusFilter={statusFilter}
-              onStatusFilterChange={setStatusFilter}
-              onStatusChange={handleStatusChange}
-            />
+            <>
+              <AdminRequestTable
+                requests={requests}
+                totalRequests={totalRequests}
+                statusFilter={statusFilter}
+                onStatusFilterChange={handleStatusFilterChange}
+                onStatusChange={handleStatusChange}
+              />
+              {totalRequests > 0 && (
+                <div className="pagination-controls">
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                    disabled={currentPage === 1}
+                  >
+                    Previous
+                  </button>
+                  <span className="pagination-info">
+                    Page {currentPage} of {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    className="pagination-btn"
+                    onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                    disabled={currentPage === totalPages}
+                  >
+                    Next
+                  </button>
+                </div>
+              )}
+            </>
           )}
           {activeTab === 'monthly-report' && (
             <AdminLeaveReportCard />
