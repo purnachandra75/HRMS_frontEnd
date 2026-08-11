@@ -147,14 +147,6 @@ const updateRequestInStorage = (request) => {
   return updatedRequests;
 };
 
-const getNextLocalRequestId = (requests) => {
-  const localRequests = requests.filter((req) => typeof req.id === 'string' && req.id.startsWith('local-'));
-  if (localRequests.length === 0) {
-    return `local-${Date.now()}`;
-  }
-  return `local-${Date.now()}`;
-};
-
 const applyLeaveBalanceChange = (employeeId, leaveType, days) => {
   const balances = ensureLeaveBalancesForCurrentYear(employeeId);
   const normalizedType = normalizeLeaveTypeKey(leaveType);
@@ -168,40 +160,6 @@ const applyLeaveBalanceChange = (employeeId, leaveType, days) => {
 const clearCachedLeaveBalances = (employeeId) => {
   const storageKey = buildStorageKey(STORAGE_KEYS.leaveBalances, employeeId);
   localStorage.removeItem(storageKey);
-};
-
-const updateLocalLeaveRequestStatus = (requestId, status) => {
-  const requests = getLeaveRequestsFromStorage();
-  const updatedRequests = requests.map((request) => {
-    if (String(request.id) !== String(requestId)) {
-      return request;
-    }
-
-    const previousStatus = (request.status || '').toLowerCase();
-    const newStatus = String(status);
-    
-    // Always calculate correct working days from dates
-    const correctDays = calculateWorkingDaysBetween(request.fromDate, request.toDate);
-    const updatedRequest = { 
-      ...request, 
-      status: newStatus,
-      days: correctDays > 0 ? correctDays : (request.days || 0) // Update stored days with correct value
-    };
-
-    if (previousStatus !== 'approved' && newStatus.toLowerCase() === 'approved') {
-      // Use the correct calculated working days for deduction
-      const daysToDeduct = updatedRequest.days;
-      
-      applyLeaveBalanceChange(request.employeeId, request.leaveType || request.type, daysToDeduct);
-      // Clear cached balance to force fresh fetch on next request
-      clearCachedLeaveBalances(request.employeeId);
-    }
-
-    return updatedRequest;
-  });
-
-  saveLeaveRequestsToStorage(updatedRequests);
-  return updatedRequests.find((request) => String(request.id) === String(requestId));
 };
 
 const mergeRequestsWithLocalFallback = (apiRequests) => {
@@ -311,122 +269,81 @@ export const getEmployeeLeaveRequests = async (employeeId) => {
 };
 
 export const createLeaveRequest = async (requestData) => {
-  try {
-    const response = await apiFetch(`${API_BASE_URL}/api/leave-requests`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(requestData)
-    });
-    if (!response.ok) {
-      let errorMessage = 'Failed to create leave request';
-      try {
-        const errorData = await response.json();
-        errorMessage = errorData.message || errorData.error || errorMessage;
-      } catch (e) {
-        // If response body is not JSON, use default message
-      }
-      throw new Error(errorMessage);
+  const response = await apiFetch(`${API_BASE_URL}/api/leave-requests`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(requestData)
+  });
+
+  if (!response.ok) {
+    let errorMessage = 'Failed to create leave request';
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.message || errorData.error || errorMessage;
+    } catch (e) {
+      // response body wasn't JSON (e.g. network/proxy error page) - use the default message
     }
-    const responseData = await response.json();
-    if (responseData && responseData.id) {
-      updateRequestInStorage(responseData);
-    }
-    return responseData;
-  } catch (error) {
-    console.error('Error creating leave request:', error);
-    const requests = getLeaveRequestsFromStorage();
-    const nextId = getNextLocalRequestId(requests);
-    const localRequest = {
-      id: nextId,
-      employeeId: requestData.employeeId,
-      employeeName: requestData.employeeName,
-      leaveType: requestData.leaveType || requestData.type,
-      type: requestData.type,
-      fromDate: requestData.fromDate,
-      toDate: requestData.toDate,
-      days: requestData.days,
-      reason: requestData.reason,
-      status: 'Pending',
-      createdAt: new Date().toISOString(),
-    };
-    const updatedRequests = [...requests, localRequest];
-    saveLeaveRequestsToStorage(updatedRequests);
-    return localRequest;
+    throw new Error(errorMessage);
   }
+
+  const responseData = await response.json();
+  if (responseData && responseData.id) {
+    updateRequestInStorage(responseData);
+  }
+  return responseData;
 };
 
 export const updateLeaveRequestStatus = async (requestId, status) => {
-  try {
-    const response = await apiFetch(`${API_BASE_URL}/api/leave-requests/${requestId}/status`, {
-      method: 'PATCH',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ status })
-    });
-    if (!response.ok) {
-      throw new Error('Failed to update leave request status');
+  const response = await apiFetch(`${API_BASE_URL}/api/leave-requests/${requestId}/status`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ status })
+  });
+
+  if (!response.ok) {
+    let errorMessage = 'Failed to update leave request status';
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.message || errorData.error || errorMessage;
+    } catch (e) {
+      // response body wasn't JSON (e.g. network/proxy error page) - use the default message
     }
-    const responseData = await response.json();
-    if (responseData && responseData.id) {
-      const requests = getLeaveRequestsFromStorage();
-      const existingRequest = requests.find((request) => String(request.id) === String(responseData.id));
-      if (existingRequest) {
-        const previousStatus = (existingRequest.status || '').toLowerCase();
-        // Calculate correct working days from dates
-        const fromDate = responseData.fromDate || existingRequest.fromDate;
-        const toDate = responseData.toDate || existingRequest.toDate;
-        const correctDays = calculateWorkingDaysBetween(fromDate, toDate);
-        const calculatedDays = correctDays > 0 ? correctDays : (responseData.days || existingRequest.days || 0);
-        
-        // Update the response object with correct days before storing
-        const updatedResponseData = { ...responseData, days: calculatedDays };
-        updateRequestInStorage(updatedResponseData);
-        
-        if (previousStatus !== 'approved' && (responseData.status || status).toLowerCase() === 'approved') {
-          // Use the correct calculated working days for deduction
-          applyLeaveBalanceChange(
-            responseData.employeeId || existingRequest.employeeId,
-            responseData.leaveType || responseData.type || existingRequest.leaveType || existingRequest.type,
-            calculatedDays
-          );
-          // Clear cached balance to force fresh fetch on next request
-          clearCachedLeaveBalances(responseData.employeeId || existingRequest.employeeId);
-        }
-      } else {
-        // Request not found in local storage, process new response
-        const correctDays = calculateWorkingDaysBetween(responseData.fromDate, responseData.toDate);
-        const calculatedDays = correctDays > 0 ? correctDays : (responseData.days || 0);
-        
-        // Update the response object with correct days before storing
-        const updatedResponseData = { ...responseData, days: calculatedDays };
-        updateRequestInStorage(updatedResponseData);
-        
-        if ((responseData.status || status).toLowerCase() === 'approved') {
-          // Use the correct calculated working days for deduction
-          applyLeaveBalanceChange(
-            responseData.employeeId,
-            responseData.leaveType || responseData.type,
-            calculatedDays
-          );
-          // Clear cached balance to force fresh fetch on next request
-          clearCachedLeaveBalances(responseData.employeeId);
-        }
-      }
-    } else {
-      updateLocalLeaveRequestStatus(requestId, status);
-    }
-    return responseData;
-  } catch (error) {
-    console.error('Error updating leave request status:', error);
-    const updatedRequest = updateLocalLeaveRequestStatus(requestId, status);
-    if (!updatedRequest) {
-      throw error;
-    }
-    return updatedRequest;
+    throw new Error(errorMessage);
   }
+
+  const responseData = await response.json();
+  if (responseData && responseData.id) {
+    // Cache-only bookkeeping for a CONFIRMED server update - never fabricates a change
+    // that didn't actually happen, just mirrors it locally for immediate UI feedback.
+    const requests = getLeaveRequestsFromStorage();
+    const existingRequest = requests.find((request) => String(request.id) === String(responseData.id));
+    const previousStatus = (existingRequest?.status || '').toLowerCase();
+
+    const fromDate = responseData.fromDate || existingRequest?.fromDate;
+    const toDate = responseData.toDate || existingRequest?.toDate;
+    const correctDays = calculateWorkingDaysBetween(fromDate, toDate);
+    const calculatedDays = correctDays > 0 ? correctDays : (responseData.days || existingRequest?.days || 0);
+
+    const updatedResponseData = { ...responseData, days: calculatedDays };
+    updateRequestInStorage(updatedResponseData);
+
+    if (previousStatus !== 'approved' && (responseData.status || status).toLowerCase() === 'approved') {
+      const employeeId = responseData.employeeId || existingRequest?.employeeId;
+      applyLeaveBalanceChange(
+        employeeId,
+        responseData.leaveType || responseData.type || existingRequest?.leaveType || existingRequest?.type,
+        calculatedDays
+      );
+      // Clear cached balance to force fresh fetch on next request
+      clearCachedLeaveBalances(employeeId);
+    }
+  }
+
+  return responseData;
 };
 
 export const getLeaveBalances = async (employeeId) => {
