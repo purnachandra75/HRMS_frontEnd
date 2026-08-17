@@ -78,6 +78,10 @@ const flattenEmployee = (employee) => {
     emergencyAlternateNumber: employee.emergencyContact?.emergencyAlternateNumber || '',
     emergencyAddress: employee.emergencyContact?.emergencyAddress || '',
 
+    passportNumber: employee.documentDetails?.passportNumber || '',
+    drivingLicense: employee.documentDetails?.drivingLicense || '',
+    licenseExpiryDate: employee.documentDetails?.licenseExpiryDate || '',
+
     resumeUpload:
       employee.documentDetails?.resumeUploadName ||
       employee.documentDetails?.resumeUpload ||
@@ -222,6 +226,11 @@ const buildEmployeePayload = (profileData) => ({
     emergencyContactNumber: profileData.emergencyContactNumber || null,
     emergencyAlternateNumber: profileData.emergencyAlternateNumber || null,
     emergencyAddress: profileData.emergencyAddress || null,
+  },
+  documentDetails: {
+    passportNumber: profileData.passportNumber || null,
+    drivingLicense: profileData.drivingLicense || null,
+    licenseExpiryDate: profileData.licenseExpiryDate || null,
   },
 });
 

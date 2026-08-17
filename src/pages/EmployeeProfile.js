@@ -212,6 +212,11 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
       'educationalCertificates',
       'experienceCertificates',
       'passportPhoto',
+      'tenthCertificate',
+      'intermediateMarksheet',
+      'provisionalCertificate',
+      'originalDegree',
+      'aadhaarUpload',
     ];
 
     for (const fieldName of documentFields) {
@@ -234,9 +239,10 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
         if (result.employee?.id) {
           await uploadPendingDocuments(result.employee.id, formData);
           await loadEmployee();
+        } else {
+          setEmployee(result.employee);
         }
 
-        setEmployee(result.employee);
         setIsEditing(false);
         alert('Employee created successfully!');
         navigate('/admin');
@@ -249,7 +255,6 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
         await uploadPendingDocuments(profileId, formData);
         await loadEmployee();
 
-        setEmployee(result.employee);
         setIsEditing(false);
         alert('Profile updated successfully!');
       }
@@ -446,11 +451,9 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
             <h2>Education Details</h2>
             <div className="quick-info">
               {F('Highest Qualification:', employee.highestQualification)}
-              {F('Field of Study:', employee.fieldOfStudy)}
-              {F('University/School:', employee.university)}
-              {F('Grade/GPA:', employee.grade)}
-              {F('Year of Completion:', employee.yearOfCompletion)}
-              {F('Certifications:', employee.certifications)}
+              {F('University/College:', employee.universityCollege)}
+              {F('Year of Passing:', employee.yearOfPassing)}
+              {F('Percentage/CGPA:', employee.percentageCGPA)}
             </div>
           </div>
         );
@@ -481,14 +484,11 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
           <div className="profile-section">
             <h2>Emergency Contact Details</h2>
             <div className="quick-info">
-              {F('Primary Contact Name:', employee.emergencyContactName)}
-              {F('Relationship:', employee.emergencyContactRelation)}
-              {F('Phone Number:', employee.emergencyContactPhone)}
-              {F('Email:', employee.emergencyContactEmail)}
-              {F('Address:', employee.emergencyContactAddress)}
-              {F('Secondary Contact Name:', employee.emergencyContactName2)}
-              {F('Relationship (2):', employee.emergencyContactRelation2)}
-              {F('Phone Number (2):', employee.emergencyContactPhone2)}
+              {F('Contact Name:', employee.emergencyContactName)}
+              {F('Relationship:', employee.relationship)}
+              {F('Phone Number:', employee.emergencyContactNumber)}
+              {F('Alternate Number:', employee.emergencyAlternateNumber)}
+              {F('Address:', employee.emergencyAddress)}
             </div>
           </div>
         );
@@ -1269,60 +1269,37 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
                       />
                     </div>
                     <div className="form-group">
-                      <label>Field of Study</label>
+                      <label>University/College</label>
                       <input
                         type="text"
-                        name="fieldOfStudy"
-                        value={formData.fieldOfStudy || ''}
+                        name="universityCollege"
+                        value={formData.universityCollege || ''}
                         onChange={handleInputChange}
-                        placeholder="E.g., Computer Science"
+                        placeholder="Enter university/college name"
                       />
                     </div>
                   </div>
 
                   <div className="form-row">
                     <div className="form-group">
-                      <label>University/School</label>
-                      <input
-                        type="text"
-                        name="university"
-                        value={formData.university || ''}
-                        onChange={handleInputChange}
-                        placeholder="Enter university name"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Grade/GPA</label>
-                      <input
-                        type="text"
-                        name="grade"
-                        value={formData.grade || ''}
-                        onChange={handleInputChange}
-                        placeholder="Enter grade or GPA"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>Year of Completion</label>
+                      <label>Year of Passing</label>
                       <input
                         type="number"
-                        name="yearOfCompletion"
-                        value={formData.yearOfCompletion || ''}
+                        name="yearOfPassing"
+                        value={formData.yearOfPassing || ''}
                         onChange={handleInputChange}
                         placeholder="YYYY"
                       />
                     </div>
                     <div className="form-group">
-                      <label>Certifications</label>
-                      <textarea
-                        name="certifications"
-                        value={formData.certifications || ''}
+                      <label>Percentage/CGPA</label>
+                      <input
+                        type="text"
+                        name="percentageCGPA"
+                        value={formData.percentageCGPA || ''}
                         onChange={handleInputChange}
-                        placeholder="List any certifications"
-                        rows="2"
-                      ></textarea>
+                        placeholder="Enter percentage or CGPA"
+                      />
                     </div>
                   </div>
                 </form>
@@ -1504,7 +1481,7 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
                 <form className="profile-form">
                   <div className="form-row">
                     <div className="form-group">
-                      <label>Primary Contact Name</label>
+                      <label>Contact Name</label>
                       <input
                         type="text"
                         name="emergencyContactName"
@@ -1516,8 +1493,8 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
                     <div className="form-group">
                       <label>Relationship</label>
                       <select
-                        name="emergencyContactRelation"
-                        value={formData.emergencyContactRelation || ''}
+                        name="relationship"
+                        value={formData.relationship || ''}
                         onChange={handleInputChange}
                       >
                         <option value="">Select Relationship</option>
@@ -1536,20 +1513,20 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
                       <label>Phone Number</label>
                       <input
                         type="tel"
-                        name="emergencyContactPhone"
-                        value={formData.emergencyContactPhone || ''}
+                        name="emergencyContactNumber"
+                        value={formData.emergencyContactNumber || ''}
                         onChange={handleInputChange}
                         placeholder="Enter phone number"
                       />
                     </div>
                     <div className="form-group">
-                      <label>Email</label>
+                      <label>Alternate Number</label>
                       <input
-                        type="email"
-                        name="emergencyContactEmail"
-                        value={formData.emergencyContactEmail || ''}
+                        type="tel"
+                        name="emergencyAlternateNumber"
+                        value={formData.emergencyAlternateNumber || ''}
                         onChange={handleInputChange}
-                        placeholder="Enter email"
+                        placeholder="Enter alternate number"
                       />
                     </div>
                   </div>
@@ -1558,54 +1535,12 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
                     <div className="form-group">
                       <label>Address</label>
                       <textarea
-                        name="emergencyContactAddress"
-                        value={formData.emergencyContactAddress || ''}
+                        name="emergencyAddress"
+                        value={formData.emergencyAddress || ''}
                         onChange={handleInputChange}
                         placeholder="Enter address"
                         rows="3"
                       ></textarea>
-                    </div>
-                  </div>
-
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>Secondary Contact Name</label>
-                      <input
-                        type="text"
-                        name="emergencyContactName2"
-                        value={formData.emergencyContactName2 || ''}
-                        onChange={handleInputChange}
-                        placeholder="Enter secondary contact name"
-                      />
-                    </div>
-                    <div className="form-group">
-                      <label>Relationship</label>
-                      <select
-                        name="emergencyContactRelation2"
-                        value={formData.emergencyContactRelation2 || ''}
-                        onChange={handleInputChange}
-                      >
-                        <option value="">Select Relationship</option>
-                        <option value="Spouse">Spouse</option>
-                        <option value="Parent">Parent</option>
-                        <option value="Sibling">Sibling</option>
-                        <option value="Child">Child</option>
-                        <option value="Friend">Friend</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="form-row">
-                    <div className="form-group">
-                      <label>Phone Number</label>
-                      <input
-                        type="tel"
-                        name="emergencyContactPhone2"
-                        value={formData.emergencyContactPhone2 || ''}
-                        onChange={handleInputChange}
-                        placeholder="Enter phone number"
-                      />
                     </div>
                   </div>
                 </form>
