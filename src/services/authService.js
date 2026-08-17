@@ -5,6 +5,15 @@ const API_BASE_URL = `${process.env.REACT_APP_API_URL || 'http://localhost:8080'
 export const loginUser = async (email, password) => {
   try {
     const response = await axios.post(`${API_BASE_URL}/login`, { email, password });
+    if (response.data.otpRequired) {
+      return {
+        success: true,
+        otpRequired: true,
+        userId: response.data.userId,
+        email: response.data.email || email,
+        message: response.data.message,
+      };
+    }
     return {
       success: true,
       userId: response.data.userId,
@@ -14,6 +23,32 @@ export const loginUser = async (email, password) => {
     };
   } catch (error) {
     const message = error?.response?.data?.message || 'Invalid email or password';
+    return { success: false, message };
+  }
+};
+
+export const verifyOtp = async (userId, otp) => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/verify-otp`, { userId, otp });
+    return {
+      success: true,
+      userId: response.data.userId,
+      role: response.data.role,
+      name: response.data.name,
+      token: response.data.token,
+    };
+  } catch (error) {
+    const message = error?.response?.data?.message || 'Invalid or expired OTP';
+    return { success: false, message };
+  }
+};
+
+export const resendOtp = async (userId) => {
+  try {
+    const response = await axios.post(`${API_BASE_URL}/resend-otp`, { userId });
+    return { success: true, message: response.data?.message || 'A new OTP has been sent to your email' };
+  } catch (error) {
+    const message = error?.response?.data?.message || 'Failed to resend OTP';
     return { success: false, message };
   }
 };

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
+import VerifyOtp from './pages/VerifyOtp';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
@@ -83,6 +84,17 @@ function App() {
                 <Navigate to={userRole === 'admin' ? '/admin' : '/employee'} />
               ) : (
                 <Login onLogin={handleLogin} />
+              )
+            }
+          />
+
+          <Route
+            path="/verify-otp"
+            element={
+              isAuthenticated ? (
+                <Navigate to={userRole === 'admin' ? '/admin' : '/employee'} />
+              ) : (
+                <VerifyOtp onLogin={handleLogin} />
               )
             }
           />

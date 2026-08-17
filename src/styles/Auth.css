@@ -120,6 +120,26 @@
   text-decoration: underline;
 }
 
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-primary);
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.link-btn:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.link-btn:disabled {
+  color: #999;
+  cursor: not-allowed;
+}
+
 .demo-credentials {
   background-color: var(--color-primary-light);
   padding: 15px;

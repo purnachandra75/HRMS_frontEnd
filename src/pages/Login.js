@@ -17,7 +17,9 @@ function Login({ onLogin }) {
 
     try {
       const response = await loginUser(email, password);
-      if (response.success) {
+      if (response.success && response.otpRequired) {
+        navigate('/verify-otp', { state: { userId: response.userId, email: response.email } });
+      } else if (response.success) {
         onLogin(response.userId, response.role, response.name, response.token);
         navigate(response.role === 'admin' ? '/admin' : '/employee');
       } else {
