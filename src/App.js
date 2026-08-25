@@ -19,6 +19,7 @@ import PfGeneratorPage from './pages/PfGeneratorPage';
 import PayrollPage from './pages/PayrollPage';
 import PayrollReportPage from './pages/PayrollReportPage';
 import AdminHolidaysPage from './pages/AdminHolidaysPage';
+import TeamStructurePage from './pages/TeamStructurePage';
 import EmployeeHolidaysPage from './pages/EmployeeHolidaysPage';
 import EssentialsPage from './pages/EssentialsPage';
 import OfferLetterForm from './OfferLetterForm';
@@ -170,6 +171,17 @@ function App() {
             element={
               isAuthenticated && userRole === 'admin' ? (
                 <AttendancePage userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+
+          <Route
+            path="/admin/team-structure"
+            element={
+              isAuthenticated && userRole === 'admin' ? (
+                <TeamStructurePage userName={userName} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/login" />
               )

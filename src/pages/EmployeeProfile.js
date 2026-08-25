@@ -961,6 +961,25 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
                       />
                     </div>
                   </div>
+
+                  <div className="form-row">
+                    <div className="form-group">
+                      <label>Position Level</label>
+                      <select
+                        name="positionLevel"
+                        value={formData.positionLevel || 'EMPLOYEE'}
+                        onChange={handleInputChange}
+                        disabled={sectionReadOnly}
+                      >
+                        <option value="EMPLOYEE">Employee</option>
+                        <option value="TEAM_LEAD">Team Lead</option>
+                        <option value="PROJECT_MANAGER">Project Manager</option>
+                      </select>
+                      <p className="section-note">
+                        Controls who can be assigned as a Project Manager or Team Lead under Team Structure.
+                      </p>
+                    </div>
+                  </div>
                 </form>
               </section>
             )}

@@ -17,6 +17,7 @@ const mapAttendanceReportRow = (row, index) => ({
   month: row.month || '',
   presentDays: row.presentDays ?? 0,
   workingDays: row.workingDays ?? 0,
+  absentDays: row.absentDays ?? 0,
 });
 
 function AdminReportsPage({ userName, onLogout }) {
@@ -335,7 +336,7 @@ function AdminReportsPage({ userName, onLogout }) {
       title: `Attendance Report (${monthNames[selectedMonth - 1]} ${selectedYear})`,
       description: 'View present days against working days for active employees in the selected month.',
       rows: attendanceReportRowsData,
-      columns: ['#', 'Employee Name', 'Department', 'Month', 'Present Days', 'Working Days'],
+      columns: ['#', 'Employee Name', 'Department', 'Month', 'Present Days', 'Working Days', 'Absent Days'],
       hasDownload: true,
       hasYearFilter: true,
       hasMonthFilter: true,

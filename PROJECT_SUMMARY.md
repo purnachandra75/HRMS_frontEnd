@@ -279,6 +279,27 @@ Your Employee Management System is ready to use!
 
 ---
 
+## 🆕 Update — Team Structure Module (2026-08-25)
+
+The system has since grown well beyond the original mock-data scaffold above — it now runs on a real Spring Boot + MySQL backend with JWT/OTP auth, and this update adds a full **Team Structure** module plus a few supporting fixes.
+
+### Team Structure (Org Hierarchy) Module
+- **New admin page** at `/admin/team-structure` (own sidebar entry) showing:
+  - An **org chart**: pick a project (Active or Completed, shown separately) and see just that project's Project Manager → Team Leads → their reports, each with name + designation.
+  - A **Bench** panel listing employees not currently on any project.
+  - **Manage Projects**: create projects, assign a PM, add/remove members, and reassign who each member reports to.
+- **New data model**: `Project` and `ProjectMembership` entities link real employee records (not free-text names) for PM/Team Lead assignments, supporting an employee being on multiple projects at once. A new `positionLevel` field (Employee / Team Lead / Project Manager) on Job Details drives the hierarchy; assigning someone as a PM/TL auto-elevates their level.
+- **Completion cascade**: marking a project "Completed" ends everyone's membership that day; anyone left with no other active project (including the PM) automatically moves to the bench, with their Job Details and Project History updated to match.
+- **Reactivation cascade**: flipping a Completed project back to Active pulls back anyone still idle on the bench, reopens their membership with today as the new start date, and logs a fresh Project History entry — without disturbing anyone who's since moved on to different work.
+- Fixed a bug along the way where Project Managers were incorrectly showing up on the Bench list (they aren't tracked via project membership rows, only via the Project's own PM field).
+
+### Supporting Fixes
+- **Async email**: OTP, password reset, and leave-notification emails now send on a background thread pool instead of blocking the request — an unreachable SMTP server used to make login itself fail; now login succeeds immediately and the email failure is just logged.
+- **Attendance Report**: "Total Records" now reflects actual working days in the selected month (weekends and holidays excluded) instead of just counting whatever attendance rows happened to exist, and days an employee didn't check in now show as ABSENT instead of silently disappearing.
+- **Demo data**: a startup seeder now creates 30 sample employees across a spread of departments/roles/position levels, plus 3 sample projects with realistic PM/Team Lead/member assignments, so the module can be explored immediately on a fresh database (toggle with `app.demo-data.enabled=false`).
+
+---
+
 **Happy coding! 🚀**
 
 Questions? Check the README.md or QUICK_START.md files for more details!

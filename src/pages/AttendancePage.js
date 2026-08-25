@@ -68,7 +68,7 @@ function AttendancePage({ userName, onLogout }) {
             <div className="stats-grid">
               <div className="attendance-card">
                 <div className="stat-number">{attendanceRecords.length}</div>
-                <div className="stat-label">Filtered Records</div>
+                <div className="stat-label">Total Records</div>
               </div>
               <div className="attendance-card">
                 <div className="stat-number">{presentCount}</div>
@@ -135,7 +135,7 @@ function AttendancePage({ userName, onLogout }) {
                 </thead>
                 <tbody>
                   {attendanceRecords.map((record) => (
-                    <tr key={record.id}>
+                    <tr key={record.id ?? `${record.employeeId}-${record.attendanceDate}`}>
                       <td>{record.employeeId}</td>
                       <td>{record.employeeName}</td>
                       <td>{record.attendanceDate}</td>

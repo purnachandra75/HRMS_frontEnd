@@ -51,6 +51,7 @@ export default function AdminLayout({ userName, onLogout, activeItem, title, sub
     reports: 'Reports',
     holidays: 'Holidays',
     attendance: 'Attendance',
+    'team-structure': 'Team Structure',
     payroll: 'Payroll',
     'payroll-report': 'Payroll Report',
     'salary-report': 'Salary Report',
@@ -175,6 +176,11 @@ export default function AdminLayout({ userName, onLogout, activeItem, title, sub
             <button type="button" title="Attendance" className={activeItem === 'attendance' ? 'active' : ''} onClick={() => navigate('/admin/attendance')}>
               <span className="nav-icon">✅</span>
               {!collapsed && <span className="nav-label">Attendance</span>}
+            </button>
+
+            <button type="button" title="Team Structure" className={activeItem === 'team-structure' ? 'active' : ''} onClick={() => navigate('/admin/team-structure')}>
+              <span className="nav-icon">🧭</span>
+              {!collapsed && <span className="nav-label">Team Structure</span>}
             </button>
 
             <button type="button" title="Payroll" className={activeItem === 'payroll' ? 'active' : ''} onClick={() => navigate('/admin/payroll')}>
