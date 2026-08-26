@@ -32,6 +32,10 @@ function EmployeeDashboard({ userName, userId, onLogout }) {
             <h3>Leave Requests</h3>
             <p>Submit, track, and manage your leave requests.</p>
           </div>
+          <div className="dashboard-card clickable" onClick={() => navigate('/employee/timesheet')}>
+            <h3>Daily Timesheet</h3>
+            <p>Log today's work - routed to your PM if you're on a project, or HR if you're on bench.</p>
+          </div>
           <div className="dashboard-card clickable" onClick={() => navigate('/employee/payslip')}>
             <h3>Payslip</h3>
             <p>Generate your payslip after payroll amount is credited.</p>

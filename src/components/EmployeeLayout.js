@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import useIsProjectManager from '../hooks/useIsProjectManager';
 import '../styles/Dashboard.css';
 
 const SIDEBAR_COLLAPSED_KEY = 'employee-sidebar-collapsed';
 
 function EmployeeLayout({ userName, onLogout, activeItem, title, subtitle, children }) {
   const navigate = useNavigate();
+  const isProjectManager = useIsProjectManager();
   const [collapsed, setCollapsed] = useState(() => {
     try {
       return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === '1';
@@ -71,6 +73,16 @@ function EmployeeLayout({ userName, onLogout, activeItem, title, subtitle, child
             <button type="button" title="Leave Requests" className={activeItem === 'leaves' ? 'active' : ''} onClick={() => navigate('/employee/leaves')}>
               <span className="nav-icon">🗓️</span>
               {!collapsed && <span className="nav-label">Leave Requests</span>}
+            </button>
+            {isProjectManager && (
+              <button type="button" title="My Team" className={activeItem === 'my-team' ? 'active' : ''} onClick={() => navigate('/employee/my-team')}>
+                <span className="nav-icon">🧭</span>
+                {!collapsed && <span className="nav-label">My Team</span>}
+              </button>
+            )}
+            <button type="button" title="Daily Timesheet" className={activeItem === 'timesheet' ? 'active' : ''} onClick={() => navigate('/employee/timesheet')}>
+              <span className="nav-icon">📝</span>
+              {!collapsed && <span className="nav-label">Daily Timesheet</span>}
             </button>
             <button type="button" title="Holidays" className={activeItem === 'holidays' ? 'active' : ''} onClick={() => navigate('/employee/holidays')}>
               <span className="nav-icon">🎉</span>

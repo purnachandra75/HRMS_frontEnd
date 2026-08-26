@@ -20,6 +20,9 @@ import PayrollPage from './pages/PayrollPage';
 import PayrollReportPage from './pages/PayrollReportPage';
 import AdminHolidaysPage from './pages/AdminHolidaysPage';
 import TeamStructurePage from './pages/TeamStructurePage';
+import AdminTimesheetsPage from './pages/AdminTimesheetsPage';
+import MyTeamPage from './pages/MyTeamPage';
+import TimesheetPage from './pages/TimesheetPage';
 import EmployeeHolidaysPage from './pages/EmployeeHolidaysPage';
 import EssentialsPage from './pages/EssentialsPage';
 import OfferLetterForm from './OfferLetterForm';
@@ -189,6 +192,17 @@ function App() {
           />
 
           <Route
+            path="/admin/timesheets"
+            element={
+              isAuthenticated && userRole === 'admin' ? (
+                <AdminTimesheetsPage userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+
+          <Route
             path="/admin/salary-report"
             element={
               isAuthenticated && userRole === 'admin' ? (
@@ -298,6 +312,28 @@ function App() {
             element={
               isAuthenticated && userRole === 'employee' ? (
                 <EmployeeLeaveRequestPage userId={userId} userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+
+          <Route
+            path="/employee/my-team"
+            element={
+              isAuthenticated && userRole === 'employee' ? (
+                <MyTeamPage userId={userId} userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+
+          <Route
+            path="/employee/timesheet"
+            element={
+              isAuthenticated && userRole === 'employee' ? (
+                <TimesheetPage userId={userId} userName={userName} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/login" />
               )

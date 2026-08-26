@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import '../styles/Dashboard.css';
 import { getAllYears, getHolidays, createHoliday, deleteHoliday } from '../services/holidayService';
 import AdminLayout from '../components/AdminLayout';
+import HolidayCalendar from '../components/HolidayCalendar';
 
 function AdminHolidaysPage({ userName, onLogout }) {
   const [year, setYear] = useState(new Date().getFullYear());
@@ -9,6 +10,7 @@ function AdminHolidaysPage({ userName, onLogout }) {
   const [holidays, setHolidays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [form, setForm] = useState({ date: '', title: '', description: '' });
+  const [calendarRefreshKey, setCalendarRefreshKey] = useState(0);
 
   useEffect(() => {
     const loadYears = async () => {
@@ -52,6 +54,7 @@ function AdminHolidaysPage({ userName, onLogout }) {
       setHolidays((s) => [...s, created].sort((a, b) => new Date(a.date) - new Date(b.date)));
       setYears((s) => Array.from(new Set([...s, new Date(form.date).getFullYear()])));
       setForm({ date: '', title: '', description: '' });
+      setCalendarRefreshKey((k) => k + 1);
       alert('Holiday added');
     } catch (err) {
       console.error('Failed to add holiday', err);
@@ -64,6 +67,7 @@ function AdminHolidaysPage({ userName, onLogout }) {
     try {
       await deleteHoliday(id);
       setHolidays((s) => s.filter((h) => String(h.id) !== String(id)));
+      setCalendarRefreshKey((k) => k + 1);
     } catch (err) {
       console.error('Failed to delete holiday', err);
       alert(err?.response?.data?.message || 'Failed to delete');
@@ -82,6 +86,10 @@ function AdminHolidaysPage({ userName, onLogout }) {
                 ))}
               </select>
             </div>
+          </div>
+
+          <div style={{ padding: '16px' }}>
+            <HolidayCalendar refreshKey={calendarRefreshKey} />
           </div>
 
           <div style={{ padding: '16px' }}>
