@@ -32,6 +32,13 @@ import LetterOfIntent from './pages/LetterOfIntent';
 import { setUnauthorizedHandler } from './utils/apiClient';
 import './App.css';
 
+// The only two roles the router knows how to route "already logged in" users to. Guarding every
+// redirect against this list (instead of trusting whatever is in localStorage/state) prevents a
+// stale or malformed session from causing /login <-> /employee|/admin to bounce forever - React
+// Router has no built-in protection against that, so it manifests as "Maximum update depth
+// exceeded" and a blank, unresponsive page.
+const VALID_ROLES = ['admin', 'employee'];
+const homeRouteForRole = (role) => (role === 'admin' ? '/admin' : '/employee');
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -42,11 +49,21 @@ function App() {
   useEffect(() => {
     const storedUser = localStorage.getItem('user');
     if (storedUser) {
-      const user = JSON.parse(storedUser);
-      setIsAuthenticated(true);
-      setUserRole(user.role);
-      setUserId(user.id);
-      setUserName(user.name);
+      try {
+        const user = JSON.parse(storedUser);
+        if (user && VALID_ROLES.includes(user.role) && user.token) {
+          setIsAuthenticated(true);
+          setUserRole(user.role);
+          setUserId(user.id);
+          setUserName(user.name);
+        } else {
+          // Missing/invalid role or token (e.g. left over from an older app version or a
+          // partial write) - drop it rather than starting up half-authenticated.
+          localStorage.removeItem('user');
+        }
+      } catch {
+        localStorage.removeItem('user');
+      }
     }
   }, []);
 
@@ -84,8 +101,8 @@ function App() {
           <Route
             path="/login"
             element={
-              isAuthenticated ? (
-                <Navigate to={userRole === 'admin' ? '/admin' : '/employee'} />
+              isAuthenticated && VALID_ROLES.includes(userRole) ? (
+                <Navigate to={homeRouteForRole(userRole)} />
               ) : (
                 <Login onLogin={handleLogin} />
               )
@@ -95,8 +112,8 @@ function App() {
           <Route
             path="/verify-otp"
             element={
-              isAuthenticated ? (
-                <Navigate to={userRole === 'admin' ? '/admin' : '/employee'} />
+              isAuthenticated && VALID_ROLES.includes(userRole) ? (
+                <Navigate to={homeRouteForRole(userRole)} />
               ) : (
                 <VerifyOtp onLogin={handleLogin} />
               )
@@ -106,8 +123,8 @@ function App() {
           <Route
             path="/register"
             element={
-              isAuthenticated ? (
-                <Navigate to={userRole === 'admin' ? '/admin' : '/employee'} />
+              isAuthenticated && VALID_ROLES.includes(userRole) ? (
+                <Navigate to={homeRouteForRole(userRole)} />
               ) : (
                 <Register />
               )
@@ -117,8 +134,8 @@ function App() {
           <Route
             path="/forgot-password"
             element={
-              isAuthenticated ? (
-                <Navigate to={userRole === 'admin' ? '/admin' : '/employee'} />
+              isAuthenticated && VALID_ROLES.includes(userRole) ? (
+                <Navigate to={homeRouteForRole(userRole)} />
               ) : (
                 <ForgotPassword />
               )
@@ -128,8 +145,8 @@ function App() {
           <Route
             path="/reset-password"
             element={
-              isAuthenticated ? (
-                <Navigate to={userRole === 'admin' ? '/admin' : '/employee'} />
+              isAuthenticated && VALID_ROLES.includes(userRole) ? (
+                <Navigate to={homeRouteForRole(userRole)} />
               ) : (
                 <ResetPassword />
               )
@@ -435,7 +452,7 @@ function App() {
           <Route
             path="/"
             element={
-              <Navigate to={isAuthenticated ? (userRole === 'admin' ? '/admin' : '/employee') : '/login'} />
+              <Navigate to={isAuthenticated && VALID_ROLES.includes(userRole) ? homeRouteForRole(userRole) : '/login'} />
             }
           />
         </Routes>
