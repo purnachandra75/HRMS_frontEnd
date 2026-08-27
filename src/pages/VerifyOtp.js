@@ -14,7 +14,23 @@ function VerifyOtp({ onLogin }) {
   const [cooldown, setCooldown] = useState(RESEND_COOLDOWN_SECONDS);
   const navigate = useNavigate();
   const location = useLocation();
-  const { userId, email } = location.state || {};
+
+  // location.state only survives client-side navigation - a page reload (or the browser
+  // restoring this URL directly) loses it, so fall back to what Login.js also stashed in
+  // sessionStorage rather than bouncing the user straight back to /login in that case.
+  let { userId, email } = location.state || {};
+  if (!userId) {
+    try {
+      const stored = JSON.parse(sessionStorage.getItem('pendingOtp') || 'null');
+      if (stored?.userId) {
+        userId = stored.userId;
+        email = stored.email;
+      }
+    } catch {
+      // ignore malformed sessionStorage value
+    }
+  }
+
   const redirectedRef = useRef(false);
 
   useEffect(() => {
@@ -42,6 +58,7 @@ function VerifyOtp({ onLogin }) {
     try {
       const response = await verifyOtp(userId, otp);
       if (response.success) {
+        sessionStorage.removeItem('pendingOtp');
         onLogin(response.userId, response.role, response.name, response.token);
         navigate(response.role === 'admin' ? '/admin' : '/employee');
       } else {

@@ -18,6 +18,11 @@ function Login({ onLogin }) {
     try {
       const response = await loginUser(email, password);
       if (response.success && response.otpRequired) {
+        // Also stashed in sessionStorage: react-router's location.state only lives in memory,
+        // so a page reload right after this navigate (or the browser restoring the /verify-otp
+        // URL directly) would otherwise lose which login this OTP belongs to and bounce the
+        // user straight back to /login.
+        sessionStorage.setItem('pendingOtp', JSON.stringify({ userId: response.userId, email: response.email }));
         navigate('/verify-otp', { state: { userId: response.userId, email: response.email } });
       } else if (response.success) {
         onLogin(response.userId, response.role, response.name, response.token);
