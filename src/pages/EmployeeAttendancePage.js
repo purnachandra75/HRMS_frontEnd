@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Clock } from 'lucide-react';
 import EmployeeLayout from '../components/EmployeeLayout';
 import { getEmployeeLeaveRequests } from '../services/leaveService';
 import { getHolidays } from '../services/holidayService';
 import { apiFetch } from '../utils/apiClient';
-import '../styles/EmployeeAttendance.css';
+import '../styles/tailwind.css';
 
 function EmployeeAttendancePage({ userId, userName, onLogout }) {
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -264,188 +265,224 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
       title="Attendance Portal"
       subtitle="Track today's attendance, review your attendance rate, and inspect monthly history."
     >
-      <div className="employee-attendance-page employee-attendance-layout">
-        <div className="attendance-container">
-          <div className="user-card">
-            <div className="user-info">
-              <h3>{userName}</h3>
-              <p>Employee Portal</p>
+      <div className="flex flex-col gap-5">
+        <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border/80 bg-card p-5 shadow-sm">
+          <div>
+            <h3 className="text-base font-semibold text-foreground">{userName}</h3>
+            <p className="text-sm text-muted-foreground">Employee Portal</p>
+          </div>
+          <div className="text-right">
+            <div className="flex items-center gap-1.5 text-lg font-semibold tabular-nums text-foreground">
+              <Clock className="size-4 text-employee" />
+              {timeString}
             </div>
-            <div className="attendance-datetime">
-              <div className="attendance-time">{timeString}</div>
-              <div className="attendance-date">{dateString}</div>
+            <div className="text-sm text-muted-foreground">{dateString}</div>
+          </div>
+          <div className="text-sm text-foreground">
+            <strong>Employee ID:</strong> <span>{userId}</span>
+          </div>
+        </div>
+
+        <div className="inline-flex w-fit gap-1 rounded-lg border border-border/80 bg-card p-1 shadow-sm">
+          <button
+            onClick={() => setActiveTab('today')}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              activeTab === 'today' ? 'bg-employee text-employee-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Today's Attendance & Rate
+          </button>
+          <button
+            onClick={() => setActiveTab('reports')}
+            className={`rounded-md px-3 py-1.5 text-sm font-medium transition-colors ${
+              activeTab === 'reports' ? 'bg-employee text-employee-foreground' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            Monthly Report & History
+          </button>
+        </div>
+
+        {statusMessage && (
+          <div className="rounded-lg border border-[#bae6fd] bg-[#f0f9ff] px-3 py-2 text-sm text-[#0369a1]">{statusMessage}</div>
+        )}
+
+        {activeTab === 'today' && (
+          <div className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
+            <h2 className="text-base font-semibold text-foreground">Today's Attendance</h2>
+            <div className="mt-4 flex flex-wrap gap-3">
+              <button
+                onClick={handleCheckIn}
+                disabled={checkInDisabled}
+                className="h-10 flex-1 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                CHECK IN
+              </button>
+              <button
+                onClick={handleCheckOut}
+                disabled={checkOutDisabled}
+                className="h-10 flex-1 rounded-lg bg-red-600 px-4 text-sm font-semibold text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                CHECK OUT
+              </button>
             </div>
-            <div>
-              <strong>Employee ID:</strong> <span>{userId}</span>
+            <div className="mt-4 text-sm text-muted-foreground">
+              {isOnApprovedLeaveToday && <p>You are on approved leave today, so check-in and check-out are disabled.</p>}
+              {!isOnApprovedLeaveToday && !checkedInToday && <p>Click CHECK IN to start your day.</p>}
+              {!isOnApprovedLeaveToday && checkedInToday && !checkedOutToday && (
+                <p>You checked in at {todayCheckInTime}. Click CHECK OUT when leaving.</p>
+              )}
+              {!isOnApprovedLeaveToday && checkedInToday && checkedOutToday && (
+                <p>Completed - Checked in at {todayCheckInTime}, out at {todayCheckOutTime}</p>
+              )}
             </div>
           </div>
+        )}
 
-          <div className="attendance-tabs">
-            <button className={`tab-btn ${activeTab === 'today' ? 'active' : ''}`} onClick={() => setActiveTab('today')}>
-              Today's Attendance & Rate
-            </button>
-            <button className={`tab-btn ${activeTab === 'reports' ? 'active' : ''}`} onClick={() => setActiveTab('reports')}>
-              Monthly Report & History
-            </button>
-          </div>
+        {activeTab === 'reports' && (
+          <>
+            <div className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
+              <h2 className="text-base font-semibold text-foreground">Monthly Attendance Report</h2>
+              <div className="mt-3 flex gap-3">
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(parseInt(e.target.value, 10))}
+                  className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-employee focus:ring-2 focus:ring-employee/30"
+                >
+                  {months.map((month, idx) => (
+                    <option key={month} value={idx + 1}>
+                      {month}
+                    </option>
+                  ))}
+                </select>
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}
+                  className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-employee focus:ring-2 focus:ring-employee/30"
+                >
+                  {years.map((year) => (
+                    <option key={year} value={year}>
+                      {year}
+                    </option>
+                  ))}
+                </select>
+              </div>
 
-          {statusMessage && <div className="status-message status-info">{statusMessage}</div>}
+              <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
+                {[
+                  { label: 'Present', value: monthlyPresent },
+                  { label: 'Absent', value: monthlyAbsent },
+                  { label: 'Working Days Till Date', value: workingDaysUpToToday.length },
+                  { label: 'Total Hours', value: monthlyHours.toFixed(1) },
+                ].map((item) => (
+                  <div key={item.label} className="rounded-xl border border-border/80 bg-background p-4 text-center">
+                    <div className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">{item.value}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">{item.label}</div>
+                  </div>
+                ))}
+              </div>
 
-          {activeTab === 'today' && (
-            <div className="today-section">
-              <div className="card">
-                <h2 className="card-title">Today's Attendance</h2>
-                <div className="attendance-buttons">
-                  <button className="checkin-btn" onClick={handleCheckIn} disabled={checkInDisabled}>
-                    CHECK IN
-                  </button>
-                  <button className="checkout-btn" onClick={handleCheckOut} disabled={checkOutDisabled}>
-                    CHECK OUT
-                  </button>
-                </div>
-                <div className="today-status">
-                  {isOnApprovedLeaveToday && <p>You are on approved leave today, so check-in and check-out are disabled.</p>}
-                  {!isOnApprovedLeaveToday && !checkedInToday && <p>Click CHECK IN to start your day.</p>}
-                  {!isOnApprovedLeaveToday && checkedInToday && !checkedOutToday && (
-                    <p>You checked in at {todayCheckInTime}. Click CHECK OUT when leaving.</p>
-                  )}
-                  {!isOnApprovedLeaveToday && checkedInToday && checkedOutToday && (
-                    <p>Completed - Checked in at {todayCheckInTime}, out at {todayCheckOutTime}</p>
-                  )}
+              <div className="mt-4 h-6 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="flex h-full items-center justify-end bg-employee px-2 text-[11px] font-semibold text-employee-foreground transition-all"
+                  style={{ width: `${monthlyRate}%` }}
+                >
+                  {monthlyRate}%
                 </div>
               </div>
 
-            </div>
-          )}
-
-          {activeTab === 'reports' && (
-            <>
-              <div className="card">
-                <h2 className="card-title">Monthly Attendance Report</h2>
-                <div className="month-selector">
-                  <select value={selectedMonth} onChange={(e) => setSelectedMonth(parseInt(e.target.value, 10))}>
-                    {months.map((month, idx) => (
-                      <option key={month} value={idx + 1}>
-                        {month}
-                      </option>
-                    ))}
-                  </select>
-                  <select value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value, 10))}>
-                    {years.map((year) => (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="stats-grid">
-                  <div className="stat-card">
-                    <div className="stat-number">{monthlyPresent}</div>
-                    <div className="stat-label">Present</div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-number">{monthlyAbsent}</div>
-                    <div className="stat-label">Absent</div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-number">{workingDaysUpToToday.length}</div>
-                    <div className="stat-label">Working Days Till Date</div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-number">{monthlyHours.toFixed(1)}</div>
-                    <div className="stat-label">Total Hours</div>
-                  </div>
-                </div>
-
-                <div className="progress-bar">
-                  <div className="progress-fill" style={{ width: `${monthlyRate}%` }}>
-                    {monthlyRate}%
-                  </div>
-                </div>
-
-                <div className="table-container">
-                  <table>
-                    <thead>
+              <div className="mt-4 overflow-x-auto rounded-xl border border-border/80">
+                <table className="w-full text-left" style={{ minWidth: 640 }}>
+                  <thead>
+                    <tr className="border-b border-border/80 bg-muted/40">
+                      {['Date', 'Day', 'Check In', 'Check Out', 'Hours', 'Status'].map((col) => (
+                        <th key={col} className="h-11 px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                          {col}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {monthlyData.length === 0 ? (
                       <tr>
-                        <th>Date</th>
-                        <th>Day</th>
-                        <th>Check In</th>
-                        <th>Check Out</th>
-                        <th>Hours</th>
-                        <th>Status</th>
+                        <td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                          Select a month to view
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {monthlyData.length === 0 ? (
-                        <tr>
-                          <td colSpan="6" style={{ textAlign: 'center' }}>
-                            Select a month to view
+                    ) : (
+                      monthlyData.map((record) => (
+                        <tr key={record.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                          <td className="px-4 py-3 text-sm text-foreground">{record.date}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{record.day}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{record.checkInTime}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{record.checkOutTime}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{record.totalHours}</td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex h-6 items-center rounded-full border px-2.5 text-[11px] font-semibold ${
+                                record.status === 'PRESENT'
+                                  ? 'border-[#bbf7d0] bg-[#f0fdf4] text-[#15803d]'
+                                  : 'border-[#fecaca] bg-[#fef2f2] text-[#b91c1c]'
+                              }`}
+                            >
+                              {record.status}
+                            </span>
                           </td>
                         </tr>
-                      ) : (
-                        monthlyData.map((record) => (
-                          <tr key={record.id}>
-                            <td>{record.date}</td>
-                            <td>{record.day}</td>
-                            <td>{record.checkInTime}</td>
-                            <td>{record.checkOutTime}</td>
-                            <td>{record.totalHours}</td>
-                            <td>
-                              <span className={record.status === 'PRESENT' ? 'present-badge' : 'absent-badge'}>
-                                {record.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
+            </div>
 
-              <div className="card">
-                <h2 className="card-title">Complete Attendance History</h2>
-                <div className="table-container">
-                  <table>
-                    <thead>
+            <div className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
+              <h2 className="text-base font-semibold text-foreground">Complete Attendance History</h2>
+              <div className="mt-4 overflow-x-auto rounded-xl border border-border/80">
+                <table className="w-full text-left" style={{ minWidth: 720 }}>
+                  <thead>
+                    <tr className="border-b border-border/80 bg-muted/40">
+                      {['Date', 'Check In Time', 'Check Out Time', 'Total Hours', 'Status', 'Remarks'].map((col) => (
+                        <th key={col} className="h-11 px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                          {col}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allAttendanceData.length === 0 ? (
                       <tr>
-                        <th>Date</th>
-                        <th>Check In Time</th>
-                        <th>Check Out Time</th>
-                        <th>Total Hours</th>
-                        <th>Status</th>
-                        <th>Remarks</th>
+                        <td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">
+                          No attendance records found
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {allAttendanceData.length === 0 ? (
-                        <tr>
-                          <td colSpan="6">No attendance records found</td>
+                    ) : (
+                      allAttendanceData.map((record) => (
+                        <tr key={record.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                          <td className="px-4 py-3 text-sm text-foreground">{record.date}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{record.checkInTime}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{record.checkOutTime}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{record.totalHours}</td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex h-6 items-center rounded-full border px-2.5 text-[11px] font-semibold ${
+                                record.status === 'PRESENT'
+                                  ? 'border-[#bbf7d0] bg-[#f0fdf4] text-[#15803d]'
+                                  : 'border-[#fecaca] bg-[#fef2f2] text-[#b91c1c]'
+                              }`}
+                            >
+                              {record.status}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{record.remarks || '-'}</td>
                         </tr>
-                      ) : (
-                        allAttendanceData.map((record) => (
-                          <tr key={record.id}>
-                            <td>{record.date}</td>
-                            <td>{record.checkInTime}</td>
-                            <td>{record.checkOutTime}</td>
-                            <td>{record.totalHours}</td>
-                            <td>
-                              <span className={record.status === 'PRESENT' ? 'present-badge' : 'absent-badge'}>
-                                {record.status}
-                              </span>
-                            </td>
-                            <td>{record.remarks || '-'}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
-            </>
-          )}
-        </div>
+            </div>
+          </>
+        )}
       </div>
     </EmployeeLayout>
   );

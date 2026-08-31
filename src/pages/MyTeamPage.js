@@ -8,8 +8,7 @@ import {
   getMyWeeklyReports,
 } from '../services/managerService';
 import { getTeamTimesheets, updateTeamTimesheetStatus } from '../services/timesheetService';
-import '../styles/Dashboard.css';
-import '../styles/Leave.css';
+import '../styles/tailwind.css';
 
 const toISO = (d) => d.toISOString().split('T')[0];
 
@@ -24,6 +23,25 @@ const currentWeekBounds = () => {
   sunday.setDate(monday.getDate() + 6);
   return { weekStartDate: toISO(monday), weekEndDate: toISO(sunday) };
 };
+
+const STATUS_CLASSES = {
+  pending: 'border-[#fde68a] bg-[#fffbeb] text-[#b45309]',
+  approved: 'border-[#bbf7d0] bg-[#f0fdf4] text-[#15803d]',
+  rejected: 'border-[#fecaca] bg-[#fef2f2] text-[#b91c1c]',
+};
+
+function StatusBadge({ status }) {
+  const key = (status || '').toLowerCase();
+  return (
+    <span
+      className={`inline-flex h-6 items-center rounded-full border px-2.5 text-[11px] font-semibold capitalize ${
+        STATUS_CLASSES[key] || 'border-border bg-muted text-muted-foreground'
+      }`}
+    >
+      {status}
+    </span>
+  );
+}
 
 function MyTeamPage({ userName, onLogout }) {
   const [forbidden, setForbidden] = useState(false);
@@ -120,6 +138,13 @@ function MyTeamPage({ userName, onLogout }) {
     .slice()
     .sort((a, b) => (a.workDate < b.workDate ? 1 : a.workDate > b.workDate ? -1 : 0));
 
+  const sections = [
+    { key: 'members', label: `Team Members (${team.length})` },
+    { key: 'leaves', label: `Team Leave Requests (${requests.length})` },
+    { key: 'timesheets', label: `Team Timesheets (${timesheets.length})` },
+    { key: 'weekly', label: 'Weekly Report to HR' },
+  ];
+
   return (
     <EmployeeLayout
       userName={userName}
@@ -129,283 +154,315 @@ function MyTeamPage({ userName, onLogout }) {
       subtitle="View your team members and act on their leave requests."
     >
       {loading ? (
-        <p>Loading your team...</p>
+        <p className="text-sm text-muted-foreground">Loading your team...</p>
       ) : forbidden ? (
-        <div className="attendance-data-table" style={{ padding: '24px', color: '#475569' }}>
+        <div className="rounded-xl border border-border/80 bg-card p-6 text-sm text-muted-foreground shadow-sm">
           You don't currently manage a team. This page is only available to employees marked as
           a Project Manager on an active project.
         </div>
       ) : (
-        <>
-          {error && <div className="attendance-error">{error}</div>}
+        <div className="flex flex-col gap-5">
+          {error && (
+            <div className="rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-sm text-[#b91c1c]">{error}</div>
+          )}
 
-          <div className="attendance-data-table" style={{ marginBottom: '24px', padding: '16px' }}>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
-              {[
-                { key: 'members', label: `Team Members (${team.length})` },
-                { key: 'leaves', label: `Team Leave Requests (${requests.length})` },
-                { key: 'timesheets', label: `Team Timesheets (${timesheets.length})` },
-                { key: 'weekly', label: 'Weekly Report to HR' },
-              ].map((section) => (
-                <button
-                  key={section.key}
-                  type="button"
-                  className="small-button"
-                  style={
-                    activeSection === section.key
-                      ? { backgroundColor: '#4f46e5', color: '#fff', borderColor: '#4f46e5' }
-                      : undefined
-                  }
-                  onClick={() => setActiveSection(section.key)}
-                >
-                  {section.label}
-                </button>
-              ))}
-            </div>
+          <div className="flex flex-wrap gap-2 rounded-xl border border-border/80 bg-card p-3 shadow-sm">
+            {sections.map((section) => (
+              <button
+                key={section.key}
+                type="button"
+                onClick={() => setActiveSection(section.key)}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                  activeSection === section.key
+                    ? 'bg-employee text-employee-foreground'
+                    : 'border border-border bg-white text-foreground hover:bg-muted'
+                }`}
+              >
+                {section.label}
+              </button>
+            ))}
           </div>
 
           {activeSection === 'members' && (
-          <div className="attendance-data-table" style={{ marginBottom: '24px' }}>
-            <h3>Team Members ({team.length})</h3>
-            {team.length === 0 ? (
-              <p style={{ padding: '16px', color: '#475569' }}>No one is currently assigned to your projects.</p>
-            ) : (
-              <table className="report-table">
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Designation</th>
-                    <th>Department</th>
-                    <th>Today</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {team.map((member) => (
-                    <tr key={member.empId}>
-                      <td>{member.name}</td>
-                      <td>{member.designation || '—'}</td>
-                      <td>{member.department || '—'}</td>
-                      <td>
-                        <span className={member.attendanceStatus === 'ABSENT' ? 'absent-badge' : 'present-badge'}>
-                          {member.attendanceStatus}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+            <div className="rounded-xl border border-border/80 bg-card shadow-sm">
+              <h3 className="border-b border-border/80 px-5 py-4 text-base font-semibold text-foreground">Team Members ({team.length})</h3>
+              {team.length === 0 ? (
+                <p className="px-5 py-6 text-sm text-muted-foreground">No one is currently assigned to your projects.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left" style={{ minWidth: 560 }}>
+                    <thead>
+                      <tr className="border-b border-border/80 bg-muted/40">
+                        {['Name', 'Designation', 'Department', 'Today'].map((col) => (
+                          <th key={col} className="h-11 px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {team.map((member) => (
+                        <tr key={member.empId} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                          <td className="px-4 py-3 text-sm text-foreground">{member.name}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{member.designation || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{member.department || '—'}</td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex h-6 items-center rounded-full border px-2.5 text-[11px] font-semibold ${
+                                member.attendanceStatus === 'ABSENT'
+                                  ? 'border-[#fecaca] bg-[#fef2f2] text-[#b91c1c]'
+                                  : 'border-[#bbf7d0] bg-[#f0fdf4] text-[#15803d]'
+                              }`}
+                            >
+                              {member.attendanceStatus}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           )}
 
           {activeSection === 'leaves' && (
-          <div className="attendance-data-table">
-            <h3>Team Leave Requests</h3>
-            <div className="report-controls-top" style={{ padding: '0 16px' }}>
-              <div>
-                <label>Status:</label>
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-                  <option value="Pending">Pending</option>
-                  <option value="Approved">Approved</option>
-                  <option value="Rejected">Rejected</option>
-                  <option value="all">All</option>
-                </select>
+            <div className="rounded-xl border border-border/80 bg-card shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 px-5 py-4">
+                <h3 className="text-base font-semibold text-foreground">Team Leave Requests</h3>
+                <div className="flex items-center gap-2">
+                  <label className="text-sm font-medium text-foreground">Status:</label>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-employee focus:ring-2 focus:ring-employee/30"
+                  >
+                    <option value="Pending">Pending</option>
+                    <option value="Approved">Approved</option>
+                    <option value="Rejected">Rejected</option>
+                    <option value="all">All</option>
+                  </select>
+                </div>
               </div>
-            </div>
 
-            {requests.length === 0 ? (
-              <p style={{ padding: '16px', color: '#475569' }}>No leave requests match this filter.</p>
-            ) : (
-              <table className="report-table">
-                <thead>
-                  <tr>
-                    <th>Employee</th>
-                    <th>Type</th>
-                    <th>From</th>
-                    <th>To</th>
-                    <th>Days</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {requests.map((req) => (
-                    <tr key={req.id}>
-                      <td>{req.employeeName}</td>
-                      <td>{req.leaveType}</td>
-                      <td>{req.fromDate}</td>
-                      <td>{req.toDate}</td>
-                      <td>{req.days}</td>
-                      <td>
-                        <span className={`status-tag ${req.status?.toLowerCase()}`}>{req.status}</span>
-                      </td>
-                      <td>
-                        {req.status === 'Pending' ? (
-                          <>
-                            <button className="small-button" onClick={() => handleDecision(req.id, 'Approved')}>
-                              Approve
-                            </button>{' '}
-                            <button className="small-button reject" onClick={() => handleDecision(req.id, 'Rejected')}>
-                              Reject
-                            </button>
-                          </>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+              {requests.length === 0 ? (
+                <p className="px-5 py-6 text-sm text-muted-foreground">No leave requests match this filter.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left" style={{ minWidth: 700 }}>
+                    <thead>
+                      <tr className="border-b border-border/80 bg-muted/40">
+                        {['Employee', 'Type', 'From', 'To', 'Days', 'Status', 'Action'].map((col) => (
+                          <th key={col} className="h-11 px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {requests.map((req) => (
+                        <tr key={req.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                          <td className="px-4 py-3 text-sm text-foreground">{req.employeeName}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{req.leaveType}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{req.fromDate}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{req.toDate}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{req.days}</td>
+                          <td className="px-4 py-3">
+                            <StatusBadge status={req.status} />
+                          </td>
+                          <td className="px-4 py-3">
+                            {req.status === 'Pending' ? (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleDecision(req.id, 'Approved')}
+                                  className="rounded-md border border-border bg-white px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleDecision(req.id, 'Rejected')}
+                                  className="rounded-md border border-[#fecaca] bg-[#fef2f2] px-2.5 py-1 text-xs font-medium text-[#b91c1c] hover:bg-[#fee2e2]"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           )}
 
           {activeSection === 'timesheets' && (
-          <div className="attendance-data-table" style={{ marginTop: '24px' }}>
-            <h3>Team Timesheets</h3>
-            <div className="report-controls-top" style={{ padding: '0 16px' }}>
-              <div>
-                <label>Status:</label>
-                <select value={timesheetFilter} onChange={(e) => setTimesheetFilter(e.target.value)}>
-                  <option value="Pending">Pending</option>
-                  <option value="Approved">Approved</option>
-                  <option value="Rejected">Rejected</option>
-                  <option value="all">All</option>
-                </select>
+            <div className="rounded-xl border border-border/80 bg-card shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 px-5 py-4">
+                <h3 className="text-base font-semibold text-foreground">Team Timesheets</h3>
+                <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-foreground">Status:</label>
+                    <select
+                      value={timesheetFilter}
+                      onChange={(e) => setTimesheetFilter(e.target.value)}
+                      className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-employee focus:ring-2 focus:ring-employee/30"
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="Approved">Approved</option>
+                      <option value="Rejected">Rejected</option>
+                      <option value="all">All</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-sm font-medium text-foreground">Employee:</label>
+                    <select
+                      value={timesheetEmployeeFilter}
+                      onChange={(e) => setTimesheetEmployeeFilter(e.target.value)}
+                      className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-employee focus:ring-2 focus:ring-employee/30"
+                    >
+                      <option value="">All Members</option>
+                      {team.map((member) => (
+                        <option key={member.empId} value={member.empId}>{member.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
               </div>
-              <div>
-                <label>Employee:</label>
-                <select
-                  value={timesheetEmployeeFilter}
-                  onChange={(e) => setTimesheetEmployeeFilter(e.target.value)}
-                >
-                  <option value="">All Members</option>
-                  {team.map((member) => (
-                    <option key={member.empId} value={member.empId}>{member.name}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
 
-            {visibleTimesheets.length === 0 ? (
-              <p style={{ padding: '16px', color: '#475569' }}>No timesheet entries match this filter.</p>
-            ) : (
-              <table className="report-table">
-                <thead>
-                  <tr>
-                    <th>Employee</th>
-                    <th>Date</th>
-                    <th>Hours</th>
-                    <th>Description</th>
-                    <th>Status</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visibleTimesheets.map((entry) => (
-                    <tr key={entry.id}>
-                      <td>{entry.employeeName}</td>
-                      <td>{entry.workDate}</td>
-                      <td>{entry.hoursWorked ?? '—'}</td>
-                      <td>{entry.description}</td>
-                      <td>
-                        <span className={`status-tag ${entry.status?.toLowerCase()}`}>{entry.status}</span>
-                      </td>
-                      <td>
-                        {entry.status === 'Pending' ? (
-                          <>
-                            <button className="small-button" onClick={() => handleTimesheetDecision(entry.id, 'Approved')}>
-                              Approve
-                            </button>{' '}
-                            <button className="small-button reject" onClick={() => handleTimesheetDecision(entry.id, 'Rejected')}>
-                              Reject
-                            </button>
-                          </>
-                        ) : (
-                          '—'
-                        )}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+              {visibleTimesheets.length === 0 ? (
+                <p className="px-5 py-6 text-sm text-muted-foreground">No timesheet entries match this filter.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left" style={{ minWidth: 720 }}>
+                    <thead>
+                      <tr className="border-b border-border/80 bg-muted/40">
+                        {['Employee', 'Date', 'Hours', 'Description', 'Status', 'Action'].map((col) => (
+                          <th key={col} className="h-11 px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {visibleTimesheets.map((entry) => (
+                        <tr key={entry.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                          <td className="px-4 py-3 text-sm text-foreground">{entry.employeeName}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{entry.workDate}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{entry.hoursWorked ?? '—'}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{entry.description}</td>
+                          <td className="px-4 py-3">
+                            <StatusBadge status={entry.status} />
+                          </td>
+                          <td className="px-4 py-3">
+                            {entry.status === 'Pending' ? (
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => handleTimesheetDecision(entry.id, 'Approved')}
+                                  className="rounded-md border border-border bg-white px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleTimesheetDecision(entry.id, 'Rejected')}
+                                  className="rounded-md border border-[#fecaca] bg-[#fef2f2] px-2.5 py-1 text-xs font-medium text-[#b91c1c] hover:bg-[#fee2e2]"
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           )}
 
           {activeSection === 'weekly' && (
-          <div className="attendance-data-table" style={{ marginTop: '24px' }}>
-            <h3>Weekly Report to HR</h3>
-            <p style={{ padding: '0 16px', color: '#475569' }}>
-              Bundle your team's timesheet entries for a week into a single report for HR - sent
-              once, instead of HR reviewing each daily update individually.
-            </p>
-            <form onSubmit={handleSendWeeklyReport} className="profile-form" style={{ padding: '16px' }}>
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Week Start</label>
-                  <input
-                    type="date"
-                    value={weeklyForm.weekStartDate}
-                    onChange={(e) => setWeeklyForm({ ...weeklyForm, weekStartDate: e.target.value })}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Week End</label>
-                  <input
-                    type="date"
-                    value={weeklyForm.weekEndDate}
-                    onChange={(e) => setWeeklyForm({ ...weeklyForm, weekEndDate: e.target.value })}
-                  />
-                </div>
+            <div className="rounded-xl border border-border/80 bg-card shadow-sm">
+              <div className="border-b border-border/80 px-5 py-4">
+                <h3 className="text-base font-semibold text-foreground">Weekly Report to HR</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Bundle your team's timesheet entries for a week into a single report for HR - sent
+                  once, instead of HR reviewing each daily update individually.
+                </p>
               </div>
-              <div className="form-row">
-                <div className="form-group" style={{ flex: 1 }}>
-                  <label>Notes (optional)</label>
+              <form onSubmit={handleSendWeeklyReport} className="flex flex-col gap-4 p-5">
+                <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-foreground">Week Start</label>
+                    <input
+                      type="date"
+                      value={weeklyForm.weekStartDate}
+                      onChange={(e) => setWeeklyForm({ ...weeklyForm, weekStartDate: e.target.value })}
+                      className="h-9 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-employee focus:ring-2 focus:ring-employee/30"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-sm font-medium text-foreground">Week End</label>
+                    <input
+                      type="date"
+                      value={weeklyForm.weekEndDate}
+                      onChange={(e) => setWeeklyForm({ ...weeklyForm, weekEndDate: e.target.value })}
+                      className="h-9 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-employee focus:ring-2 focus:ring-employee/30"
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium text-foreground">Notes (optional)</label>
                   <textarea
                     rows={2}
                     value={weeklyForm.notes}
                     onChange={(e) => setWeeklyForm({ ...weeklyForm, notes: e.target.value })}
                     placeholder="Anything HR should know about this week"
-                    style={{ width: '100%', padding: '8px', fontFamily: 'inherit' }}
+                    className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-employee focus:ring-2 focus:ring-employee/30"
                   />
                 </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group">
-                  <button type="submit" className="create-btn" disabled={sendingReport}>
-                    {sendingReport ? 'Sending...' : 'Send Weekly Report to HR'}
-                  </button>
-                </div>
-              </div>
-            </form>
+                <button
+                  type="submit"
+                  disabled={sendingReport}
+                  className="h-9 w-fit rounded-lg bg-employee px-4 text-sm font-medium text-employee-foreground hover:bg-employee/90 disabled:opacity-60"
+                >
+                  {sendingReport ? 'Sending...' : 'Send Weekly Report to HR'}
+                </button>
+              </form>
 
-            {weeklyReports.length > 0 && (
-              <table className="report-table">
-                <thead>
-                  <tr>
-                    <th>Week</th>
-                    <th>Entries</th>
-                    <th>Sent On</th>
-                    <th>Notes</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {weeklyReports.map((report) => (
-                    <tr key={report.id}>
-                      <td>{report.weekStartDate} to {report.weekEndDate}</td>
-                      <td>{report.entries?.length ?? 0}</td>
-                      <td>{report.submittedAt}</td>
-                      <td>{report.notes || '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
+              {weeklyReports.length > 0 && (
+                <div className="overflow-x-auto border-t border-border/80">
+                  <table className="w-full text-left" style={{ minWidth: 560 }}>
+                    <thead>
+                      <tr className="border-b border-border/80 bg-muted/40">
+                        {['Week', 'Entries', 'Sent On', 'Notes'].map((col) => (
+                          <th key={col} className="h-11 px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {weeklyReports.map((report) => (
+                        <tr key={report.id} className="border-b border-border/60 last:border-0">
+                          <td className="px-4 py-3 text-sm text-foreground">{report.weekStartDate} to {report.weekEndDate}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{report.entries?.length ?? 0}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{report.submittedAt}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{report.notes || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           )}
-        </>
+        </div>
       )}
     </EmployeeLayout>
   );

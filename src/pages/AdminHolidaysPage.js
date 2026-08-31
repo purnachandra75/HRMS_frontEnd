@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import '../styles/Dashboard.css';
+import { Plus, Trash2 } from 'lucide-react';
+import '../styles/tailwind.css';
 import { getAllYears, getHolidays, createHoliday, deleteHoliday } from '../services/holidayService';
 import AdminLayout from '../components/AdminLayout';
 import HolidayCalendar from '../components/HolidayCalendar';
@@ -76,69 +77,103 @@ function AdminHolidaysPage({ userName, onLogout }) {
 
   return (
     <AdminLayout userName={userName} onLogout={onLogout} activeItem="holidays" title={`Holidays for ${year}`} subtitle="Declare company holidays for a year. Employees will see this calendar in their dashboard.">
+      <div className="flex flex-col gap-5">
+        <div className="flex items-center gap-2">
+          <label className="text-sm font-medium text-foreground">Year:</label>
+          <select
+            value={year}
+            onChange={(e) => setYear(Number(e.target.value))}
+            className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+          >
+            {Array.from(new Set([new Date().getFullYear(), ...(years || [])])).map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+          </select>
+        </div>
 
-          <div className="report-controls-top">
-            <div>
-              <label>Year:</label>
-              <select value={year} onChange={(e) => setYear(Number(e.target.value))}>
-                {Array.from(new Set([new Date().getFullYear(), ...(years || [])])).map((y) => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
+        <HolidayCalendar refreshKey={calendarRefreshKey} />
+
+        <div className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
+          <form onSubmit={handleSubmit} className="flex flex-wrap items-end gap-3">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Date</label>
+              <input
+                type="date"
+                value={form.date}
+                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                className="h-9 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+              />
             </div>
-          </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Title</label>
+              <input
+                type="text"
+                value={form.title}
+                onChange={(e) => setForm({ ...form, title: e.target.value })}
+                className="h-9 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+              />
+            </div>
+            <div className="flex flex-1 flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Description</label>
+              <input
+                type="text"
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                className="h-9 w-full rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+              />
+            </div>
+            <button
+              type="submit"
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-client px-3 text-sm font-medium text-client-foreground hover:bg-client/90"
+            >
+              <Plus className="size-4" />
+              Add Holiday
+            </button>
+          </form>
 
-          <div style={{ padding: '16px' }}>
-            <HolidayCalendar refreshKey={calendarRefreshKey} />
-          </div>
-
-          <div style={{ padding: '16px' }}>
-            <form onSubmit={handleSubmit} className="profile-form">
-              <div className="form-row">
-                <div className="form-group">
-                  <label>Date</label>
-                  <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
-                </div>
-                <div className="form-group">
-                  <label>Title</label>
-                  <input type="text" value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-                </div>
-              </div>
-              <div className="form-row">
-                <div className="form-group" style={{ flex: 1 }}>
-                  <label>Description</label>
-                  <input type="text" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
-                </div>
-                <div className="form-group" style={{ alignSelf: 'flex-end' }}>
-                  <button className="create-btn" type="submit">Add Holiday</button>
-                </div>
-              </div>
-            </form>
-
-            <div style={{ marginTop: '16px' }}>
-              {loading ? (
-                <p>Loading...</p>
-              ) : holidays.length === 0 ? (
-                <p>No holidays declared for this year.</p>
-              ) : (
-                <table className="report-table">
-                  <thead>
-                    <tr><th>Date</th><th>Title</th><th>Description</th><th>Action</th></tr>
-                  </thead>
-                  <tbody>
-                    {holidays.map((h) => (
-                      <tr key={h.id}>
-                        <td>{new Date(h.date).toLocaleDateString()}</td>
-                        <td>{h.title}</td>
-                        <td>{h.description}</td>
-                        <td><button className="small-button reject" onClick={() => handleDelete(h.id)}>Delete</button></td>
+          <div className="mt-5">
+            {loading ? (
+              <p className="text-sm text-muted-foreground">Loading...</p>
+            ) : holidays.length === 0 ? (
+              <p className="text-sm text-muted-foreground">No holidays declared for this year.</p>
+            ) : (
+              <div className="overflow-hidden rounded-xl border border-border/80">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left" style={{ minWidth: 500 }}>
+                    <thead>
+                      <tr className="border-b border-border/80 bg-muted/40">
+                        {['Date', 'Title', 'Description', 'Action'].map((col) => (
+                          <th key={col} className="h-11 px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                            {col}
+                          </th>
+                        ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
+                    </thead>
+                    <tbody>
+                      {holidays.map((h) => (
+                        <tr key={h.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                          <td className="px-4 py-3 text-sm text-foreground">{new Date(h.date).toLocaleDateString()}</td>
+                          <td className="px-4 py-3 text-sm text-foreground">{h.title}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{h.description}</td>
+                          <td className="px-4 py-3">
+                            <button
+                              onClick={() => handleDelete(h.id)}
+                              className="rounded-md p-1.5 text-red-600 hover:bg-red-50"
+                              title="Delete"
+                            >
+                              <Trash2 className="size-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
           </div>
+        </div>
+      </div>
     </AdminLayout>
   );
 }

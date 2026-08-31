@@ -10,8 +10,8 @@ import {
   getLeaveBalances 
 } from '../services/leaveService';
 import { calculateDaysBetween, getTotalLeaveBalance, normalizeLeaveBalances } from '../utils/leaveUtils';
-import '../styles/Dashboard.css';
-import '../styles/Leave.css';
+import { RefreshCw } from 'lucide-react';
+import '../styles/tailwind.css';
 
 const getRequestTimestamp = (request) => {
   const createdAt = request?.createdAt;
@@ -163,124 +163,99 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
       title="Leave Requests"
       subtitle="Track balances, submit new leave requests, and review your leave history."
     >
-      <div className="dashboard-main employee-dashboard-main">
-        {error && <div className="error-message">{error}</div>}
-        
+      <div className="flex flex-col gap-5">
+        {error && (
+          <div className="rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-sm text-[#b91c1c]">{error}</div>
+        )}
+
         {loading ? (
-          <div className="loading">Loading leave data...</div>
+          <div className="text-sm text-muted-foreground">Loading leave data...</div>
         ) : (
           <>
-            {/* Employee Profile Section */}
-           {/* Welcome Card */}
-          <section className="section-box employee-summary-card">
-            <div className="employee-header">
+            <section className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border/80 bg-card p-5 shadow-sm">
               <div>
-                <h2>Welcome Back 👋</h2>
-                <p>Manage your leave requests and balances</p>
+                <h2 className="text-lg font-semibold text-foreground">Welcome Back 👋</h2>
+                <p className="mt-0.5 text-sm text-muted-foreground">Manage your leave requests and balances</p>
               </div>
-
-              <div className="employee-meta">
-                <span>Employee ID</span>
-                <strong>{userId}</strong>
+              <div className="text-right">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Employee ID</div>
+                <div className="text-base font-semibold text-foreground">{userId}</div>
               </div>
-            </div>
-          </section>
+            </section>
 
-          {/* Navigation Buttons */}
-          <section className="section-box">
-            <div className="profile-actions">
+            <div className="flex flex-wrap gap-2 rounded-xl border border-border/80 bg-card p-3 shadow-sm">
               <button
-                className={`action-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
                 onClick={() => setActiveTab('dashboard')}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                  activeTab === 'dashboard' ? 'bg-employee text-employee-foreground' : 'border border-border bg-white text-foreground hover:bg-muted'
+                }`}
               >
                 Dashboard
               </button>
-
               <button
-                className={`action-btn ${activeTab === 'apply-leave' ? 'active' : ''}`}
                 onClick={() => setActiveTab('apply-leave')}
+                className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                  activeTab === 'apply-leave' ? 'bg-employee text-employee-foreground' : 'border border-border bg-white text-foreground hover:bg-muted'
+                }`}
               >
                 Apply Leave
               </button>
-
               <button
-                className="action-btn"
                 onClick={() => navigate('/employee/leaves/monthly-report')}
+                className="rounded-lg border border-border bg-white px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
               >
                 Monthly Report
               </button>
-
               <button
-                className="action-btn"
                 onClick={() => loadEmployeeData()}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border bg-white px-3 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
               >
-                🔄 Refresh
+                <RefreshCw className="size-3.5" />
+                Refresh
               </button>
             </div>
-          </section>
-            {/* Leave Balance Cards - Always Display */}
+
             {Object.keys(balances).length > 0 ? (
               <LeaveBalances balances={balances} />
             ) : (
-              <section className="section-box">
-                <div className="cards-row">
-                  <div className="info-card"><span>Casual Leaves</span><strong>0</strong></div>
-                  <div className="info-card"><span>Sick Leaves</span><strong>0</strong></div>
-                  <div className="info-card"><span>Paid Leaves</span><strong>0</strong></div>
-                </div>
-              </section>
+              <div className="grid grid-cols-3 gap-4">
+                {['Casual Leaves', 'Sick Leaves', 'Paid Leaves'].map((label) => (
+                  <div key={label} className="rounded-xl border border-border/80 bg-card p-4 text-center shadow-sm">
+                    <div className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">0</div>
+                    <div className="mt-1 text-xs text-muted-foreground">{label}</div>
+                  </div>
+                ))}
+              </div>
             )}
 
-            {/* Content Section - Changes based on active tab */}
             {activeTab === 'dashboard' && (
               <>
-               <div className="leave-stats-grid">
-
-                <div className="stat-card">
-                  <h3>Available Leaves</h3>
-                  <span>{getTotalLeaveBalance(balances)}</span>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                  {[
+                    { label: 'Available Leaves', value: getTotalLeaveBalance(balances) },
+                    { label: 'Approved', value: requests.filter((r) => (r.status || '').toLowerCase() === 'approved').length },
+                    { label: 'Pending', value: requests.filter((r) => (r.status || '').toLowerCase() === 'pending').length },
+                    {
+                      label: 'Used Leaves',
+                      value: requests
+                        .filter((r) => (r.status || '').toLowerCase() === 'approved')
+                        .reduce((sum, r) => sum + (r.days || 0), 0),
+                    },
+                  ].map((item) => (
+                    <div key={item.label} className="rounded-xl border border-border/80 bg-card p-4 text-center shadow-sm">
+                      <div className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">{item.value}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">{item.label}</div>
+                    </div>
+                  ))}
                 </div>
 
-                <div className="stat-card">
-                  <h3>Approved</h3>
-                  <span>
-                    {requests.filter(r => (r.status || '').toLowerCase() === 'approved').length}
-                  </span>
-                </div>
-
-                <div className="stat-card">
-                  <h3>Pending</h3>
-                  <span>
-                    {requests.filter(r => (r.status || '').toLowerCase() === 'pending').length}
-                  </span>
-                </div>
-
-                <div className="stat-card">
-                  <h3>Used Leaves</h3>
-                  <span>
-                    {requests
-                      .filter(r => (r.status || '').toLowerCase() === 'approved')
-                      .reduce((sum, r) => sum + (r.days || 0), 0)}
-                  </span>
-                </div>
-
-              </div>
-                
-                {/* My Leave Requests Table */}
-              <EmployeeRequestTable requests={requests} />
+                <EmployeeRequestTable requests={requests} />
               </>
             )}
 
             {activeTab === 'apply-leave' && (
               <>
-                {/* Apply Leave Request Form */}
-                <LeaveRequestForm 
-                  formData={formData}
-                  onChange={handleFormChange}
-                  onSubmit={handleSubmit}
-                />
-
-                {/* My Leave Requests Table */}
+                <LeaveRequestForm formData={formData} onChange={handleFormChange} onSubmit={handleSubmit} />
                 <EmployeeRequestTable requests={requests} />
               </>
             )}

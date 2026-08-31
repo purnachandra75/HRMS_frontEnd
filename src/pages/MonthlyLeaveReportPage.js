@@ -1,8 +1,7 @@
 import React from 'react';
 import EmployeeLayout from '../components/EmployeeLayout';
 import LeaveReportCard from '../components/LeaveReportCard';
-import '../styles/Dashboard.css';
-import '../styles/Leave.css';
+import '../styles/tailwind.css';
 
 function MonthlyLeaveReportPage({ userName, userId, onLogout }) {
   return (
@@ -13,9 +12,7 @@ function MonthlyLeaveReportPage({ userName, userId, onLogout }) {
       title="Monthly Leave Report"
       subtitle="View your yearly leave usage and monthly breakdown."
     >
-      <div className="dashboard-main employee-dashboard-main">
-        <LeaveReportCard userId={userId} />
-      </div>
+      <LeaveReportCard userId={userId} />
     </EmployeeLayout>
   );
 }

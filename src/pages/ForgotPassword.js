@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { requestPasswordReset } from '../services/authService';
-import '../styles/Auth.css';
+import AuthCard from '../components/auth/AuthCard';
+import { AuthField, AuthError, AuthSuccess, AuthSubmitButton, AuthLinkRow } from '../components/auth/AuthFormElements';
 
 function ForgotPassword() {
   const [email, setEmail] = useState('');
@@ -32,37 +33,33 @@ function ForgotPassword() {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <h1>Employee Management System</h1>
-        <h2>Forgot Password</h2>
-        {submitted ? (
-          <div className="success-message">{message}</div>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            <p>Enter your account email and we'll send you a link to reset your password.</p>
-            <div className="form-group">
-              <label htmlFor="email">Email:</label>
-              <input
-                type="email"
-                id="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="Enter your email"
-              />
-            </div>
-            {error && <div className="error-message">{error}</div>}
-            <button type="submit" disabled={loading} className="submit-btn">
-              {loading ? 'Sending...' : 'Send Reset Link'}
-            </button>
-          </form>
-        )}
-        <p className="auth-link">
-          <Link to="/login">Back to Login</Link>
-        </p>
-      </div>
-    </div>
+    <AuthCard title="Forgot Password">
+      {submitted ? (
+        <AuthSuccess>{message}</AuthSuccess>
+      ) : (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <p className="text-sm text-muted-foreground">
+            Enter your account email and we'll send you a link to reset your password.
+          </p>
+          <AuthField
+            label="Email"
+            type="email"
+            id="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            placeholder="Enter your email"
+          />
+          <AuthError>{error}</AuthError>
+          <AuthSubmitButton disabled={loading}>{loading ? 'Sending...' : 'Send Reset Link'}</AuthSubmitButton>
+        </form>
+      )}
+      <AuthLinkRow>
+        <Link to="/login" className="text-primary hover:underline">
+          Back to Login
+        </Link>
+      </AuthLinkRow>
+    </AuthCard>
   );
 }
 

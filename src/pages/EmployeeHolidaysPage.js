@@ -11,9 +11,7 @@ function EmployeeHolidaysPage({ userName, onLogout }) {
       title="Holidays"
       subtitle="Company holidays and weekends - click a highlighted date for details."
     >
-      <div style={{ padding: '16px' }}>
-        <HolidayCalendar />
-      </div>
+      <HolidayCalendar />
     </EmployeeLayout>
   );
 }

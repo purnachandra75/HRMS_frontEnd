@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Search, Eye, Pencil, Trash2, Plus } from 'lucide-react';
 import { getEmployeesPage, getEmployeeById, deleteEmployee } from '../services/employeeService';
 import AdminLayout from '../components/AdminLayout';
-import '../styles/Dashboard.css';
+import '../styles/tailwind.css';
 
 function AdminDashboard({ userName, onLogout }) {
   const [employees, setEmployees] = useState([]);
@@ -96,105 +97,120 @@ function AdminDashboard({ userName, onLogout }) {
 
   return (
     <AdminLayout userName={userName} onLogout={onLogout} activeItem="dashboard" title="Employee Details" subtitle="View and manage all employee records in one place.">
-      <div className="employees-section admin-employees-section">
-            <div className="employees-header">
-              <div className="header-left">
-                <h2>All Employees</h2>
-                <div className="search-bar">
-                  <input
-                    type="text"
-                    className="search-input"
-                    placeholder="Search by first name, last name, email, phone, or designation"
-                    value={searchQuery}
-                    onChange={(e) => handleSearchChange(e.target.value)}
-                  />
-                </div>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-1 items-center gap-3">
+            <h2 className="text-base font-semibold text-foreground">All Employees</h2>
+            <div className="relative w-full max-w-sm">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                className="h-9 w-full rounded-lg border border-border bg-white pl-9 pr-3 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+                placeholder="Search by first name, last name, email, phone, or designation"
+                value={searchQuery}
+                onChange={(e) => handleSearchChange(e.target.value)}
+              />
+            </div>
+          </div>
+          <button
+            onClick={() => navigate('/admin/employee/new')}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-client px-3 text-sm font-medium text-client-foreground hover:bg-client/90"
+          >
+            <Plus className="size-4" />
+            Create Employee
+          </button>
+        </div>
+
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading employees...</p>
+        ) : employees.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No employees found.</p>
+        ) : (
+          <>
+            <div className="overflow-hidden rounded-xl border border-border/80 bg-card shadow-sm">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left" style={{ minWidth: 900 }}>
+                  <thead>
+                    <tr className="border-b border-border/80 bg-muted/40">
+                      {['ID', 'First Name', 'Last Name', 'Email', 'Phone', 'Designation', 'Department', 'Status', 'Actions'].map(
+                        (col) => (
+                          <th
+                            key={col}
+                            className="h-11 whitespace-nowrap px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground"
+                          >
+                            {col}
+                          </th>
+                        )
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {employees.map((employee) => (
+                      <tr key={employee.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                        <td className="px-4 py-3 text-sm text-foreground">{employee.id}</td>
+                        <td className="px-4 py-3 text-sm text-foreground">{employee.firstName || 'N/A'}</td>
+                        <td className="px-4 py-3 text-sm text-foreground">{employee.lastName || 'N/A'}</td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">{employee.email}</td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">{employee.phone || 'N/A'}</td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">{employee.designation || 'N/A'}</td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">{employee.department || 'N/A'}</td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">{employee.employeeStatus || 'Active'}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <button
+                              title="View"
+                              onClick={() => navigate(`/admin/employee/${employee.id}`)}
+                              className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            >
+                              <Eye className="size-4" />
+                            </button>
+                            <button
+                              title="Edit"
+                              onClick={() => handleEdit(employee)}
+                              className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            >
+                              <Pencil className="size-4" />
+                            </button>
+                            <button
+                              title="Delete"
+                              onClick={() => handleDelete(employee.id)}
+                              className="rounded-md p-1.5 text-red-600 hover:bg-red-50"
+                            >
+                              <Trash2 className="size-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-              <button onClick={() => navigate('/admin/employee/new')} className="create-btn">Create Employee</button>
             </div>
 
-            {loading ? (
-              <p>Loading employees...</p>
-            ) : employees.length === 0 ? (
-              <p>No employees found.</p>
-            ) : (
-              <>
-                <div className="table-responsive">
-                  <table className="employees-table">
-                    <thead>
-                      <tr>
-                        <th>ID</th>
-                        <th>First Name</th>
-                        <th>Last Name</th>
-                        <th>Email</th>
-                        <th>Phone</th>
-                        <th>Designation</th>
-                        <th>Department</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {employees.map((employee) => (
-                        <tr key={employee.id}>
-                          <td>{employee.id}</td>
-                          <td>{employee.firstName || 'N/A'}</td>
-                          <td>{employee.lastName || 'N/A'}</td>
-                          <td>{employee.email}</td>
-                          <td>{employee.phone || 'N/A'}</td>
-                          <td>{employee.designation || 'N/A'}</td>
-                          <td>{employee.department || 'N/A'}</td>
-                          <td>{employee.employeeStatus || 'Active'}</td>
-                          <td className="table-action-buttons">
-                            <button
-                              className="view-btn"
-                              onClick={() => navigate(`/admin/employee/${employee.id}`)}
-                            >
-                              View
-                            </button>
-                            <button
-                              className="edit-btn"
-                              onClick={() => handleEdit(employee)}
-                            >
-                              Edit
-                            </button>
-                            <button
-                              className="delete-btn"
-                              onClick={() => handleDelete(employee.id)}
-                            >
-                              Delete
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-
-                <div className="pagination-controls">
-                  <button
-                    type="button"
-                    className="pagination-btn"
-                    onClick={handlePreviousPage}
-                    disabled={currentPage === 1}
-                  >
-                    Previous
-                  </button>
-                  <span className="pagination-info">
-                    Page {currentPage}{totalPages ? ` of ${totalPages}` : ''}
-                  </span>
-                  <button
-                    type="button"
-                    className="pagination-btn"
-                    onClick={handleNextPage}
-                    disabled={isNextDisabled}
-                  >
-                    Next
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                type="button"
+                onClick={handlePreviousPage}
+                disabled={currentPage === 1}
+                className="h-8 rounded-lg border border-border bg-white px-3 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Previous
+              </button>
+              <span className="text-sm text-muted-foreground">
+                Page {currentPage}{totalPages ? ` of ${totalPages}` : ''}
+              </span>
+              <button
+                type="button"
+                onClick={handleNextPage}
+                disabled={isNextDisabled}
+                className="h-8 rounded-lg border border-border bg-white px-3 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </AdminLayout>
   );
 }

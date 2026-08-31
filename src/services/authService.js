@@ -53,21 +53,6 @@ export const resendOtp = async (userId) => {
   }
 };
 
-export const registerUser = async (profileData) => {
-  try {
-    const { confirmPassword, ...payload } = profileData;
-    const response = await axios.post(API_BASE_URL, payload);
-    return {
-      success: true,
-      message: 'Registration successful',
-      employee: response.data,
-    };
-  } catch (error) {
-    const message = error?.response?.data?.message || 'Registration failed';
-    return { success: false, message };
-  }
-};
-
 export const requestPasswordReset = async (email) => {
   try {
     const response = await axios.post(`${API_BASE_URL}/forgot-password`, { email });

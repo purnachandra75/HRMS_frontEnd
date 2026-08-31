@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import EmployeeRequestTable from './EmployeeRequestTable';
 import { getEmployeeLeaveRequests, getLeaveBalances } from '../services/leaveService';
 import { normalizeLeaveBalances, getWorkingDaysByMonth } from '../utils/leaveUtils';
+import '../styles/tailwind.css';
 
 export default function LeaveReportCard({ userId }) {
   const [leaveData, setLeaveData] = useState(null);
@@ -23,7 +24,7 @@ export default function LeaveReportCard({ userId }) {
         getLeaveBalances(userId),
         getEmployeeLeaveRequests(userId)
       ]);
-      
+
       setLeaveData(normalizeLeaveBalances(balancesData));
       setRequests(requestsData);
     } catch (err) {
@@ -38,7 +39,7 @@ export default function LeaveReportCard({ userId }) {
   // Calculate monthly data from actual requests
   const calculateMonthlyData = () => {
     const monthlyData = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    
+
     requests.forEach(request => {
       // Only count approved requests
       if ((request.status || '').toLowerCase() === 'approved') {
@@ -51,7 +52,7 @@ export default function LeaveReportCard({ userId }) {
         });
       }
     });
-    
+
     return monthlyData;
   };
 
@@ -64,84 +65,79 @@ export default function LeaveReportCard({ userId }) {
   const totalAllotted = 22; // Default total
   const totalRemaining = totalAllotted - totalUsedInYear;
 
-  if (loading) return <div>Loading leave data...</div>;
+  if (loading) return <div className="text-sm text-muted-foreground">Loading leave data...</div>;
 
   return (
-    <div className="leave-report-container">
-      {/* Yearly Summary */}
-      <div className="leave-report-section">
-        <div className="section-header">
-          <h2>Leave Report</h2>
-          <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))} className="year-selector">
+    <div className="flex flex-col gap-5">
+      <div className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base font-semibold text-foreground">Leave Report</h2>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-employee focus:ring-2 focus:ring-employee/30"
+          >
             {years.map(year => (
               <option key={year} value={year}>{year}</option>
             ))}
           </select>
         </div>
 
-        {/* Yearly Summary Cards */}
-        <div className="yearly-summary">
-          <div className="summary-card">
-            <div className="summary-label">Total Allotted</div>
-            <div className="summary-value">{totalAllotted}</div>
-            <div className="summary-unit">days</div>
-          </div>
-          <div className="summary-card">
-            <div className="summary-label">Used Leaves</div>
-            <div className="summary-value">{totalUsedInYear}</div>
-            <div className="summary-unit">days</div>
-          </div>
-          <div className="summary-card">
-            <div className="summary-label">Remaining</div>
-            <div className="summary-value">{totalRemaining}</div>
-            <div className="summary-unit">days</div>
-          </div>
+        <div className="mt-4 grid grid-cols-3 gap-4">
+          {[
+            { label: 'Total Allotted', value: totalAllotted },
+            { label: 'Used Leaves', value: totalUsedInYear },
+            { label: 'Remaining', value: totalRemaining },
+          ].map((item) => (
+            <div key={item.label} className="rounded-xl border border-border/80 bg-background p-4 text-center">
+              <div className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">{item.value}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{item.label} · days</div>
+            </div>
+          ))}
         </div>
 
-        {/* Leave Type Breakdown */}
         {leaveData && Object.keys(leaveData).length > 0 && (
-          <div className="leave-breakdown">
-            <h3>Leave Balance by Type</h3>
-            <div className="breakdown-cards">
+          <div className="mt-5">
+            <h3 className="text-sm font-semibold text-foreground">Leave Balance by Type</h3>
+            <div className="mt-2 grid grid-cols-3 gap-4">
               {leaveData.casual !== undefined && (
-                <div className="breakdown-card">
-                  <span className="leave-type">Casual Leaves</span>
-                  <strong>{leaveData.casual}</strong>
+                <div className="rounded-xl border border-border/80 bg-background p-4 text-center">
+                  <div className="text-xl font-semibold tabular-nums text-foreground">{leaveData.casual}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Casual Leaves</div>
                 </div>
               )}
               {leaveData.sick !== undefined && (
-                <div className="breakdown-card">
-                  <span className="leave-type">Sick Leaves</span>
-                  <strong>{leaveData.sick}</strong>
+                <div className="rounded-xl border border-border/80 bg-background p-4 text-center">
+                  <div className="text-xl font-semibold tabular-nums text-foreground">{leaveData.sick}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Sick Leaves</div>
                 </div>
               )}
               {leaveData.paid !== undefined && (
-                <div className="breakdown-card">
-                  <span className="leave-type">Paid Leaves</span>
-                  <strong>{leaveData.paid}</strong>
+                <div className="rounded-xl border border-border/80 bg-background p-4 text-center">
+                  <div className="text-xl font-semibold tabular-nums text-foreground">{leaveData.paid}</div>
+                  <div className="mt-1 text-xs text-muted-foreground">Paid Leaves</div>
                 </div>
               )}
             </div>
           </div>
         )}
 
-        {/* Monthly Breakdown Table */}
-        <div className="monthly-breakdown">
-          <h3>Monthly Leave Usage - {selectedYear}</h3>
-          <p className="description">Year-wise leave usage starting from January</p>
-          <div className="table-responsive">
-            <table className="monthly-table">
+        <div className="mt-5">
+          <h3 className="text-sm font-semibold text-foreground">Monthly Leave Usage - {selectedYear}</h3>
+          <p className="mt-0.5 text-sm text-muted-foreground">Year-wise leave usage starting from January</p>
+          <div className="mt-3 overflow-hidden rounded-xl border border-border/80">
+            <table className="w-full text-left">
               <thead>
-                <tr>
-                  <th>Month</th>
-                  <th>Used Leaves</th>
+                <tr className="border-b border-border/80 bg-muted/40">
+                  <th className="h-11 px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Month</th>
+                  <th className="h-11 px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">Used Leaves</th>
                 </tr>
               </thead>
               <tbody>
                 {months.map((month, index) => (
-                  <tr key={month}>
-                    <td>{month}</td>
-                    <td>{currentYearData[index]}</td>
+                  <tr key={month} className="border-b border-border/60 last:border-0">
+                    <td className="px-4 py-2.5 text-sm text-foreground">{month}</td>
+                    <td className="px-4 py-2.5 text-sm text-muted-foreground">{currentYearData[index]}</td>
                   </tr>
                 ))}
               </tbody>
@@ -150,10 +146,7 @@ export default function LeaveReportCard({ userId }) {
         </div>
       </div>
 
-      {/* My Leave Requests */}
-      <div className="leave-report-section">
-        <EmployeeRequestTable requests={requests} />
-      </div>
+      <EmployeeRequestTable requests={requests} />
     </div>
   );
 }

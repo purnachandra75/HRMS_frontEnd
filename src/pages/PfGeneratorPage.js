@@ -6,8 +6,11 @@ import { getPayrollReport, getManualPayslipUrl } from '../services/payrollServic
 import { apiFetch } from '../utils/apiClient';
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+// The printable payslip document below (.payslip-sheet and friends) is captured to PDF via
+// html2canvas, so it deliberately keeps its exact print-style markup/CSS rather than being
+// re-skinned in Tailwind - only the surrounding controls/page chrome are modernized.
 import '../styles/Dashboard.css';
-import '../styles/Leave.css';
+import '../styles/tailwind.css';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -398,75 +401,83 @@ function PayslipGeneratorPage({ userId, userName, onLogout }) {
       title="Payslip"
       subtitle="Generate your payslip after payroll amount is credited for the selected month."
     >
-          <div className="pf-generator-panel">
-            <div className="pf-controls">
-              <div className="pf-field">
-                <label>Employee ID</label>
-                <div className="pf-readonly-value">{employee?.id || userId || 'N/A'}</div>
+          <div className="flex flex-col gap-5">
+            <div className="flex flex-wrap items-end gap-4 rounded-xl border border-border/80 bg-card p-4 shadow-sm">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-foreground">Employee ID</label>
+                <div className="flex h-9 items-center rounded-lg border border-border bg-muted/40 px-3 text-sm text-foreground">
+                  {employee?.id || userId || 'N/A'}
+                </div>
               </div>
 
-              <div className="pf-field">
-                <label>Employee Name</label>
-                <div className="pf-readonly-value">{employee ? buildEmployeeName(employee) : userName || 'N/A'}</div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-sm font-medium text-foreground">Employee Name</label>
+                <div className="flex h-9 items-center rounded-lg border border-border bg-muted/40 px-3 text-sm text-foreground">
+                  {employee ? buildEmployeeName(employee) : userName || 'N/A'}
+                </div>
               </div>
 
-              <div className="pf-field">
-                <label htmlFor="payMonth">Month</label>
-                <select id="payMonth" value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="payMonth" className="text-sm font-medium text-foreground">Month</label>
+                <select
+                  id="payMonth"
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                  className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-employee focus:ring-2 focus:ring-employee/30"
+                >
                   {MONTH_NAMES.map((month, index) => (
                     <option key={month} value={index + 1}>{month}</option>
                   ))}
                 </select>
               </div>
 
-              <div className="pf-field">
-                <label htmlFor="payYear">Year</label>
-                <select id="payYear" value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="payYear" className="text-sm font-medium text-foreground">Year</label>
+                <select
+                  id="payYear"
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(Number(e.target.value))}
+                  className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-employee focus:ring-2 focus:ring-employee/30"
+                >
                   {yearOptions.map((year) => (
                     <option key={year} value={year}>{year}</option>
                   ))}
                 </select>
               </div>
 
-              <div className="pf-actions pf-inline-action">
-                <button
-                  type="button"
-                  className="create-btn"
-                  onClick={handleGeneratePayslip}
-                  disabled={loading || checkingPayroll || !employee}
-                >
-                  {checkingPayroll ? 'Checking...' : 'Generate Payslip'}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleGeneratePayslip}
+                disabled={loading || checkingPayroll || !employee}
+                className="h-9 rounded-lg bg-employee px-4 text-sm font-medium text-employee-foreground hover:bg-employee/90 disabled:opacity-60"
+              >
+                {checkingPayroll ? 'Checking...' : 'Generate Payslip'}
+              </button>
             </div>
 
             {loading ? (
-              <p className="pf-empty">Loading payslip data...</p>
+              <p className="text-sm text-muted-foreground">Loading payslip data...</p>
             ) : error ? (
-              <p className="pf-empty pf-error">{error}</p>
+              <p className="text-sm text-[#b91c1c]">{error}</p>
             ) : !employee ? (
-              <p className="pf-empty">No employee available for payslip generation.</p>
+              <p className="text-sm text-muted-foreground">No employee available for payslip generation.</p>
             ) : payrollMessage && !canGeneratePayslip && !manualPayslipPayrollId ? (
-              <p className="pf-empty pf-error">{payrollMessage}</p>
+              <p className="text-sm text-[#b91c1c]">{payrollMessage}</p>
             ) : payrollMessage && (canGeneratePayslip || manualPayslipPayrollId) ? (
-              <div className="payroll-run-result">
-                <p className="payroll-run-title">{payrollMessage}</p>
-              </div>
+              <div className="rounded-lg border border-[#bbf7d0] bg-[#f0fdf4] px-3 py-2 text-sm text-[#15803d]">{payrollMessage}</div>
             ) : (
-              <p className="pf-empty">Select month and year, then click Generate Payslip.</p>
+              <p className="text-sm text-muted-foreground">Select month and year, then click Generate Payslip.</p>
             )}
 
             {manualPayslipPayrollId && (
-              <div className="pf-actions pf-inline-action">
-                <button
-                  type="button"
-                  className="create-btn"
-                  onClick={handleDownloadManualPayslip}
-                  disabled={downloadingManualPayslip}
-                >
-                  {downloadingManualPayslip ? 'Downloading...' : 'Download Payslip'}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleDownloadManualPayslip}
+                disabled={downloadingManualPayslip}
+                className="h-9 w-fit rounded-lg bg-employee px-4 text-sm font-medium text-employee-foreground hover:bg-employee/90 disabled:opacity-60"
+              >
+                {downloadingManualPayslip ? 'Downloading...' : 'Download Payslip'}
+              </button>
             )}
 
             {payslip && (
@@ -594,11 +605,13 @@ function PayslipGeneratorPage({ userId, userName, onLogout }) {
                   </div>
                 </div>
 
-                <div className="pf-actions">
-                  <button type="button" className="create-btn" onClick={handleDownloadPdf}>
-                    Download Payslip PDF
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={handleDownloadPdf}
+                  className="h-9 w-fit rounded-lg bg-employee px-4 text-sm font-medium text-employee-foreground hover:bg-employee/90"
+                >
+                  Download Payslip PDF
+                </button>
               </>
             )}
           </div>

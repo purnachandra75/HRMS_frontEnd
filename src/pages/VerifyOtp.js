@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { verifyOtp, resendOtp } from '../services/authService';
-import '../styles/Auth.css';
+import AuthCard from '../components/auth/AuthCard';
+import { AuthField, AuthError, AuthSuccess, AuthSubmitButton, AuthLinkRow } from '../components/auth/AuthFormElements';
 
 const RESEND_COOLDOWN_SECONDS = 60;
 
@@ -92,49 +93,54 @@ function VerifyOtp({ onLogin }) {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <h1>Employee Management System</h1>
-        <h2>Verify OTP</h2>
-        <p>
+    <AuthCard
+      title="Verify OTP"
+      subtitle={
+        <>
           Enter the verification code sent to{' '}
-          {email ? <strong>{email}</strong> : 'your registered email'}.
-        </p>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="otp">OTP Code:</label>
-            <input
-              type="text"
-              id="otp"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
-              required
-              maxLength={6}
-              placeholder="Enter 6-digit code"
-            />
-          </div>
-          {error && <div className="error-message">{error}</div>}
-          {info && <div className="success-message">{info}</div>}
-          <button type="submit" disabled={loading || otp.length === 0} className="submit-btn">
-            {loading ? 'Verifying...' : 'Verify'}
+          {email ? <strong className="text-foreground">{email}</strong> : 'your registered email'}.
+        </>
+      }
+    >
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <AuthField
+          label="OTP Code"
+          type="text"
+          id="otp"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          value={otp}
+          onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+          required
+          maxLength={6}
+          placeholder="Enter 6-digit code"
+        />
+        <AuthError>{error}</AuthError>
+        <AuthSuccess>{info}</AuthSuccess>
+        <AuthSubmitButton disabled={loading || otp.length === 0}>
+          {loading ? 'Verifying...' : 'Verify'}
+        </AuthSubmitButton>
+      </form>
+      <AuthLinkRow>
+        {cooldown > 0 ? (
+          <span>Resend code in {cooldown}s</span>
+        ) : (
+          <button
+            type="button"
+            className="text-primary hover:underline disabled:opacity-60"
+            onClick={handleResend}
+            disabled={resending}
+          >
+            {resending ? 'Resending...' : 'Resend code'}
           </button>
-        </form>
-        <p className="auth-link">
-          {cooldown > 0 ? (
-            <span>Resend code in {cooldown}s</span>
-          ) : (
-            <button type="button" className="link-btn" onClick={handleResend} disabled={resending}>
-              {resending ? 'Resending...' : 'Resend code'}
-            </button>
-          )}
-        </p>
-        <p className="auth-link">
-          <Link to="/login">Back to Login</Link>
-        </p>
-      </div>
-    </div>
+        )}
+      </AuthLinkRow>
+      <AuthLinkRow>
+        <Link to="/login" className="text-primary hover:underline">
+          Back to Login
+        </Link>
+      </AuthLinkRow>
+    </AuthCard>
   );
 }
 

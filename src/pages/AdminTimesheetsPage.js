@@ -1,8 +1,26 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import AdminLayout from '../components/AdminLayout';
 import { getHrTimesheets, updateTimesheetStatusAsAdmin, getWeeklyReportsForHr } from '../services/timesheetService';
-import '../styles/Dashboard.css';
-import '../styles/Leave.css';
+import '../styles/tailwind.css';
+
+const STATUS_CLASSES = {
+  pending: 'border-[#fde68a] bg-[#fffbeb] text-[#b45309]',
+  approved: 'border-[#bbf7d0] bg-[#f0fdf4] text-[#15803d]',
+  rejected: 'border-[#fecaca] bg-[#fef2f2] text-[#b91c1c]',
+};
+
+function StatusBadge({ status }) {
+  const key = (status || '').toLowerCase();
+  return (
+    <span
+      className={`inline-flex h-6 items-center rounded-full border px-2.5 text-[11px] font-semibold capitalize ${
+        STATUS_CLASSES[key] || 'border-border bg-muted text-muted-foreground'
+      }`}
+    >
+      {status}
+    </span>
+  );
+}
 
 function AdminTimesheetsPage({ userName, onLogout }) {
   const [timesheets, setTimesheets] = useState([]);
@@ -52,139 +70,157 @@ function AdminTimesheetsPage({ userName, onLogout }) {
       title="HR Timesheets"
       subtitle="Bench employees' daily updates land here directly; project employees' updates are rolled up weekly by their Project Manager below."
     >
-      <div className="attendance-data-table" style={{ marginBottom: '24px' }}>
-        <h3>Bench Employee Updates (Daily)</h3>
-        <div className="report-controls-top" style={{ padding: '0 16px' }}>
-          <div>
-            <label>Status:</label>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-              <option value="Pending">Pending</option>
-              <option value="Approved">Approved</option>
-              <option value="Rejected">Rejected</option>
-              <option value="all">All</option>
-            </select>
+      <div className="flex flex-col gap-5">
+        <div className="rounded-xl border border-border/80 bg-card shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 px-5 py-4">
+            <h3 className="text-base font-semibold text-foreground">Bench Employee Updates (Daily)</h3>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-foreground">Status:</label>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+              >
+                <option value="Pending">Pending</option>
+                <option value="Approved">Approved</option>
+                <option value="Rejected">Rejected</option>
+                <option value="all">All</option>
+              </select>
+            </div>
           </div>
-        </div>
 
-        {error && <div className="attendance-error">{error}</div>}
+          {error && (
+            <div className="mx-5 mt-4 rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-sm text-[#b91c1c]">{error}</div>
+          )}
 
-        {loading ? (
-          <p style={{ padding: '16px' }}>Loading...</p>
-        ) : timesheets.length === 0 ? (
-          <p style={{ padding: '16px', color: '#475569' }}>No bench timesheets match this filter.</p>
-        ) : (
-          <table className="report-table">
-            <thead>
-              <tr>
-                <th>Employee</th>
-                <th>Date</th>
-                <th>Hours</th>
-                <th>Description</th>
-                <th>Status</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {timesheets.map((entry) => (
-                <tr key={entry.id}>
-                  <td>{entry.employeeName}</td>
-                  <td>{entry.workDate}</td>
-                  <td>{entry.hoursWorked ?? '—'}</td>
-                  <td>{entry.description}</td>
-                  <td>
-                    <span className={`status-tag ${entry.status?.toLowerCase()}`}>{entry.status}</span>
-                  </td>
-                  <td>
-                    {entry.status === 'Pending' ? (
-                      <>
-                        <button className="small-button" onClick={() => handleDecision(entry.id, 'Approved')}>
-                          Approve
-                        </button>{' '}
-                        <button className="small-button reject" onClick={() => handleDecision(entry.id, 'Rejected')}>
-                          Reject
-                        </button>
-                      </>
-                    ) : (
-                      '—'
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      <div className="attendance-data-table">
-        <h3>Project Manager Weekly Reports</h3>
-        {weeklyReports.length === 0 ? (
-          <p style={{ padding: '16px', color: '#475569' }}>No weekly reports submitted yet.</p>
-        ) : (
-          <table className="report-table">
-            <thead>
-              <tr>
-                <th>Manager</th>
-                <th>Week</th>
-                <th>Entries</th>
-                <th>Sent On</th>
-                <th>Notes</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {weeklyReports.map((report) => (
-                <React.Fragment key={report.id}>
-                  <tr>
-                    <td>{report.managerName}</td>
-                    <td>{report.weekStartDate} to {report.weekEndDate}</td>
-                    <td>{report.entries?.length ?? 0}</td>
-                    <td>{report.submittedAt}</td>
-                    <td>{report.notes || '—'}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className="small-button"
-                        onClick={() => setExpandedReportId(expandedReportId === report.id ? null : report.id)}
-                      >
-                        {expandedReportId === report.id ? 'Close' : 'View Entries'}
-                      </button>
-                    </td>
+          {loading ? (
+            <p className="px-5 py-6 text-sm text-muted-foreground">Loading...</p>
+          ) : timesheets.length === 0 ? (
+            <p className="px-5 py-6 text-sm text-muted-foreground">No bench timesheets match this filter.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left" style={{ minWidth: 720 }}>
+                <thead>
+                  <tr className="border-b border-border/80 bg-muted/40">
+                    {['Employee', 'Date', 'Hours', 'Description', 'Status', 'Action'].map((col) => (
+                      <th key={col} className="h-11 px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                        {col}
+                      </th>
+                    ))}
                   </tr>
-                  {expandedReportId === report.id && (
-                    <tr>
-                      <td colSpan="6">
-                        <table className="report-table">
-                          <thead>
-                            <tr>
-                              <th>Employee</th>
-                              <th>Date</th>
-                              <th>Hours</th>
-                              <th>Description</th>
-                              <th>Status</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {(report.entries || []).map((entry) => (
-                              <tr key={entry.id}>
-                                <td>{entry.employeeName}</td>
-                                <td>{entry.workDate}</td>
-                                <td>{entry.hoursWorked ?? '—'}</td>
-                                <td>{entry.description}</td>
-                                <td>
-                                  <span className={`status-tag ${entry.status?.toLowerCase()}`}>{entry.status}</span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                </thead>
+                <tbody>
+                  {timesheets.map((entry) => (
+                    <tr key={entry.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                      <td className="px-4 py-3 text-sm text-foreground">{entry.employeeName}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{entry.workDate}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{entry.hoursWorked ?? '—'}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{entry.description}</td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={entry.status} />
+                      </td>
+                      <td className="px-4 py-3">
+                        {entry.status === 'Pending' ? (
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => handleDecision(entry.id, 'Approved')}
+                              className="rounded-md border border-border bg-white px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted"
+                            >
+                              Approve
+                            </button>
+                            <button
+                              onClick={() => handleDecision(entry.id, 'Rejected')}
+                              className="rounded-md border border-[#fecaca] bg-[#fef2f2] px-2.5 py-1 text-xs font-medium text-[#b91c1c] hover:bg-[#fee2e2]"
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </td>
                     </tr>
-                  )}
-                </React.Fragment>
-              ))}
-            </tbody>
-          </table>
-        )}
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        <div className="rounded-xl border border-border/80 bg-card shadow-sm">
+          <h3 className="border-b border-border/80 px-5 py-4 text-base font-semibold text-foreground">Project Manager Weekly Reports</h3>
+          {weeklyReports.length === 0 ? (
+            <p className="px-5 py-6 text-sm text-muted-foreground">No weekly reports submitted yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left" style={{ minWidth: 780 }}>
+                <thead>
+                  <tr className="border-b border-border/80 bg-muted/40">
+                    {['Manager', 'Week', 'Entries', 'Sent On', 'Notes', 'Action'].map((col) => (
+                      <th key={col} className="h-11 px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                        {col}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {weeklyReports.map((report) => (
+                    <React.Fragment key={report.id}>
+                      <tr className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                        <td className="px-4 py-3 text-sm text-foreground">{report.managerName}</td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">{report.weekStartDate} to {report.weekEndDate}</td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">{report.entries?.length ?? 0}</td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">{report.submittedAt}</td>
+                        <td className="px-4 py-3 text-sm text-muted-foreground">{report.notes || '—'}</td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedReportId(expandedReportId === report.id ? null : report.id)}
+                            className="rounded-md border border-border bg-white px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted"
+                          >
+                            {expandedReportId === report.id ? 'Close' : 'View Entries'}
+                          </button>
+                        </td>
+                      </tr>
+                      {expandedReportId === report.id && (
+                        <tr>
+                          <td colSpan={6} className="bg-muted/20 px-4 py-4">
+                            <div className="overflow-hidden rounded-lg border border-border/80 bg-card">
+                              <table className="w-full text-left" style={{ minWidth: 600 }}>
+                                <thead>
+                                  <tr className="border-b border-border/80 bg-muted/40">
+                                    {['Employee', 'Date', 'Hours', 'Description', 'Status'].map((col) => (
+                                      <th key={col} className="h-10 px-3 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                                        {col}
+                                      </th>
+                                    ))}
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {(report.entries || []).map((entry) => (
+                                    <tr key={entry.id} className="border-b border-border/60 last:border-0">
+                                      <td className="px-3 py-2 text-sm text-foreground">{entry.employeeName}</td>
+                                      <td className="px-3 py-2 text-sm text-muted-foreground">{entry.workDate}</td>
+                                      <td className="px-3 py-2 text-sm text-muted-foreground">{entry.hoursWorked ?? '—'}</td>
+                                      <td className="px-3 py-2 text-sm text-muted-foreground">{entry.description}</td>
+                                      <td className="px-3 py-2">
+                                        <StatusBadge status={entry.status} />
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
     </AdminLayout>
   );

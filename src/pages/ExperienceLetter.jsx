@@ -8,6 +8,7 @@ import sign from "../assets/Sign.jpg";
 import watermark from "../assets/p2.jpg";
 import { formatDateDDMMYYYY } from "../utils/dateFormat";
 import { apiFetch } from "../utils/apiClient";
+import "../styles/tailwind.css";
 
 function ExperienceLetter({ userName, onLogout }) {
   const pdfRef = useRef();
@@ -85,55 +86,69 @@ function ExperienceLetter({ userName, onLogout }) {
   };
 
   const letterContent = (
-    <div className="letter-generator-page">
-      <section className="letter-search-card">
-        <div className="letter-search-header">
-          <p className="eyebrow">Essentials</p>
-          <h1>Generate Experience Letter</h1>
-          <p>Search by employee ID, verify the employee details, then generate the PDF.</p>
+    <div className="flex flex-col gap-5">
+      <section className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
+        <div className="mb-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-client">Essentials</p>
+          <h1 className="text-lg font-semibold text-foreground">Generate Experience Letter</h1>
+          <p className="mt-1 text-sm text-muted-foreground">Search by employee ID, verify the employee details, then generate the PDF.</p>
         </div>
-      <div className="letter-action-row">
-        <input
-          type="text"
-          className="letter-search-input"
-          placeholder="Enter Employee ID"
-          value={employeeId}
-          onChange={(e) => setEmployeeId(e.target.value)}
-        />
-        <button type="button" className="search-button" onClick={searchEmployee} disabled={isSearching}>
-          {isSearching ? "Searching..." : "Search"}
-        </button>
-      </div>
-      <div className="letter-result-area">
-        {error && <p className="letter-error">{error}</p>}
-        {employee && (
-          <>
-            <div className="employee-found-card">
-              <h3>Employee Found</h3>
-              <div className="employee-found-grid">
-                <p><strong>Name</strong><span>{employee.employeeName}</span></p>
-                <p><strong>Employee ID</strong><span>{employee.employeeId}</span></p>
-                <p><strong>Designation</strong><span>{employee.designation}</span></p>
-                <p><strong>Joining Date</strong><span>{employee.joiningDate}</span></p>
+        <div className="flex flex-wrap gap-3">
+          <input
+            type="text"
+            placeholder="Enter Employee ID"
+            value={employeeId}
+            onChange={(e) => setEmployeeId(e.target.value)}
+            className="h-9 max-w-xs flex-1 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+          />
+          <button
+            type="button"
+            onClick={searchEmployee}
+            disabled={isSearching}
+            className="h-9 rounded-lg bg-client px-4 text-sm font-medium text-client-foreground hover:bg-client/90 disabled:opacity-60"
+          >
+            {isSearching ? "Searching..." : "Search"}
+          </button>
+        </div>
+        <div className="mt-4">
+          {error && (
+            <p className="rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-sm text-[#b91c1c]">{error}</p>
+          )}
+          {employee && (
+            <>
+              <div className="rounded-xl border border-border/80 bg-background p-4">
+                <h3 className="text-sm font-semibold text-foreground">Employee Found</h3>
+                <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  {[
+                    { label: 'Name', value: employee.employeeName },
+                    { label: 'Employee ID', value: employee.employeeId },
+                    { label: 'Designation', value: employee.designation },
+                    { label: 'Joining Date', value: employee.joiningDate },
+                  ].map((item) => (
+                    <div key={item.label}>
+                      <div className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">{item.label}</div>
+                      <div className="mt-0.5 text-sm text-foreground">{item.value}</div>
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-4 flex flex-col gap-1.5">
+                  <label className="text-sm font-medium text-foreground">Relieving Date</label>
+                  <input
+                    type="date"
+                    value={manualRelievingDate}
+                    onChange={(e) => setManualRelievingDate(e.target.value)}
+                    className="h-9 w-fit rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={generatePDF}
+                  disabled={!manualRelievingDate}
+                  className="mt-4 h-9 rounded-lg bg-client px-4 text-sm font-medium text-client-foreground hover:bg-client/90 disabled:opacity-60"
+                >
+                  Generate Experience Letter
+                </button>
               </div>
-              <div className="field-group letter-date-row">
-                <label>Relieving Date</label>
-                <input
-                  type="date"
-                  className="letter-date-input"
-                  value={manualRelievingDate}
-                  onChange={(e) => setManualRelievingDate(e.target.value)}
-                />
-              </div>
-              <button
-                type="button"
-                className="generate-button"
-                onClick={generatePDF}
-                disabled={!manualRelievingDate}
-              >
-                Generate Experience Letter
-              </button>
-            </div>
 
             {/* Hidden PDF template for generation only - Not visible to user */}
             <div ref={pdfRef} style={{ position: "fixed", top: "-9999px", left: "-9999px", width: "210mm", minHeight: "297mm", padding: "15mm", backgroundImage: `url(${watermark})`, backgroundRepeat: "no-repeat", backgroundPosition: "center", backgroundSize: "300px", backgroundColor: "white" }}>

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { resetPassword } from '../services/authService';
-import '../styles/Auth.css';
+import AuthCard from '../components/auth/AuthCard';
+import { AuthField, AuthError, AuthSuccess, AuthSubmitButton, AuthLinkRow } from '../components/auth/AuthFormElements';
 
 function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -48,52 +49,46 @@ function ResetPassword() {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <h1>Employee Management System</h1>
-        <h2>Reset Password</h2>
-        {success ? (
-          <div className="success-message">Password reset successfully. Redirecting to login...</div>
-        ) : (
-          <form onSubmit={handleSubmit}>
-            {!token && (
-              <div className="error-message">
-                This link is missing a reset token. Please use the link from your email, or request a new one.
-              </div>
-            )}
-            <div className="form-group">
-              <label htmlFor="newPassword">New Password:</label>
-              <input
-                type="password"
-                id="newPassword"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-                placeholder="Enter new password"
-              />
-            </div>
-            <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm Password:</label>
-              <input
-                type="password"
-                id="confirmPassword"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                placeholder="Confirm new password"
-              />
-            </div>
-            {error && <div className="error-message">{error}</div>}
-            <button type="submit" disabled={loading || !token} className="submit-btn">
-              {loading ? 'Resetting...' : 'Reset Password'}
-            </button>
-          </form>
-        )}
-        <p className="auth-link">
-          <Link to="/login">Back to Login</Link>
-        </p>
-      </div>
-    </div>
+    <AuthCard title="Reset Password">
+      {success ? (
+        <AuthSuccess>Password reset successfully. Redirecting to login...</AuthSuccess>
+      ) : (
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {!token && (
+            <AuthError>
+              This link is missing a reset token. Please use the link from your email, or request a new one.
+            </AuthError>
+          )}
+          <AuthField
+            label="New Password"
+            type="password"
+            id="newPassword"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            required
+            placeholder="Enter new password"
+          />
+          <AuthField
+            label="Confirm Password"
+            type="password"
+            id="confirmPassword"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
+            placeholder="Confirm new password"
+          />
+          <AuthError>{error}</AuthError>
+          <AuthSubmitButton disabled={loading || !token}>
+            {loading ? 'Resetting...' : 'Reset Password'}
+          </AuthSubmitButton>
+        </form>
+      )}
+      <AuthLinkRow>
+        <Link to="/login" className="text-primary hover:underline">
+          Back to Login
+        </Link>
+      </AuthLinkRow>
+    </AuthCard>
   );
 }
 

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Login';
 import VerifyOtp from './pages/VerifyOtp';
-import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import AdminDashboard from './pages/AdminDashboard';
@@ -29,16 +28,24 @@ import OfferLetterForm from './OfferLetterForm';
 import ExperienceLetter from './pages/ExperienceLetter';
 import RelievingLetter from './pages/RelievingLetter';
 import LetterOfIntent from './pages/LetterOfIntent';
+import SuperAdminLogin from './pages/SuperAdmin/SuperAdminLogin';
+import SuperAdminDashboard from './pages/SuperAdmin/SuperAdminDashboard';
+import SuperAdminClients from './pages/SuperAdmin/SuperAdminClients';
+import SuperAdminClientDetail from './pages/SuperAdmin/SuperAdminClientDetail';
 import { setUnauthorizedHandler } from './utils/apiClient';
 import './App.css';
 
-// The only two roles the router knows how to route "already logged in" users to. Guarding every
+// The only roles the router knows how to route "already logged in" users to. Guarding every
 // redirect against this list (instead of trusting whatever is in localStorage/state) prevents a
 // stale or malformed session from causing /login <-> /employee|/admin to bounce forever - React
 // Router has no built-in protection against that, so it manifests as "Maximum update depth
 // exceeded" and a blank, unresponsive page.
-const VALID_ROLES = ['admin', 'employee'];
-const homeRouteForRole = (role) => (role === 'admin' ? '/admin' : '/employee');
+const VALID_ROLES = ['admin', 'employee', 'super_admin'];
+const homeRouteForRole = (role) => {
+  if (role === 'admin') return '/admin';
+  if (role === 'super_admin') return '/super-admin/dashboard';
+  return '/employee';
+};
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -116,17 +123,6 @@ function App() {
                 <Navigate to={homeRouteForRole(userRole)} />
               ) : (
                 <VerifyOtp onLogin={handleLogin} />
-              )
-            }
-          />
-
-          <Route
-            path="/register"
-            element={
-              isAuthenticated && VALID_ROLES.includes(userRole) ? (
-                <Navigate to={homeRouteForRole(userRole)} />
-              ) : (
-                <Register />
               )
             }
           />
@@ -445,6 +441,50 @@ function App() {
                 />
               ) : (
                 <Navigate to="/login" />
+              )
+            }
+          />
+
+          <Route
+            path="/super-admin/login"
+            element={
+              isAuthenticated && VALID_ROLES.includes(userRole) ? (
+                <Navigate to={homeRouteForRole(userRole)} />
+              ) : (
+                <SuperAdminLogin onLogin={handleLogin} />
+              )
+            }
+          />
+
+          <Route
+            path="/super-admin/dashboard"
+            element={
+              isAuthenticated && userRole === 'super_admin' ? (
+                <SuperAdminDashboard userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/super-admin/login" />
+              )
+            }
+          />
+
+          <Route
+            path="/super-admin/clients"
+            element={
+              isAuthenticated && userRole === 'super_admin' ? (
+                <SuperAdminClients userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/super-admin/login" />
+              )
+            }
+          />
+
+          <Route
+            path="/super-admin/clients/:id"
+            element={
+              isAuthenticated && userRole === 'super_admin' ? (
+                <SuperAdminClientDetail userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/super-admin/login" />
               )
             }
           />

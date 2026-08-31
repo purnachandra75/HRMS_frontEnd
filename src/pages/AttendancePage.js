@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { getAttendanceRecords } from '../services/attendanceService';
-import '../styles/Dashboard.css';
+import '../styles/tailwind.css';
 import AttendanceFilters from '../components/AttendanceFilters';
 import AdminLayout from '../components/AdminLayout';
 
@@ -62,87 +62,85 @@ function AttendancePage({ userName, onLogout }) {
       title="Attendance Records"
       subtitle="Review employee attendance, filter by employee and month, and inspect daily time logs."
     >
-          {error && <div className="attendance-error">{error}</div>}
+      <div className="flex flex-col gap-5">
+        {error && (
+          <div className="rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-sm text-[#b91c1c]">{error}</div>
+        )}
 
-          {showReport ? (
-            <div className="stats-grid">
-              <div className="attendance-card">
-                <div className="stat-number">{attendanceRecords.length}</div>
-                <div className="stat-label">Total Records</div>
+        {showReport && (
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {[
+              { label: 'Total Records', value: attendanceRecords.length },
+              { label: 'Present', value: presentCount },
+              { label: 'Absent', value: absentCount },
+              { label: 'Late / Late Arrival', value: lateCount },
+            ].map((item) => (
+              <div key={item.label} className="rounded-xl border border-border/80 bg-card p-4 text-center shadow-sm">
+                <div className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">{item.value}</div>
+                <div className="mt-1 text-xs text-muted-foreground">{item.label}</div>
               </div>
-              <div className="attendance-card">
-                <div className="stat-number">{presentCount}</div>
-                <div className="stat-label">Present</div>
-              </div>
-              <div className="attendance-card">
-                <div className="stat-number">{absentCount}</div>
-                <div className="stat-label">Absent</div>
-              </div>
-              <div className="attendance-card">
-                <div className="stat-number">{lateCount}</div>
-                <div className="stat-label">Late / Late Arrival</div>
-              </div>
+            ))}
+          </div>
+        )}
+
+        <AttendanceFilters
+          searchValue={searchQuery}
+          onSearchChange={(value) => {
+            setSearchQuery(value);
+            setShowReport(false);
+          }}
+          selectedMonth={selectedMonth}
+          selectedYear={selectedYear}
+          monthOptions={months}
+          yearOptions={yearOptions}
+          onMonthChange={(value) => {
+            setSelectedMonth(value);
+            setShowReport(false);
+          }}
+          onYearChange={(value) => {
+            setSelectedYear(value);
+            setShowReport(false);
+          }}
+          onViewReport={handleViewReport}
+          showAllYears
+        />
+
+        <div className="rounded-xl border border-border/80 bg-card shadow-sm">
+          <h3 className="border-b border-border/80 px-5 py-4 text-base font-semibold text-foreground">Attendance Report</h3>
+          {!showReport ? (
+            <div className="px-5 py-6 text-sm text-muted-foreground">
+              Search an employee name, choose a month, and click <strong className="text-foreground">View Report</strong> to see the filtered attendance data.
             </div>
+          ) : loading ? (
+            <div className="px-5 py-6 text-sm text-muted-foreground">Loading attendance data...</div>
           ) : (
-            <div className="attendance-data-table" style={{ marginBottom: '24px', background: '#f8fafc' }}>
-              <div style={{ padding: '24px', color: '#475569' }}>
-                Enter employee ID or name, select a month, then click <strong>View Report</strong> to display the attendance report.
-              </div>
-            </div>
-          )}
-
-          <AttendanceFilters
-            searchValue={searchQuery}
-            onSearchChange={(value) => {
-              setSearchQuery(value);
-              setShowReport(false);
-            }}
-            selectedMonth={selectedMonth}
-            selectedYear={selectedYear}
-            monthOptions={months}
-            yearOptions={yearOptions}
-            onMonthChange={(value) => {
-              setSelectedMonth(value);
-              setShowReport(false);
-            }}
-            onYearChange={(value) => {
-              setSelectedYear(value);
-              setShowReport(false);
-            }}
-            onViewReport={handleViewReport}
-            showAllYears
-          />
-
-          <div className="attendance-data-table">
-            <h3>Attendance Report</h3>
-            {!showReport ? (
-              <div style={{ padding: '24px', color: '#475569' }}>
-                Search an employee name, choose a month, and click <strong>View Report</strong> to see the filtered attendance data.
-              </div>
-            ) : loading ? (
-              <div className="attendance-loading">Loading attendance data...</div>
-            ) : (
-              <table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left" style={{ minWidth: 720 }}>
                 <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Employee</th>
-                    <th>Date</th>
-                    <th>Check In</th>
-                    <th>Check Out</th>
-                    <th>Status</th>
+                  <tr className="border-b border-border/80 bg-muted/40">
+                    {['ID', 'Employee', 'Date', 'Check In', 'Check Out', 'Status'].map((col) => (
+                      <th key={col} className="h-11 px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                        {col}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {attendanceRecords.map((record) => (
-                    <tr key={record.id ?? `${record.employeeId}-${record.attendanceDate}`}>
-                      <td>{record.employeeId}</td>
-                      <td>{record.employeeName}</td>
-                      <td>{record.attendanceDate}</td>
-                      <td>{record.checkInTime}</td>
-                      <td>{record.checkOutTime}</td>
-                      <td>
-                        <span className={record.status === 'ABSENT' ? 'absent-badge' : 'present-badge'}>
+                    <tr key={record.id ?? `${record.employeeId}-${record.attendanceDate}`} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                      <td className="px-4 py-3 text-sm text-foreground">{record.employeeId}</td>
+                      <td className="px-4 py-3 text-sm text-foreground">{record.employeeName}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{record.attendanceDate}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{record.checkInTime}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{record.checkOutTime}</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex h-6 items-center rounded-full border px-2.5 text-[11px] font-semibold ${
+                            record.status === 'ABSENT'
+                              ? 'border-[#fecaca] bg-[#fef2f2] text-[#b91c1c]'
+                              : 'border-[#bbf7d0] bg-[#f0fdf4] text-[#15803d]'
+                          }`}
+                        >
                           {record.status}
                         </span>
                       </td>
@@ -150,15 +148,17 @@ function AttendancePage({ userName, onLogout }) {
                   ))}
                   {attendanceRecords.length === 0 && (
                     <tr>
-                      <td colSpan="6" style={{ textAlign: 'center', padding: '20px' }}>
+                      <td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">
                         No records found for the selected employee and month.
                       </td>
                     </tr>
                   )}
                 </tbody>
               </table>
-            )}
-          </div>
+            </div>
+          )}
+        </div>
+      </div>
     </AdminLayout>
   );
 }

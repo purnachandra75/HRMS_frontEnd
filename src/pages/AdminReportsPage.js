@@ -5,8 +5,7 @@ import { getLeaveRequests } from '../services/leaveService';
 import { getAttendanceReportPage } from '../services/attendanceService';
 import AdminLayout from '../components/AdminLayout';
 import { getEmploymentTypeLabel } from '../utils/reportUtils';
-import '../styles/Dashboard.css';
-import '../styles/Leave.css';
+import '../styles/tailwind.css';
 
 const toISODate = (date) => date.toISOString().split('T')[0];
 
@@ -569,164 +568,164 @@ function AdminReportsPage({ userName, onLogout }) {
 
   return (
     <AdminLayout userName={userName} onLogout={onLogout} activeItem="reports" title="Admin Reports">
+      <section className="rounded-xl border border-border/80 bg-card shadow-sm">
+        <div className="border-b border-border/80 px-5 py-4">
+          <h2 className="text-base font-semibold text-foreground">{selected?.title}</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">{selected?.description}</p>
+        </div>
 
-      <div className="reports-page-content">
-        <section className="reports-content report-body">
-            <div className="reports-content-header">
-              <h2>{selected?.title}</h2>
-              <p>{selected?.description}</p>
-            </div>
-
-            <div className="report-controls-top">
-              {selected?.hasYearFilter && (
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>
-                    Year:
-                  </label>
-                  <select
-                    value={selectedYear}
-                    onChange={(e) => {
-                      setSelectedYear(parseInt(e.target.value, 10));
-                      setCurrentPage(1);
-                    }}
-                  >
-                    {yearOptions.map((year) => (
-                      <option key={year} value={year}>
-                        {year}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {selected?.hasMonthFilter && (
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>
-                    Month:
-                  </label>
-                  <select
-                    value={selectedMonth}
-                    onChange={(e) => {
-                      setSelectedMonth(parseInt(e.target.value, 10));
-                      setCurrentPage(1);
-                    }}
-                  >
-                    {monthNames.map((name, idx) => (
-                      <option key={name} value={idx + 1}>
-                        {name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
-              {selectedReport === 'employee' && employeeReportType === 'employment' && (
-                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>
-                    Employment:
-                  </label>
-                  <select value={employmentFilter} onChange={(e) => {
-                    setEmploymentFilter(e.target.value);
-                    setCurrentPage(1);
-                  }}>
-                    <option value="all">All</option>
-                    <option value="full">Full Time</option>
-                    <option value="part">Part Time</option>
-                  </select>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <label style={{ fontSize: '13px', fontWeight: '600', color: '#333', marginRight: '4px' }}>
-                  Department:
-                </label>
-                <select value={departmentFilter} onChange={(e) => {
-                  setDepartmentFilter(e.target.value);
+        <div className="flex flex-wrap items-end gap-4 px-5 py-4">
+          {selected?.hasYearFilter && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Year:</label>
+              <select
+                value={selectedYear}
+                onChange={(e) => {
+                  setSelectedYear(parseInt(e.target.value, 10));
                   setCurrentPage(1);
-                }}>
-                  <option value="All">All</option>
-                  <option value="HR">HR</option>
-                  <option value="IT">IT</option>
-                  <option value="Non IT">Non IT</option>
-                  <option value="Admin">Admin</option>
-                </select>
-              </div>
-
-              {selected?.hasDownload && reportForDownload && (
-                <button type="button" className="create-btn" onClick={handleDownloadReport} disabled={downloading}>
-                  {downloading ? 'Exporting...' : 'Export All'}
-                </button>
-              )}
+                }}
+                className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+              >
+                {yearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
             </div>
+          )}
 
-            {loading ? (
-              <p style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
-                Loading report data...
-              </p>
-            ) : error ? (
-              <p style={{ padding: '24px', textAlign: 'center', color: '#dc2626' }}>{error}</p>
-            ) : !selected ? (
-              <p style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>Please select a report.</p>
-            ) : selected.rows.length === 0 ? (
-              <p style={{ padding: '24px', textAlign: 'center', color: '#6b7280' }}>
-                No records found for this report.
-              </p>
-            ) : (
-              <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 0' }}>
-                  <span style={{ color: '#374151', fontSize: '14px' }}>
-                    Showing {Math.min((currentPage - 1) * rowsPerPage + 1, selected.totalRows)}
-                    {' - '}
-                    {Math.min(currentPage * rowsPerPage, selected.totalRows)} of {selected.totalRows}
-                  </span>
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button
-                      type="button"
-                      className="create-btn"
-                      style={{ opacity: currentPage === 1 ? 0.5 : 1 }}
-                      disabled={currentPage === 1}
-                      onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
-                    >
-                      Previous
-                    </button>
-                    <button
-                      type="button"
-                      className="create-btn"
-                      style={{ opacity: currentPage === backendTotalPages ? 0.5 : 1 }}
-                      disabled={currentPage === backendTotalPages}
-                      onClick={() => setCurrentPage((prev) => Math.min(prev + 1, backendTotalPages))}
-                    >
-                      Next
-                    </button>
-                  </div>
-                </div>
-                <div className="reports-table-wrapper">
-                  <table className="report-table">
-                    <thead>
-                      <tr>
-                        {selected.columns.map((column) => (
-                          <th key={column}>{column}</th>
+          {selected?.hasMonthFilter && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Month:</label>
+              <select
+                value={selectedMonth}
+                onChange={(e) => {
+                  setSelectedMonth(parseInt(e.target.value, 10));
+                  setCurrentPage(1);
+                }}
+                className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+              >
+                {monthNames.map((name, idx) => (
+                  <option key={name} value={idx + 1}>
+                    {name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {selectedReport === 'employee' && employeeReportType === 'employment' && (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Employment:</label>
+              <select
+                value={employmentFilter}
+                onChange={(e) => {
+                  setEmploymentFilter(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+              >
+                <option value="all">All</option>
+                <option value="full">Full Time</option>
+                <option value="part">Part Time</option>
+              </select>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-medium text-foreground">Department:</label>
+            <select
+              value={departmentFilter}
+              onChange={(e) => {
+                setDepartmentFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+            >
+              <option value="All">All</option>
+              <option value="HR">HR</option>
+              <option value="IT">IT</option>
+              <option value="Non IT">Non IT</option>
+              <option value="Admin">Admin</option>
+            </select>
+          </div>
+
+          {selected?.hasDownload && reportForDownload && (
+            <button
+              type="button"
+              onClick={handleDownloadReport}
+              disabled={downloading}
+              className="h-9 rounded-lg bg-client px-4 text-sm font-medium text-client-foreground hover:bg-client/90 disabled:opacity-60"
+            >
+              {downloading ? 'Exporting...' : 'Export All'}
+            </button>
+          )}
+        </div>
+
+        {loading ? (
+          <p className="px-5 py-6 text-center text-sm text-muted-foreground">Loading report data...</p>
+        ) : error ? (
+          <p className="px-5 py-6 text-center text-sm text-[#b91c1c]">{error}</p>
+        ) : !selected ? (
+          <p className="px-5 py-6 text-center text-sm text-muted-foreground">Please select a report.</p>
+        ) : selected.rows.length === 0 ? (
+          <p className="px-5 py-6 text-center text-sm text-muted-foreground">No records found for this report.</p>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-3 px-5 pb-3">
+              <span className="text-sm text-muted-foreground">
+                Showing {Math.min((currentPage - 1) * rowsPerPage + 1, selected.totalRows)}
+                {' - '}
+                {Math.min(currentPage * rowsPerPage, selected.totalRows)} of {selected.totalRows}
+              </span>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  disabled={currentPage === 1}
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  className="h-8 rounded-lg border border-border bg-white px-3 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Previous
+                </button>
+                <button
+                  type="button"
+                  disabled={currentPage === backendTotalPages}
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, backendTotalPages))}
+                  className="h-8 rounded-lg border border-border bg-white px-3 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
+            <div className="overflow-x-auto border-t border-border/80">
+              <table className="w-full text-left" style={{ minWidth: 720 }}>
+                <thead>
+                  <tr className="border-b border-border/80 bg-muted/40">
+                    {selected.columns.map((column) => (
+                      <th key={column} className="h-11 whitespace-nowrap px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                        {column}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {selected.rows.map((row, index) => (
+                    <tr key={row.id || index} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{index + 1}</td>
+                      {Object.keys(row)
+                        .filter((key) => key !== 'id')
+                        .map((field) => (
+                          <td key={field} className="px-4 py-3 text-sm text-foreground">{row[field]}</td>
                         ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {selected.rows.map((row, index) => (
-                        <tr key={row.id || index}>
-                          <td>{index + 1}</td>
-                          {Object.keys(row)
-                            .filter((key) => key !== 'id')
-                            .map((field) => (
-                              <td key={field}>{row[field]}</td>
-                            ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            )}
-        </section>
-      </div>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+      </section>
     </AdminLayout>
   );
 }

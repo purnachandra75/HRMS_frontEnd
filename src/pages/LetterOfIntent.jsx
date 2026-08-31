@@ -3,6 +3,7 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import AdminLayout from "../components/AdminLayout";
 import "../App.css";
+import "../styles/tailwind.css";
 import { formatDateDDMMYYYY } from "../utils/dateFormat";
 
 import logo from "../assets/ProminentLogo.png";
@@ -408,34 +409,43 @@ function LetterOfIntent({ userName, onLogout }) {
           }
         `}</style>
 
-        <div className="page-shell offer-form-shell">
-          <section className="form-card">
-            <div className="form-header">
-              <p className="eyebrow">Essentials</p>
-              <h1>Generate Letter of Intent</h1>
-              <p className="form-description">
-                Enter candidate details, Annual CTC, and Variable Pay. The annexure salary tables are calculated automatically.
-              </p>
-            </div>
-            <form
-              className="grid-form"
-              onSubmit={(event) => {
-                event.preventDefault();
-                generatePDF();
-              }}
-            >
-              <div className="section-title">Candidate Details</div>
+        <section className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
+          <div className="mb-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.06em] text-client">Essentials</p>
+            <h1 className="text-lg font-semibold text-foreground">Generate Letter of Intent</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Enter candidate details, Annual CTC, and Variable Pay. The annexure salary tables are calculated automatically.
+            </p>
+          </div>
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              generatePDF();
+            }}
+            className="flex flex-col gap-4"
+          >
+            <div className="text-sm font-semibold text-foreground">Candidate Details</div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {fields.map(([key, label, type = "text"]) => (
-                <div className="field-group" key={key}>
-                  <label>{label}</label>
-                  <input type={type} value={form[key]} onChange={updateField(key)} placeholder={label} />
+                <div className="flex flex-col gap-1.5" key={key}>
+                  <label className="text-sm font-medium text-foreground">{label}</label>
+                  <input
+                    type={type}
+                    value={form[key]}
+                    onChange={updateField(key)}
+                    placeholder={label}
+                    className="h-9 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+                  />
                   {type === "date" && form[key] && (
-                    <div className="date-preview">Selected date: {formatDateDDMMYYYY(form[key])}</div>
+                    <div className="text-xs text-[#0f766e]">Selected date: {formatDateDDMMYYYY(form[key])}</div>
                   )}
                 </div>
               ))}
-              <div className="section-title">Salary Preview</div>
-              <div className="salary-calc-hint">Fixed Annual Pay = Annual CTC - Variable Pay</div>
+            </div>
+
+            <div className="mt-2 text-sm font-semibold text-foreground">Salary Preview</div>
+            <div className="text-xs text-muted-foreground">Fixed Annual Pay = Annual CTC - Variable Pay</div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {[
                 ["fixedAnnualPay", "Fixed Annual Pay"],
                 ["basicPay", "Basic Pay Monthly"],
@@ -443,19 +453,26 @@ function LetterOfIntent({ userName, onLogout }) {
                 ["specialAllowance", "Special Allowance Monthly"],
                 ["grossPay", "Gross Salary Monthly"],
               ].map(([key, label]) => (
-                <div className="field-group" key={key}>
-                  <label>{label}</label>
-                  <input value={formatAmount(form[key])} readOnly placeholder={label} />
+                <div className="flex flex-col gap-1.5" key={key}>
+                  <label className="text-sm font-medium text-foreground">{label}</label>
+                  <input
+                    value={formatAmount(form[key])}
+                    readOnly
+                    placeholder={label}
+                    className="h-9 rounded-lg border border-border bg-muted/40 px-3 text-sm text-foreground outline-none"
+                  />
                 </div>
               ))}
-              <div className="button-row">
-                <button className="primary-button" type="submit" disabled={isGenerating}>
-                  {isGenerating ? "Generating..." : "Generate Letter of Intent"}
-                </button>
-              </div>
-            </form>
-          </section>
-        </div>
+            </div>
+            <button
+              type="submit"
+              disabled={isGenerating}
+              className="h-9 w-fit rounded-lg bg-client px-4 text-sm font-medium text-client-foreground hover:bg-client/90 disabled:opacity-60"
+            >
+              {isGenerating ? "Generating..." : "Generate Letter of Intent"}
+            </button>
+          </form>
+        </section>
 
         <div ref={pdfRef} className="loi-pdf-root">
           <div className="loi-page">

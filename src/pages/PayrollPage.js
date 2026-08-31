@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { getAllEmployees } from '../services/employeeService';
 import { runPayroll } from '../services/payrollService';
+import { Search } from 'lucide-react';
 import AdminLayout from '../components/AdminLayout';
-import '../styles/Dashboard.css';
-import '../styles/Payroll.css';
+import '../styles/tailwind.css';
 
 function PayrollPage({ userName, onLogout }) {
   const [employees, setEmployees] = useState([]);
@@ -151,24 +151,21 @@ function PayrollPage({ userName, onLogout }) {
       }));
   }, [employees, includedEmployeeIds]);
 
-  const renderPayrollTable = (rows, emptyMessage, isIncludedList) => {
+  const renderPayrollTable = (rows, emptyMessage) => {
     if (rows.length === 0) {
-      return <p className="payroll-empty">{emptyMessage}</p>;
+      return <p className="px-5 py-6 text-sm text-muted-foreground">{emptyMessage}</p>;
     }
 
     return (
-      <div className="table-responsive">
-        <table className="employees-table payroll-table">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left" style={{ minWidth: 860 }}>
           <thead>
-            <tr>
-              <th>Include</th>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Department</th>
-              <th>Designation</th>
-              <th>Phone</th>
-              <th>Salary</th>
+            <tr className="border-b border-border/80 bg-muted/40">
+              {['Include', 'ID', 'Name', 'Email', 'Department', 'Designation', 'Phone', 'Salary'].map((col) => (
+                <th key={col} className="h-11 whitespace-nowrap px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                  {col}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -177,24 +174,22 @@ function PayrollPage({ userName, onLogout }) {
               const isIncluded = includedEmployeeIds.includes(employeeId);
 
               return (
-                <tr key={employee.id} className={!isIncluded ? 'payroll-row-excluded' : ''}>
-                  <td className="payroll-toggle-cell">
-                    <label className="payroll-toggle">
-                      <input
-                        type="checkbox"
-                        checked={isIncluded}
-                        onChange={() => handleToggleEmployee(employee.id)}
-                      />
-                      
-                    </label>
+                <tr key={employee.id} className={`border-b border-border/60 last:border-0 hover:bg-muted/30 ${!isIncluded ? 'opacity-60' : ''}`}>
+                  <td className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={isIncluded}
+                      onChange={() => handleToggleEmployee(employee.id)}
+                      className="size-4 rounded border-border accent-client"
+                    />
                   </td>
-                  <td>{employee.id}</td>
-                  <td>{`${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A'}</td>
-                  <td>{employee.email || 'N/A'}</td>
-                  <td>{employee.department || 'N/A'}</td>
-                  <td>{employee.designation || 'N/A'}</td>
-                  <td>{employee.phone || 'N/A'}</td>
-                  <td>{employee.ctc || employee.basicSalary || 'N/A'}</td>
+                  <td className="px-4 py-3 text-sm text-foreground">{employee.id}</td>
+                  <td className="px-4 py-3 text-sm text-foreground">{`${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A'}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{employee.email || 'N/A'}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{employee.department || 'N/A'}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{employee.designation || 'N/A'}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{employee.phone || 'N/A'}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{employee.ctc || employee.basicSalary || 'N/A'}</td>
                 </tr>
               );
             })}
@@ -206,164 +201,165 @@ function PayrollPage({ userName, onLogout }) {
 
   return (
     <AdminLayout userName={userName} onLogout={onLogout} activeItem="payroll" title="Payroll" subtitle="Search active employees, then use the checkbox to include or exclude them from payroll.">
+      <div className="flex flex-col gap-5">
+        <section className="grid grid-cols-3 gap-4">
+          {[
+            { label: 'Active Employees', value: activeEmployeeCount },
+            { label: 'Included', value: includedCount },
+            { label: 'Excluded', value: excludedCount },
+          ].map((item) => (
+            <div key={item.label} className="rounded-xl border border-border/80 bg-card p-4 text-center shadow-sm">
+              <div className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">{item.value}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{item.label}</div>
+            </div>
+          ))}
+        </section>
 
-          <section className="payroll-summary-grid">
-            <div className="payroll-summary-card">
-              <span>Active Employees</span>
-              <strong>{activeEmployeeCount}</strong>
+        <section className="flex flex-col gap-5">
+          <div className="flex flex-wrap items-end gap-4 rounded-xl border border-border/80 bg-card p-4 shadow-sm">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Month</label>
+              <select
+                value={selectedMonth}
+                onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+              >
+                {monthOptions.map((month, index) => (
+                  <option key={month} value={index + 1}>
+                    {month}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="payroll-summary-card">
-              <span>Included</span>
-              <strong>{includedCount}</strong>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Year</label>
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+              >
+                {yearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
             </div>
-            <div className="payroll-summary-card">
-              <span>Excluded</span>
-              <strong>{excludedCount}</strong>
-            </div>
-          </section>
+            <p className="text-sm text-muted-foreground">Uncheck a row to exclude it from payroll.</p>
+            <button
+              type="button"
+              onClick={handleRunPayroll}
+              disabled={running || includedCount === 0}
+              className="ml-auto h-9 rounded-lg bg-client px-4 text-sm font-medium text-client-foreground hover:bg-client/90 disabled:opacity-60"
+            >
+              {running ? 'Running...' : 'Run'}
+            </button>
+          </div>
 
-          <section className="payroll-section">
-            <div className="payroll-toolbar">
-              <div className="payroll-toolbar-actions">
-                <div className="payroll-period-controls">
-                  <label>
-                    Month
-                    <select value={selectedMonth} onChange={(e) => setSelectedMonth(Number(e.target.value))}>
-                      {monthOptions.map((month, index) => (
-                        <option key={month} value={index + 1}>
-                          {month}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Year
-                    <select value={selectedYear} onChange={(e) => setSelectedYear(Number(e.target.value))}>
-                      {yearOptions.map((year) => (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                <p className="payroll-note">Uncheck a row to exclude it from payroll.</p>
-                <button
-                  type="button"
-                  className="create-btn payroll-run-btn"
-                  onClick={handleRunPayroll}
-                  disabled={running || includedCount === 0}
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading payroll data...</p>
+          ) : error ? (
+            <p className="text-sm text-[#b91c1c]">{error}</p>
+          ) : (
+            <>
+              {(runError || downloadMessage) && (
+                <div
+                  className={`rounded-lg border px-3 py-2 text-sm ${
+                    runError
+                      ? 'border-[#fecaca] bg-[#fef2f2] text-[#b91c1c]'
+                      : 'border-[#bbf7d0] bg-[#f0fdf4] text-[#15803d]'
+                  }`}
                 >
-                  {running ? 'Running...' : 'Run'}
-                </button>
-              </div>
-            </div>
+                  {runError || downloadMessage}
+                </div>
+              )}
 
-            {loading ? (
-              <p className="payroll-empty">Loading payroll data...</p>
-            ) : error ? (
-              <p className="payroll-empty payroll-error">{error}</p>
-            ) : (
-              <>
-                {(runError || downloadMessage) && (
-                  <div className={`payroll-run-result ${runError ? 'payroll-run-error' : ''}`}>
-                    {runError ? (
-                      <p>{runError}</p>
-                    ) : (
-                      <p className="payroll-run-title">{downloadMessage}</p>
-                    )}
+              <div className="rounded-xl border border-border/80 bg-card shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 px-5 py-4">
+                  <div>
+                    <h3 className="text-base font-semibold text-foreground">Payroll Report</h3>
+                    <p className="mt-0.5 text-sm text-muted-foreground">
+                      Showing selected employees for {selectedMonthName} {selectedYear}.
+                    </p>
+                  </div>
+                  <span className="text-sm text-muted-foreground">{payrollReportRows.length} employees</span>
+                </div>
+
+                {payrollReportRows.length === 0 ? (
+                  <p className="px-5 py-6 text-sm text-muted-foreground">No employees selected for this payroll report.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left" style={{ minWidth: 780 }}>
+                      <thead>
+                        <tr className="border-b border-border/80 bg-muted/40">
+                          {['Employee ID', 'Employee Name', 'Month', 'Year', 'Department', 'Designation', 'Amount'].map((col) => (
+                            <th key={col} className="h-11 whitespace-nowrap px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                              {col}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {payrollReportRows.map((row) => (
+                          <tr key={`${row.id}-${selectedMonth}-${selectedYear}`} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                            <td className="px-4 py-3 text-sm text-foreground">{row.id}</td>
+                            <td className="px-4 py-3 text-sm text-foreground">{row.name}</td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">{selectedMonthName}</td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">{selectedYear}</td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">{row.department}</td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">{row.designation}</td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">{row.amount}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 )}
+              </div>
 
-                <div className="payroll-group">
-                  <div className="payroll-group-header">
-                    <div>
-                      <h3>Payroll Report</h3>
-                      <p className="payroll-report-subtitle">
-                        Showing selected employees for {selectedMonthName} {selectedYear}.
-                      </p>
-                    </div>
-                    <span>{payrollReportRows.length} employees</span>
-                  </div>
-
-                  {payrollReportRows.length === 0 ? (
-                    <p className="payroll-empty">No employees selected for this payroll report.</p>
-                  ) : (
-                    <div className="table-responsive">
-                      <table className="employees-table payroll-table payroll-report-table">
-                        <thead>
-                          <tr>
-                            <th>Employee ID</th>
-                            <th>Employee Name</th>
-                            <th>Month</th>
-                            <th>Year</th>
-                            <th>Department</th>
-                            <th>Designation</th>
-                            <th>Amount</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {payrollReportRows.map((row) => (
-                            <tr key={`${row.id}-${selectedMonth}-${selectedYear}`}>
-                              <td>{row.id}</td>
-                              <td>{row.name}</td>
-                              <td>{selectedMonthName}</td>
-                              <td>{selectedYear}</td>
-                              <td>{row.department}</td>
-                              <td>{row.designation}</td>
-                              <td>{row.amount}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+              <div className="rounded-xl border border-border/80 bg-card shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 px-5 py-4">
+                  <h3 className="text-base font-semibold text-foreground">Included Employees</h3>
+                  <span className="text-sm text-muted-foreground">{includedEmployees.length} employees</span>
                 </div>
-
-                <div className="payroll-group">
-                  <div className="payroll-group-header">
-                    <h3>Included Employees</h3>
-                    <span>{includedEmployees.length} employees</span>
-                  </div>
-                  <div className="payroll-group-search">
+                <div className="px-5 pt-4">
+                  <div className="relative max-w-md">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <input
                       type="text"
-                      className="search-input"
                       placeholder="Search by ID, name, email, department, or designation"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
+                      className="h-9 w-full rounded-lg border border-border bg-white pl-9 pr-3 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
                     />
                   </div>
-                  {renderPayrollTable(
-                    includedEmployees,
-                    'No included employees match your search.',
-                    true
-                  )}
                 </div>
+                {renderPayrollTable(includedEmployees, 'No included employees match your search.')}
+              </div>
 
-                <div className="payroll-group">
-                  <div className="payroll-group-header">
-                    <h3>Excluded Employees</h3>
-                    <span>{filteredExcludedEmployees.length} employees</span>
-                  </div>
-                  <div className="payroll-group-search">
+              <div className="rounded-xl border border-border/80 bg-card shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 px-5 py-4">
+                  <h3 className="text-base font-semibold text-foreground">Excluded Employees</h3>
+                  <span className="text-sm text-muted-foreground">{filteredExcludedEmployees.length} employees</span>
+                </div>
+                <div className="px-5 pt-4">
+                  <div className="relative max-w-md">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <input
                       type="text"
-                      className="search-input"
                       placeholder="Search excluded employees"
                       value={excludedSearchQuery}
                       onChange={(e) => setExcludedSearchQuery(e.target.value)}
+                      className="h-9 w-full rounded-lg border border-border bg-white pl-9 pr-3 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
                     />
                   </div>
-                  {renderPayrollTable(
-                    filteredExcludedEmployees,
-                    'No excluded employees match your search.',
-                    false
-                  )}
                 </div>
-              </>
-            )}
-          </section>
+                {renderPayrollTable(filteredExcludedEmployees, 'No excluded employees match your search.')}
+              </div>
+            </>
+          )}
+        </section>
+      </div>
     </AdminLayout>
   );
 }

@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { getPayrollReport, updatePayrollStatus, updatePayslipMode, uploadManualPayslip } from '../services/payrollService';
+import { Search } from 'lucide-react';
 import AdminLayout from '../components/AdminLayout';
-import '../styles/Dashboard.css';
-import '../styles/Payroll.css';
+import '../styles/tailwind.css';
 
 const formatCurrency = (amount) =>
   new Intl.NumberFormat('en-IN', {
@@ -229,28 +229,23 @@ function PayrollReportPage({ userName, onLogout }) {
 
   const renderPayrollReport = () => {
     if (!reportLoaded) {
-      return <p className="payroll-empty">Select month and year, then click Report to load payroll records.</p>;
+      return <p className="px-5 py-6 text-sm text-muted-foreground">Select month and year, then click Report to load payroll records.</p>;
     }
 
     if (payrollReportRows.length === 0) {
-      return <p className="payroll-empty">No payroll records found for this month and year.</p>;
+      return <p className="px-5 py-6 text-sm text-muted-foreground">No payroll records found for this month and year.</p>;
     }
 
     return (
-      <div className="table-responsive">
-        <table className="employees-table payroll-table payroll-report-table">
+      <div className="overflow-x-auto">
+        <table className="w-full text-left" style={{ minWidth: 1000 }}>
           <thead>
-            <tr>
-              <th>Employee ID</th>
-              <th>Employee Name</th>
-              <th>Month</th>
-              <th>Year</th>
-              <th>Department</th>
-              <th>Designation</th>
-              <th>Amount</th>
-              <th>Status</th>
-              <th>Action</th>
-              <th>Payslip</th>
+            <tr className="border-b border-border/80 bg-muted/40">
+              {['Employee ID', 'Employee Name', 'Month', 'Year', 'Department', 'Designation', 'Amount', 'Status', 'Action', 'Payslip'].map((col) => (
+                <th key={col} className="h-11 whitespace-nowrap px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                  {col}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -261,54 +256,56 @@ function PayrollReportPage({ userName, onLogout }) {
               const isPayslipUpdating = payslipUpdatingKey === rowKey;
 
               return (
-                <tr key={rowKey}>
-                  <td>{row.employeeId || 'N/A'}</td>
-                  <td>{row.employeeName}</td>
-                  <td>{monthOptions[Number(row.month) - 1] || row.month}</td>
-                  <td>{row.year}</td>
-                  <td>{row.department}</td>
-                  <td>{row.designation}</td>
-                  <td>{formatCurrency(row.amount)}</td>
-                  <td>
+                <tr key={rowKey} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                  <td className="px-4 py-3 text-sm text-foreground">{row.employeeId || 'N/A'}</td>
+                  <td className="px-4 py-3 text-sm text-foreground">{row.employeeName}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{monthOptions[Number(row.month) - 1] || row.month}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{row.year}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{row.department}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{row.designation}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{formatCurrency(row.amount)}</td>
+                  <td className="px-4 py-3">
                     <span
-                      className={`payroll-status-badge ${
+                      className={`inline-flex h-6 items-center rounded-full border px-2.5 text-[11px] font-semibold ${
                         isCredited
-                          ? 'payroll-status-credited'
-                          : 'payroll-status-pending'
+                          ? 'border-[#bbf7d0] bg-[#f0fdf4] text-[#15803d]'
+                          : 'border-[#fde68a] bg-[#fffbeb] text-[#b45309]'
                       }`}
                     >
                       {row.status}
                     </span>
                   </td>
-                  <td>
+                  <td className="px-4 py-3">
                     <button
                       type="button"
-                      className="payroll-action-btn"
                       onClick={() => handlePayrollStatusUpdate(row)}
                       disabled={isUpdating || isCredited}
+                      className="rounded-md border border-border bg-white px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       {isUpdating ? 'Updating...' : isCredited ? 'Credited' : 'Update'}
                     </button>
                   </td>
-                  <td>
-                    <label className="payroll-toggle">
+                  <td className="px-4 py-3">
+                    <label className="flex items-center gap-1.5 text-xs text-foreground">
                       <input
                         type="checkbox"
                         checked={row.manualPayslip}
                         disabled={isPayslipUpdating}
                         onChange={() => handlePayslipModeToggle(row)}
+                        className="size-4 rounded border-border accent-client"
                       />
                       Manual Upload
                     </label>
                     {row.manualPayslip && (
-                      <div className="payroll-payslip-upload">
+                      <div className="mt-1.5 flex items-center gap-2">
                         <input
                           type="file"
                           disabled={isPayslipUpdating}
                           onChange={(e) => handlePayslipFileUpload(row, e.target.files[0])}
+                          className="max-w-[160px] text-xs text-muted-foreground"
                         />
                         {row.hasPayslipFile && (
-                          <span className="payroll-payslip-uploaded">Uploaded</span>
+                          <span className="text-xs font-medium text-[#15803d]">Uploaded</span>
                         )}
                       </div>
                     )}
@@ -324,94 +321,96 @@ function PayrollReportPage({ userName, onLogout }) {
 
   return (
     <AdminLayout userName={userName} onLogout={onLogout} activeItem="payroll-report" title="Employee Payroll List" subtitle="Filter payroll records by month and year, then update the status after the amount is credited.">
+      <div className="flex flex-col gap-5">
+        <section className="grid grid-cols-3 gap-4">
+          {[
+            { label: 'Records', value: payrollReportRows.length },
+            { label: 'Pending', value: pendingCount },
+            { label: 'Amount Credited', value: creditedCount },
+          ].map((item) => (
+            <div key={item.label} className="rounded-xl border border-border/80 bg-card p-4 text-center shadow-sm">
+              <div className="text-2xl font-semibold tabular-nums tracking-tight text-foreground">{item.value}</div>
+              <div className="mt-1 text-xs text-muted-foreground">{item.label}</div>
+            </div>
+          ))}
+        </section>
 
-          <section className="payroll-summary-grid">
-            <div className="payroll-summary-card">
-              <span>Records</span>
-              <strong>{payrollReportRows.length}</strong>
+        <section className="flex flex-col gap-5">
+          <div className="flex flex-wrap items-end gap-4 rounded-xl border border-border/80 bg-card p-4 shadow-sm">
+            <div className="relative max-w-md flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Search by ID, name, email, department, or designation"
+                value={searchQuery}
+                onChange={(event) => setSearchQuery(event.target.value)}
+                className="h-9 w-full rounded-lg border border-border bg-white pl-9 pr-3 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+              />
             </div>
-            <div className="payroll-summary-card">
-              <span>Pending</span>
-              <strong>{pendingCount}</strong>
-            </div>
-            <div className="payroll-summary-card">
-              <span>Amount Credited</span>
-              <strong>{creditedCount}</strong>
-            </div>
-          </section>
 
-          <section className="payroll-section">
-            <div className="payroll-toolbar">
-              <div className="header-left">
-                <div className="search-bar payroll-search-bar">
-                  <input
-                    type="text"
-                    className="search-input"
-                    placeholder="Search by ID, name, email, department, or designation"
-                    value={searchQuery}
-                    onChange={(event) => setSearchQuery(event.target.value)}
-                  />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Month</label>
+              <select
+                value={selectedMonth}
+                onChange={(event) => setSelectedMonth(Number(event.target.value))}
+                className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+              >
+                {monthOptions.map((month, index) => (
+                  <option key={month} value={index + 1}>
+                    {month}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">Year</label>
+              <select
+                value={selectedYear}
+                onChange={(event) => setSelectedYear(Number(event.target.value))}
+                className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+              >
+                {yearOptions.map((year) => (
+                  <option key={year} value={year}>
+                    {year}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={handleLoadReport}
+              disabled={loading}
+              className="h-9 rounded-lg bg-client px-4 text-sm font-medium text-client-foreground hover:bg-client/90 disabled:opacity-60"
+            >
+              {loading ? 'Loading...' : 'Report'}
+            </button>
+          </div>
+
+          {error && (
+            <div className="rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-sm text-[#b91c1c]">{error}</div>
+          )}
+          {statusMessage && (
+            <div className="rounded-lg border border-[#bbf7d0] bg-[#f0fdf4] px-3 py-2 text-sm text-[#15803d]">{statusMessage}</div>
+          )}
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading payroll report...</p>
+          ) : (
+            <div className="rounded-xl border border-border/80 bg-card shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 px-5 py-4">
+                <div>
+                  <h3 className="text-base font-semibold text-foreground">Payroll Report</h3>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    Showing employee payroll records for {selectedMonthName} {selectedYear}.
+                  </p>
                 </div>
+                <span className="text-sm text-muted-foreground">{payrollReportRows.length} employees</span>
               </div>
-
-              <div className="payroll-toolbar-actions">
-                <div className="payroll-period-controls">
-                  <label>
-                    Month
-                    <select value={selectedMonth} onChange={(event) => setSelectedMonth(Number(event.target.value))}>
-                      {monthOptions.map((month, index) => (
-                        <option key={month} value={index + 1}>
-                          {month}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label>
-                    Year
-                    <select value={selectedYear} onChange={(event) => setSelectedYear(Number(event.target.value))}>
-                      {yearOptions.map((year) => (
-                        <option key={year} value={year}>
-                          {year}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                </div>
-                <button
-                  type="button"
-                  className="create-btn payroll-run-btn"
-                  onClick={handleLoadReport}
-                  disabled={loading}
-                >
-                  {loading ? 'Loading...' : 'Report'}
-                </button>
-              </div>
+              {renderPayrollReport()}
             </div>
-
-            {error && <p className="payroll-empty payroll-error">{error}</p>}
-            {statusMessage && (
-              <div className="payroll-run-result">
-                <p className="payroll-run-title">{statusMessage}</p>
-              </div>
-            )}
-            {loading ? (
-              <p className="payroll-empty">Loading payroll report...</p>
-            ) : (
-              <div className="payroll-group">
-                <div className="payroll-group-header">
-                  <div>
-                    <h3>Payroll Report</h3>
-                    <p className="payroll-report-subtitle">
-                      Showing employee payroll records for {selectedMonthName} {selectedYear}.
-                    </p>
-                  </div>
-                  <span>{payrollReportRows.length} employees</span>
-                </div>
-                {renderPayrollReport()}
-              </div>
-            )}
-              </section>
-            </AdminLayout>
+          )}
+        </section>
+      </div>
+    </AdminLayout>
   );
 }
 

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { loginUser } from '../services/authService';
-import '../styles/Auth.css';
+import AuthCard from '../components/auth/AuthCard';
+import { AuthField, AuthError, AuthSubmitButton, AuthLinkRow } from '../components/auth/AuthFormElements';
 
 function Login({ onLogin }) {
   const [email, setEmail] = useState('');
@@ -38,46 +39,35 @@ function Login({ onLogin }) {
   };
 
   return (
-    <div className="auth-container">
-      <div className="auth-card">
-        <h1>Employee Management System</h1>
-        <h2>Login</h2>
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label htmlFor="email">Email:</label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              placeholder="Enter your email"
-            />
-          </div>
-          <div className="form-group">
-            <label htmlFor="password">Password:</label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="Enter your password"
-            />
-          </div>
-          {error && <div className="error-message">{error}</div>}
-          <button type="submit" disabled={loading} className="submit-btn">
-            {loading ? 'Logging in...' : 'Login'}
-          </button>
-        </form>
-        <p className="auth-link">
-          <Link to="/forgot-password">Forgot password?</Link>
-        </p>
-        <p className="auth-link">
-          Don't have an account? <Link to="/register">Register here</Link>
-        </p>
-      </div>
-    </div>
+    <AuthCard title="Login">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <AuthField
+          label="Email"
+          type="email"
+          id="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+          placeholder="Enter your email"
+        />
+        <AuthField
+          label="Password"
+          type="password"
+          id="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          placeholder="Enter your password"
+        />
+        <AuthError>{error}</AuthError>
+        <AuthSubmitButton disabled={loading}>{loading ? 'Logging in...' : 'Login'}</AuthSubmitButton>
+      </form>
+      <AuthLinkRow>
+        <Link to="/forgot-password" className="text-primary hover:underline">
+          Forgot password?
+        </Link>
+      </AuthLinkRow>
+    </AuthCard>
   );
 }
 

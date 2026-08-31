@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Download } from 'lucide-react';
 import { getAllEmployees } from '../services/employeeService';
 import AdminLayout from '../components/AdminLayout';
-import '../styles/Dashboard.css';
-import '../styles/Leave.css';
+import '../styles/tailwind.css';
 
 function SalaryReportPage({ userName, onLogout }) {
   const [employees, setEmployees] = useState([]);
@@ -60,53 +60,62 @@ function SalaryReportPage({ userName, onLogout }) {
 
   return (
     <AdminLayout userName={userName} onLogout={onLogout} activeItem="salary-report" title="Employee Salary Report">
-      <main className="dashboard-main">
-        <div className="dashboard-cards" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: '30px' }}>
-          <div className="dashboard-card clickable" onClick={() => navigate('/admin')}>
-            <h3>Back to Admin Dashboard</h3>
-            <p>Return to the main admin panel.</p>
-          </div>
-          <div className="dashboard-card">
-            <h3>Download Report</h3>
-            <p>Export the salary report for all employees.</p>
-            <button type="button" className="create-btn" onClick={downloadSalaryReport}>
+      <div className="flex flex-col gap-5">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <button
+            onClick={() => navigate('/admin')}
+            className="flex flex-col items-start gap-1 rounded-xl border border-border/80 bg-card p-4 text-left shadow-sm hover:shadow-md"
+          >
+            <h3 className="text-sm font-semibold text-foreground">Back to Admin Dashboard</h3>
+            <p className="text-sm text-muted-foreground">Return to the main admin panel.</p>
+          </button>
+          <div className="rounded-xl border border-border/80 bg-card p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-foreground">Download Report</h3>
+            <p className="mt-1 text-sm text-muted-foreground">Export the salary report for all employees.</p>
+            <button
+              type="button"
+              onClick={downloadSalaryReport}
+              className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-lg bg-client px-3 text-sm font-medium text-client-foreground hover:bg-client/90"
+            >
+              <Download className="size-4" />
               Download Excel Sheet
             </button>
           </div>
         </div>
 
-        <section className="employees-section">
-          <div className="employees-header">
-            <div>
-              <h2>Salary Report</h2>
-              <p>{employeeRecords.length} employee{employeeRecords.length === 1 ? '' : 's'} included in this report.</p>
-            </div>
+        <section className="rounded-xl border border-border/80 bg-card shadow-sm">
+          <div className="border-b border-border/80 px-5 py-4">
+            <h2 className="text-base font-semibold text-foreground">Salary Report</h2>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              {employeeRecords.length} employee{employeeRecords.length === 1 ? '' : 's'} included in this report.
+            </p>
           </div>
 
           {loading ? (
-            <p>Loading salary data...</p>
+            <p className="px-5 py-6 text-sm text-muted-foreground">Loading salary data...</p>
           ) : error ? (
-            <p>{error}</p>
+            <p className="px-5 py-6 text-sm text-[#b91c1c]">{error}</p>
           ) : employeeRecords.length === 0 ? (
-            <p>No employee salary data available.</p>
+            <p className="px-5 py-6 text-sm text-muted-foreground">No employee salary data available.</p>
           ) : (
-            <div className="table-responsive">
-              <table className="report-table">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left" style={{ minWidth: 500 }}>
                 <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Employee Name</th>
-                    <th>Department</th>
-                    <th>Salary</th>
+                  <tr className="border-b border-border/80 bg-muted/40">
+                    {['#', 'Employee Name', 'Department', 'Salary'].map((col) => (
+                      <th key={col} className="h-11 px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                        {col}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
                   {employeeRecords.map((employee, index) => (
-                    <tr key={employee.id || index}>
-                      <td>{index + 1}</td>
-                      <td>{employee.name}</td>
-                      <td>{employee.department}</td>
-                      <td>{employee.salary}</td>
+                    <tr key={employee.id || index} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{index + 1}</td>
+                      <td className="px-4 py-3 text-sm text-foreground">{employee.name}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{employee.department}</td>
+                      <td className="px-4 py-3 text-sm text-muted-foreground">{employee.salary}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -114,7 +123,7 @@ function SalaryReportPage({ userName, onLogout }) {
             </div>
           )}
         </section>
-      </main>
+      </div>
     </AdminLayout>
   );
 }

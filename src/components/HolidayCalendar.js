@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { getHolidays } from '../services/holidayService';
+import '../styles/tailwind.css';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -72,31 +74,47 @@ export default function HolidayCalendar({ refreshKey = 0 } = {}) {
   const selectedHoliday = selectedDate ? holidaysByDate[selectedDate] : null;
 
   return (
-    <div className="holiday-calendar">
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
-        <button type="button" className="small-button" onClick={goPrevMonth}>‹ Prev</button>
-        <h3 style={{ margin: 0 }}>{MONTH_NAMES[month]} {year}</h3>
-        <div>
-          <button type="button" className="small-button" onClick={goToday} style={{ marginRight: '8px' }}>Today</button>
-          <button type="button" className="small-button" onClick={goNextMonth}>Next ›</button>
+    <div className="rounded-xl border border-border/80 bg-card p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={goPrevMonth}
+          className="inline-flex items-center gap-1 rounded-lg border border-border bg-white px-2.5 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
+        >
+          <ChevronLeft className="size-4" />
+          Prev
+        </button>
+        <h3 className="text-base font-semibold text-foreground">
+          {MONTH_NAMES[month]} {year}
+        </h3>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={goToday}
+            className="rounded-lg border border-border bg-white px-2.5 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
+          >
+            Today
+          </button>
+          <button
+            type="button"
+            onClick={goNextMonth}
+            className="inline-flex items-center gap-1 rounded-lg border border-border bg-white px-2.5 py-1.5 text-sm font-medium text-foreground hover:bg-muted"
+          >
+            Next
+            <ChevronRight className="size-4" />
+          </button>
         </div>
       </div>
 
       {loading ? (
-        <p>Loading calendar...</p>
+        <p className="text-sm text-muted-foreground">Loading calendar...</p>
       ) : (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+          <div className="grid grid-cols-7 gap-1">
             {DAY_NAMES.map((d, i) => (
               <div
                 key={d}
-                style={{
-                  textAlign: 'center',
-                  fontWeight: 600,
-                  fontSize: '12px',
-                  padding: '4px',
-                  color: (i === 0 || i === 6) ? '#dc2626' : '#475569',
-                }}
+                className={`p-1 text-center text-xs font-semibold ${i === 0 || i === 6 ? 'text-red-600' : 'text-muted-foreground'}`}
               >
                 {d}
               </div>
@@ -115,50 +133,39 @@ export default function HolidayCalendar({ refreshKey = 0 } = {}) {
                   key={idx}
                   onClick={() => cell.inMonth && isHoliday && setSelectedDate(cell.iso)}
                   title={holiday ? holiday.title : undefined}
-                  style={{
-                    minHeight: '64px',
-                    padding: '6px',
-                    borderRadius: '6px',
-                    border: isToday ? '2px solid #4f46e5' : '1px solid #e5e7eb',
-                    outline: isSelected ? '2px solid #4f46e5' : 'none',
-                    background: !cell.inMonth ? '#f8fafc' : isHoliday ? '#fee2e2' : '#fff',
-                    color: !cell.inMonth ? '#cbd5e1' : isRed ? '#dc2626' : '#1f2937',
-                    cursor: cell.inMonth && isHoliday ? 'pointer' : 'default',
-                  }}
+                  className={`min-h-16 rounded-md border p-1.5 ${
+                    isToday ? 'border-2 border-client' : 'border-border'
+                  } ${isSelected ? 'ring-2 ring-client' : ''} ${
+                    !cell.inMonth ? 'bg-muted/40' : isHoliday ? 'bg-red-50' : 'bg-white'
+                  } ${!cell.inMonth ? 'text-muted-foreground/50' : isRed ? 'text-red-600' : 'text-foreground'} ${
+                    cell.inMonth && isHoliday ? 'cursor-pointer' : ''
+                  }`}
                 >
-                  <div style={{ fontWeight: isToday ? 700 : 500 }}>{cell.day}</div>
+                  <div className={isToday ? 'font-bold' : 'font-medium'}>{cell.day}</div>
                   {isHoliday && (
-                    <div
-                      style={{
-                        fontSize: '11px',
-                        marginTop: '4px',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {holiday.title}
-                    </div>
+                    <div className="mt-1 truncate text-[11px]">{holiday.title}</div>
                   )}
                 </div>
               );
             })}
           </div>
 
-          <div style={{ marginTop: '16px' }}>
+          <div className="mt-4">
             {selectedHoliday ? (
-              <div style={{ padding: '12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '8px' }}>
-                <strong>{selectedHoliday.title}</strong>
+              <div className="rounded-lg border border-[#fecaca] bg-[#fef2f2] p-3">
+                <strong className="text-foreground">{selectedHoliday.title}</strong>
                 {' - '}
-                {new Date(selectedHoliday.date).toLocaleDateString(undefined, {
-                  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-                })}
+                <span className="text-foreground">
+                  {new Date(selectedHoliday.date).toLocaleDateString(undefined, {
+                    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                  })}
+                </span>
                 {selectedHoliday.description && (
-                  <p style={{ margin: '6px 0 0', color: '#7f1d1d' }}>{selectedHoliday.description}</p>
+                  <p className="mt-1.5 text-sm text-[#7f1d1d]">{selectedHoliday.description}</p>
                 )}
               </div>
             ) : (
-              <p style={{ color: '#94a3b8', fontSize: '13px' }}>
+              <p className="text-xs text-muted-foreground">
                 Click a highlighted date to see the reason for the holiday.
               </p>
             )}
