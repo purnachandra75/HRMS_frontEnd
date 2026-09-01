@@ -10,6 +10,7 @@ import {
   PartyPopper,
   BarChart3,
   FileText,
+  Ticket,
   ChevronLeft,
   ChevronRight,
   ChevronDown,
@@ -119,6 +120,7 @@ function EmployeeLayout({ userName, onLogout, activeItem, title, subtitle, child
             )}
             <NavButton icon={NotebookPen} label="Daily Timesheet" active={activeItem === 'timesheet'} collapsed={collapsed} onClick={() => go('/employee/timesheet')} />
             <NavButton icon={PartyPopper} label="Holidays" active={activeItem === 'holidays'} collapsed={collapsed} onClick={() => go('/employee/holidays')} />
+            <NavButton icon={Ticket} label="Raise Ticket" active={activeItem === 'tickets'} collapsed={collapsed} onClick={() => go('/employee/tickets')} />
 
             <hr className="my-2 border-white/10" />
 

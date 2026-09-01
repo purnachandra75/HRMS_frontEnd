@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { loginUser } from '../services/authService';
+import { superAdminLogin } from '../services/superAdminService';
 import AuthCard from '../components/auth/AuthCard';
 import { AuthField, AuthError, AuthSubmitButton, AuthLinkRow } from '../components/auth/AuthFormElements';
 
@@ -25,12 +26,24 @@ function Login({ onLogin }) {
         // user straight back to /login.
         sessionStorage.setItem('pendingOtp', JSON.stringify({ userId: response.userId, email: response.email }));
         navigate('/verify-otp', { state: { userId: response.userId, email: response.email } });
-      } else if (response.success) {
+        return;
+      }
+      if (response.success) {
         onLogin(response.userId, response.role, response.name, response.token);
         navigate(response.role === 'admin' ? '/admin' : '/employee');
-      } else {
-        setError(response.message || 'Login failed');
+        return;
       }
+
+      // Not an employee/admin account - this is the same login form super admins use, so
+      // fall back to the super admin credentials check before reporting failure.
+      const superAdminResponse = await superAdminLogin(email, password);
+      if (superAdminResponse.success) {
+        onLogin(superAdminResponse.userId, superAdminResponse.role, superAdminResponse.name, superAdminResponse.token);
+        navigate('/super-admin/dashboard');
+        return;
+      }
+
+      setError(response.message || 'Login failed');
     } catch (err) {
       setError('An error occurred during login');
     } finally {

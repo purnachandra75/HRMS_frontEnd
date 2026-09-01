@@ -20,6 +20,8 @@ import PayrollReportPage from './pages/PayrollReportPage';
 import AdminHolidaysPage from './pages/AdminHolidaysPage';
 import TeamStructurePage from './pages/TeamStructurePage';
 import AdminTimesheetsPage from './pages/AdminTimesheetsPage';
+import AdminTicketsPage from './pages/AdminTicketsPage';
+import EmployeeTicketsPage from './pages/EmployeeTicketsPage';
 import MyTeamPage from './pages/MyTeamPage';
 import TimesheetPage from './pages/TimesheetPage';
 import EmployeeHolidaysPage from './pages/EmployeeHolidaysPage';
@@ -28,7 +30,6 @@ import OfferLetterForm from './OfferLetterForm';
 import ExperienceLetter from './pages/ExperienceLetter';
 import RelievingLetter from './pages/RelievingLetter';
 import LetterOfIntent from './pages/LetterOfIntent';
-import SuperAdminLogin from './pages/SuperAdmin/SuperAdminLogin';
 import SuperAdminDashboard from './pages/SuperAdmin/SuperAdminDashboard';
 import SuperAdminClients from './pages/SuperAdmin/SuperAdminClients';
 import SuperAdminClientDetail from './pages/SuperAdmin/SuperAdminClientDetail';
@@ -216,6 +217,17 @@ function App() {
           />
 
           <Route
+            path="/admin/tickets"
+            element={
+              isAuthenticated && userRole === 'admin' ? (
+                <AdminTicketsPage userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+
+          <Route
             path="/admin/salary-report"
             element={
               isAuthenticated && userRole === 'admin' ? (
@@ -325,6 +337,17 @@ function App() {
             element={
               isAuthenticated && userRole === 'employee' ? (
                 <EmployeeLeaveRequestPage userId={userId} userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+
+          <Route
+            path="/employee/tickets"
+            element={
+              isAuthenticated && userRole === 'employee' ? (
+                <EmployeeTicketsPage userId={userId} userName={userName} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/login" />
               )
@@ -445,16 +468,9 @@ function App() {
             }
           />
 
-          <Route
-            path="/super-admin/login"
-            element={
-              isAuthenticated && VALID_ROLES.includes(userRole) ? (
-                <Navigate to={homeRouteForRole(userRole)} />
-              ) : (
-                <SuperAdminLogin onLogin={handleLogin} />
-              )
-            }
-          />
+          {/* Old bookmarks/links to the retired dedicated super admin login page land on the
+              shared /login form instead - it now detects super admin credentials itself. */}
+          <Route path="/super-admin/login" element={<Navigate to="/login" />} />
 
           <Route
             path="/super-admin/dashboard"
@@ -462,7 +478,7 @@ function App() {
               isAuthenticated && userRole === 'super_admin' ? (
                 <SuperAdminDashboard userName={userName} onLogout={handleLogout} />
               ) : (
-                <Navigate to="/super-admin/login" />
+                <Navigate to="/login" />
               )
             }
           />
@@ -473,7 +489,7 @@ function App() {
               isAuthenticated && userRole === 'super_admin' ? (
                 <SuperAdminClients userName={userName} onLogout={handleLogout} />
               ) : (
-                <Navigate to="/super-admin/login" />
+                <Navigate to="/login" />
               )
             }
           />
@@ -484,7 +500,7 @@ function App() {
               isAuthenticated && userRole === 'super_admin' ? (
                 <SuperAdminClientDetail userName={userName} onLogout={handleLogout} />
               ) : (
-                <Navigate to="/super-admin/login" />
+                <Navigate to="/login" />
               )
             }
           />

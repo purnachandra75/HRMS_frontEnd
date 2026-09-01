@@ -11,6 +11,7 @@ import {
   Wallet,
   FileBarChart,
   Wrench,
+  Ticket,
   UserPlus,
   ChevronLeft,
   ChevronRight,
@@ -230,6 +231,7 @@ export default function AdminLayout({ userName, onLogout, activeItem, title, sub
         <NavButton icon={Wallet} label="Payroll" active={activeItem === 'payroll'} collapsed={collapsed} onClick={() => go('/admin/payroll')} />
         <NavButton icon={FileBarChart} label="Payroll Report" active={activeItem === 'payroll-report'} collapsed={collapsed} onClick={() => go('/admin/payroll-report')} />
         <NavButton icon={Wrench} label="Essentials" active={activeItem === 'essentials'} collapsed={collapsed} onClick={() => go('/admin/essentials')} />
+        <NavButton icon={Ticket} label="Tickets" active={activeItem === 'tickets'} collapsed={collapsed} onClick={() => go('/admin/tickets')} />
 
         <hr className="my-2 border-white/10" />
         <NavButton icon={UserPlus} label="Create Employee" active={false} collapsed={collapsed} onClick={() => go('/admin/employee/new')} />

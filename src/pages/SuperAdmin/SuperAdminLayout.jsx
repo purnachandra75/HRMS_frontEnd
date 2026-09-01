@@ -19,7 +19,7 @@ export default function SuperAdminLayout({ userName, onLogout, children }) {
 
   const handleLogout = () => {
     if (typeof onLogout === 'function') onLogout();
-    navigate('/super-admin/login');
+    navigate('/login');
   };
 
   const initials = (userName || 'SA')

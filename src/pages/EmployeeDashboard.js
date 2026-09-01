@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserCircle, CheckSquare, CalendarDays, NotebookPen, FileText } from 'lucide-react';
+import { UserCircle, CheckSquare, CalendarDays, NotebookPen, FileText, Ticket } from 'lucide-react';
 import EmployeeLayout from '../components/EmployeeLayout';
 import '../styles/tailwind.css';
 
@@ -40,6 +40,13 @@ const CARDS = [
     description: 'Generate your payslip after payroll amount is credited.',
     path: '/employee/payslip',
   },
+  {
+    key: 'tickets',
+    icon: Ticket,
+    title: 'Raise a Ticket',
+    description: 'Send a request or report an issue to your HR admin.',
+    path: '/employee/tickets',
+  },
 ];
 
 const WHAT_YOU_CAN_DO = [
@@ -50,6 +57,7 @@ const WHAT_YOU_CAN_DO = [
   'Submit leave requests',
   'Track your work hours',
   'Generate your credited payroll payslip',
+  'Raise tickets to your HR admin',
 ];
 
 function EmployeeDashboard({ userName, userId, onLogout }) {
