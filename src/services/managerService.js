@@ -78,3 +78,26 @@ export const getMyWeeklyReports = async () => {
   }
   return { forbidden: false, reports: await response.json() };
 };
+
+// A PM's monthly 1-5 rating + comments for one team member. Resubmitting for the same
+// employee+month updates the existing report server-side rather than creating a new one.
+export const submitPerformanceReport = async ({ empId, month, year, rating, comments }) => {
+  const response = await apiFetch(`${API_BASE_URL}/api/manager/performance-reports`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ empId, month, year, rating, comments }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || 'Failed to submit performance report');
+  }
+  return data;
+};
+
+export const getMyPerformanceReports = async () => {
+  const response = await apiFetch(`${API_BASE_URL}/api/manager/performance-reports`);
+  if (!response.ok) {
+    return { forbidden: true, reports: [] };
+  }
+  return { forbidden: false, reports: await response.json() };
+};

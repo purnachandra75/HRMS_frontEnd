@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { getAllEmployees } from '../services/employeeService';
-import { runPayroll } from '../services/payrollService';
+import { runPayroll, getProcessedEmployeeIds } from '../services/payrollService';
 import { Search } from 'lucide-react';
 import AdminLayout from '../components/AdminLayout';
 import '../styles/tailwind.css';
@@ -12,6 +12,8 @@ function PayrollPage({ userName, onLogout }) {
   const [excludedSearchQuery, setExcludedSearchQuery] = useState('');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [variablePayByEmployeeId, setVariablePayByEmployeeId] = useState({}); // employeeId -> string
+  const [processedEmployeeIds, setProcessedEmployeeIds] = useState([]); // already have payroll for the selected month/year - locked out
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [running, setRunning] = useState(false);
@@ -42,6 +44,25 @@ function PayrollPage({ userName, onLogout }) {
     loadEmployees();
   }, []);
 
+  // Whoever already has a payroll row for the selected month/year is locked out below via
+  // effectiveIncludedIds - re-checked whenever the month/year changes, and again after a run
+  // completes (see handleRunPayroll) so the same employees can't be processed twice in one
+  // sitting without switching away from the month and back.
+  const loadProcessedEmployeeIds = async () => {
+    try {
+      const ids = await getProcessedEmployeeIds({ month: selectedMonth, year: selectedYear });
+      setProcessedEmployeeIds((Array.isArray(ids) ? ids : []).map(String));
+    } catch (err) {
+      console.error('Failed to check already-processed employees:', err);
+      setProcessedEmployeeIds([]);
+    }
+  };
+
+  useEffect(() => {
+    loadProcessedEmployeeIds();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedMonth, selectedYear]);
+
   const handleToggleEmployee = (employeeId) => {
     const key = String(employeeId);
     setIncludedEmployeeIds((current) =>
@@ -51,15 +72,20 @@ function PayrollPage({ userName, onLogout }) {
     );
   };
 
+  const handleVariablePayChange = (employeeId, value) => {
+    setVariablePayByEmployeeId((current) => ({ ...current, [String(employeeId)]: value }));
+  };
+
   const handleRunPayroll = async () => {
     const employeesForPayroll = employees.filter((employee) =>
-      includedEmployeeIds.includes(String(employee.id))
+      effectiveIncludedIds.includes(String(employee.id))
     );
 
     const payload = {
       employees: employeesForPayroll.map((employee) => ({
         employeeId: employee.id,
         employeeName: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
+        variablePay: Number(variablePayByEmployeeId[String(employee.id)]) || 0,
       })),
       month: selectedMonth,
       year: selectedYear,
@@ -80,6 +106,9 @@ function PayrollPage({ userName, onLogout }) {
       link.remove();
       setTimeout(() => window.URL.revokeObjectURL(downloadUrl), 1000);
       setDownloadMessage('Payroll Excel generated and downloaded successfully.');
+      // The employees just processed must be locked out immediately - otherwise running
+      // payroll again in the same sitting (without switching months) would re-process them.
+      await loadProcessedEmployeeIds();
     } catch (err) {
       console.error('Failed to run payroll:', err);
       setRunError(err.message || 'Failed to run payroll');
@@ -104,16 +133,24 @@ function PayrollPage({ userName, onLogout }) {
     ].some((field) => field?.toString().toLowerCase().includes(query));
   };
 
+  // Manually-toggled inclusion, minus anyone already processed for the selected month/year -
+  // computed rather than mutated into includedEmployeeIds directly, so there's no race between
+  // the employee-list load and the processed-ids check finishing in either order.
+  const effectiveIncludedIds = useMemo(
+    () => includedEmployeeIds.filter((id) => !processedEmployeeIds.includes(id)),
+    [includedEmployeeIds, processedEmployeeIds]
+  );
+
   // Included/excluded employees are split from the full roster first, so the two
   // search boxes stay independent - text typed in one can't hide results in the other.
   const includedEmployeesUnfiltered = useMemo(
-    () => employees.filter((employee) => includedEmployeeIds.includes(String(employee.id))),
-    [employees, includedEmployeeIds]
+    () => employees.filter((employee) => effectiveIncludedIds.includes(String(employee.id))),
+    [employees, effectiveIncludedIds]
   );
 
   const excludedEmployeesUnfiltered = useMemo(
-    () => employees.filter((employee) => !includedEmployeeIds.includes(String(employee.id))),
-    [employees, includedEmployeeIds]
+    () => employees.filter((employee) => !effectiveIncludedIds.includes(String(employee.id))),
+    [employees, effectiveIncludedIds]
   );
 
   const includedEmployees = useMemo(() => {
@@ -131,7 +168,7 @@ function PayrollPage({ userName, onLogout }) {
   }, [excludedEmployeesUnfiltered, excludedSearchQuery]);
 
   const activeEmployeeCount = employees.length;
-  const includedCount = includedEmployeeIds.length;
+  const includedCount = effectiveIncludedIds.length;
   const excludedCount = Math.max(activeEmployeeCount - includedCount, 0);
   const monthOptions = [
     'January', 'February', 'March', 'April', 'May', 'June',
@@ -141,27 +178,31 @@ function PayrollPage({ userName, onLogout }) {
   const selectedMonthName = monthOptions[selectedMonth - 1];
   const payrollReportRows = useMemo(() => {
     return employees
-      .filter((employee) => includedEmployeeIds.includes(String(employee.id)))
+      .filter((employee) => effectiveIncludedIds.includes(String(employee.id)))
       .map((employee) => ({
         id: employee.id,
         name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
         department: employee.department || 'N/A',
         designation: employee.designation || 'N/A',
         amount: employee.ctc || employee.basicSalary || 'N/A',
+        variablePay: Number(variablePayByEmployeeId[String(employee.id)]) || 0,
       }));
-  }, [employees, includedEmployeeIds]);
+  }, [employees, effectiveIncludedIds, variablePayByEmployeeId]);
 
-  const renderPayrollTable = (rows, emptyMessage) => {
+  const renderPayrollTable = (rows, emptyMessage, showVariablePay) => {
     if (rows.length === 0) {
       return <p className="px-5 py-6 text-sm text-muted-foreground">{emptyMessage}</p>;
     }
 
+    const columns = ['Include', 'ID', 'Name', 'Email', 'Department', 'Designation', 'Phone', 'Salary'];
+    if (showVariablePay) columns.push('Variable Pay');
+
     return (
       <div className="overflow-x-auto">
-        <table className="w-full text-left" style={{ minWidth: 860 }}>
+        <table className="w-full text-left" style={{ minWidth: showVariablePay ? 980 : 860 }}>
           <thead>
             <tr className="border-b border-border/80 bg-muted/40">
-              {['Include', 'ID', 'Name', 'Email', 'Department', 'Designation', 'Phone', 'Salary'].map((col) => (
+              {columns.map((col) => (
                 <th key={col} className="h-11 whitespace-nowrap px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                   {col}
                 </th>
@@ -171,7 +212,8 @@ function PayrollPage({ userName, onLogout }) {
           <tbody>
             {rows.map((employee) => {
               const employeeId = String(employee.id);
-              const isIncluded = includedEmployeeIds.includes(employeeId);
+              const isProcessed = processedEmployeeIds.includes(employeeId);
+              const isIncluded = !isProcessed && effectiveIncludedIds.includes(employeeId);
 
               return (
                 <tr key={employee.id} className={`border-b border-border/60 last:border-0 hover:bg-muted/30 ${!isIncluded ? 'opacity-60' : ''}`}>
@@ -179,9 +221,13 @@ function PayrollPage({ userName, onLogout }) {
                     <input
                       type="checkbox"
                       checked={isIncluded}
+                      disabled={isProcessed}
                       onChange={() => handleToggleEmployee(employee.id)}
-                      className="size-4 rounded border-border accent-client"
+                      className="size-4 rounded border-border accent-client disabled:cursor-not-allowed"
                     />
+                    {isProcessed && (
+                      <span className="mt-0.5 block text-[10px] font-medium text-muted-foreground">Processed</span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-sm text-foreground">{employee.id}</td>
                   <td className="px-4 py-3 text-sm text-foreground">{`${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A'}</td>
@@ -190,6 +236,19 @@ function PayrollPage({ userName, onLogout }) {
                   <td className="px-4 py-3 text-sm text-muted-foreground">{employee.designation || 'N/A'}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">{employee.phone || 'N/A'}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">{employee.ctc || employee.basicSalary || 'N/A'}</td>
+                  {showVariablePay && (
+                    <td className="px-4 py-3">
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={variablePayByEmployeeId[employeeId] ?? ''}
+                        onChange={(e) => handleVariablePayChange(employeeId, e.target.value)}
+                        className="h-9 w-28 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+                      />
+                    </td>
+                  )}
                 </tr>
               );
             })}
@@ -289,10 +348,10 @@ function PayrollPage({ userName, onLogout }) {
                   <p className="px-5 py-6 text-sm text-muted-foreground">No employees selected for this payroll report.</p>
                 ) : (
                   <div className="overflow-x-auto">
-                    <table className="w-full text-left" style={{ minWidth: 780 }}>
+                    <table className="w-full text-left" style={{ minWidth: 900 }}>
                       <thead>
                         <tr className="border-b border-border/80 bg-muted/40">
-                          {['Employee ID', 'Employee Name', 'Month', 'Year', 'Department', 'Designation', 'Amount'].map((col) => (
+                          {['Employee ID', 'Employee Name', 'Month', 'Year', 'Department', 'Designation', 'Amount', 'Variable Pay'].map((col) => (
                             <th key={col} className="h-11 whitespace-nowrap px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                               {col}
                             </th>
@@ -309,6 +368,7 @@ function PayrollPage({ userName, onLogout }) {
                             <td className="px-4 py-3 text-sm text-muted-foreground">{row.department}</td>
                             <td className="px-4 py-3 text-sm text-muted-foreground">{row.designation}</td>
                             <td className="px-4 py-3 text-sm text-muted-foreground">{row.amount}</td>
+                            <td className="px-4 py-3 text-sm text-muted-foreground">{row.variablePay ? row.variablePay.toFixed(2) : '—'}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -334,7 +394,7 @@ function PayrollPage({ userName, onLogout }) {
                     />
                   </div>
                 </div>
-                {renderPayrollTable(includedEmployees, 'No included employees match your search.')}
+                {renderPayrollTable(includedEmployees, 'No included employees match your search.', true)}
               </div>
 
               <div className="rounded-xl border border-border/80 bg-card shadow-sm">
@@ -354,7 +414,7 @@ function PayrollPage({ userName, onLogout }) {
                     />
                   </div>
                 </div>
-                {renderPayrollTable(filteredExcludedEmployees, 'No excluded employees match your search.')}
+                {renderPayrollTable(filteredExcludedEmployees, 'No excluded employees match your search.', false)}
               </div>
             </>
           )}

@@ -6,6 +6,8 @@ import {
   updateTeamLeaveRequestStatus,
   submitWeeklyReport,
   getMyWeeklyReports,
+  submitPerformanceReport,
+  getMyPerformanceReports,
 } from '../services/managerService';
 import { getTeamTimesheets, updateTeamTimesheetStatus } from '../services/timesheetService';
 import '../styles/tailwind.css';
@@ -29,6 +31,11 @@ const STATUS_CLASSES = {
   approved: 'border-[#bbf7d0] bg-[#f0fdf4] text-[#15803d]',
   rejected: 'border-[#fecaca] bg-[#fef2f2] text-[#b91c1c]',
 };
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
 
 function StatusBadge({ status }) {
   const key = (status || '').toLowerCase();
@@ -54,6 +61,12 @@ function MyTeamPage({ userName, onLogout }) {
   const [weeklyReports, setWeeklyReports] = useState([]);
   const [weeklyForm, setWeeklyForm] = useState({ ...currentWeekBounds(), notes: '' });
   const [sendingReport, setSendingReport] = useState(false);
+  const [performanceReports, setPerformanceReports] = useState([]);
+  const now = new Date();
+  const [performanceMonth, setPerformanceMonth] = useState(now.getMonth() + 1);
+  const [performanceYear, setPerformanceYear] = useState(now.getFullYear());
+  const [performanceDrafts, setPerformanceDrafts] = useState({});
+  const [submittingEmpId, setSubmittingEmpId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [activeSection, setActiveSection] = useState('members');
@@ -65,11 +78,12 @@ function MyTeamPage({ userName, onLogout }) {
     // non-2xx, e.g. an endpoint the running backend doesn't have yet) into a clean
     // { forbidden: true } result rather than throwing. If one call still genuinely throws
     // (network failure, etc.) the others' data shouldn't be wiped out along with it.
-    const [teamResult, requestsResult, timesheetResult, weeklyResult] = await Promise.allSettled([
+    const [teamResult, requestsResult, timesheetResult, weeklyResult, performanceResult] = await Promise.allSettled([
       getMyTeam(),
       getTeamLeaveRequests(statusFilter),
       getTeamTimesheets(timesheetFilter),
       getMyWeeklyReports(),
+      getMyPerformanceReports(),
     ]);
 
     const value = (result, fallback) => (result.status === 'fulfilled' ? result.value : fallback);
@@ -77,19 +91,21 @@ function MyTeamPage({ userName, onLogout }) {
     const requests = value(requestsResult, { forbidden: true, requests: [] });
     const timesheetData = value(timesheetResult, { forbidden: true, timesheets: [] });
     const weekly = value(weeklyResult, { forbidden: true, reports: [] });
+    const performance = value(performanceResult, { forbidden: true, reports: [] });
 
-    const anyRejected = [teamResult, requestsResult, timesheetResult, weeklyResult]
+    const anyRejected = [teamResult, requestsResult, timesheetResult, weeklyResult, performanceResult]
         .some((r) => r.status === 'rejected');
     if (anyRejected) {
-      console.error('Failed to load some team data', { teamResult, requestsResult, timesheetResult, weeklyResult });
+      console.error('Failed to load some team data', { teamResult, requestsResult, timesheetResult, weeklyResult, performanceResult });
       setError('Some team data could not be loaded - showing what is available.');
     }
 
-    setForbidden(team.forbidden || requests.forbidden || timesheetData.forbidden || weekly.forbidden);
+    setForbidden(team.forbidden || requests.forbidden || timesheetData.forbidden || weekly.forbidden || performance.forbidden);
     setTeam(team.team || []);
     setRequests(requests.requests || []);
     setTimesheets(timesheetData.timesheets || []);
     setWeeklyReports(weekly.reports || []);
+    setPerformanceReports(performance.reports || []);
     setLoading(false);
   }, [statusFilter, timesheetFilter]);
 
@@ -132,6 +148,45 @@ function MyTeamPage({ userName, onLogout }) {
     }
   };
 
+  // Draft for a team member's rating in the currently selected month/year - pre-filled from
+  // an existing report if that employee already has one for this month, so reopening an
+  // already-rated month shows what was submitted rather than a blank form.
+  const performanceDraftFor = (empId) => {
+    if (performanceDrafts[empId]) return performanceDrafts[empId];
+    const existing = performanceReports.find(
+      (r) => r.empId === empId && r.month === performanceMonth && r.year === performanceYear
+    );
+    return { rating: existing ? String(existing.rating) : '5', comments: existing ? existing.comments || '' : '' };
+  };
+
+  const setPerformanceDraft = (empId, patch) => {
+    setPerformanceDrafts((prev) => ({ ...prev, [empId]: { ...performanceDraftFor(empId), ...patch } }));
+  };
+
+  const handleSubmitPerformance = async (empId) => {
+    const draft = performanceDraftFor(empId);
+    setSubmittingEmpId(empId);
+    try {
+      await submitPerformanceReport({
+        empId,
+        month: performanceMonth,
+        year: performanceYear,
+        rating: Number(draft.rating),
+        comments: draft.comments,
+      });
+      setPerformanceDrafts((prev) => {
+        const next = { ...prev };
+        delete next[empId];
+        return next;
+      });
+      await loadAll();
+    } catch (err) {
+      alert(err.message || 'Failed to submit performance report');
+    } finally {
+      setSubmittingEmpId(null);
+    }
+  };
+
   // Newest first, optionally narrowed to one project member.
   const visibleTimesheets = timesheets
     .filter((entry) => !timesheetEmployeeFilter || String(entry.empId) === timesheetEmployeeFilter)
@@ -143,6 +198,7 @@ function MyTeamPage({ userName, onLogout }) {
     { key: 'leaves', label: `Team Leave Requests (${requests.length})` },
     { key: 'timesheets', label: `Team Timesheets (${timesheets.length})` },
     { key: 'weekly', label: 'Weekly Report to HR' },
+    { key: 'performance', label: 'Performance Reports' },
   ];
 
   return (
@@ -454,6 +510,124 @@ function MyTeamPage({ userName, onLogout }) {
                           <td className="px-4 py-3 text-sm text-muted-foreground">{report.entries?.length ?? 0}</td>
                           <td className="px-4 py-3 text-sm text-muted-foreground">{report.submittedAt}</td>
                           <td className="px-4 py-3 text-sm text-muted-foreground">{report.notes || '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeSection === 'performance' && (
+            <div className="rounded-xl border border-border/80 bg-card shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/80 px-5 py-4">
+                <div>
+                  <h3 className="text-base font-semibold text-foreground">Performance Reports</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    Rate each team member out of 5 for the selected month. Your client's admin
+                    can see these ratings.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={performanceMonth}
+                    onChange={(e) => setPerformanceMonth(Number(e.target.value))}
+                    className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-employee focus:ring-2 focus:ring-employee/30"
+                  >
+                    {MONTH_NAMES.map((name, idx) => (
+                      <option key={name} value={idx + 1}>{name}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={performanceYear}
+                    onChange={(e) => setPerformanceYear(Number(e.target.value))}
+                    className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-employee focus:ring-2 focus:ring-employee/30"
+                  >
+                    {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map((y) => (
+                      <option key={y} value={y}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {team.length === 0 ? (
+                <p className="px-5 py-6 text-sm text-muted-foreground">No one is currently assigned to your projects.</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left" style={{ minWidth: 640 }}>
+                    <thead>
+                      <tr className="border-b border-border/80 bg-muted/40">
+                        {['Name', 'Rating', 'Comments', 'Action'].map((col) => (
+                          <th key={col} className="h-11 px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {team.map((member) => {
+                        const draft = performanceDraftFor(member.empId);
+                        return (
+                          <tr key={member.empId} className="border-b border-border/60 last:border-0">
+                            <td className="px-4 py-3 text-sm text-foreground">{member.name}</td>
+                            <td className="px-4 py-3">
+                              <select
+                                value={draft.rating}
+                                onChange={(e) => setPerformanceDraft(member.empId, { rating: e.target.value })}
+                                className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-employee focus:ring-2 focus:ring-employee/30"
+                              >
+                                {[1, 2, 3, 4, 5].map((n) => (
+                                  <option key={n} value={n}>{n} / 5</option>
+                                ))}
+                              </select>
+                            </td>
+                            <td className="px-4 py-3">
+                              <textarea
+                                rows={1}
+                                value={draft.comments}
+                                onChange={(e) => setPerformanceDraft(member.empId, { comments: e.target.value })}
+                                placeholder="Optional comments"
+                                className="w-full min-w-[220px] rounded-lg border border-border bg-white px-3 py-1.5 text-sm outline-none focus:border-employee focus:ring-2 focus:ring-employee/30"
+                              />
+                            </td>
+                            <td className="px-4 py-3">
+                              <button
+                                onClick={() => handleSubmitPerformance(member.empId)}
+                                disabled={submittingEmpId === member.empId}
+                                className="h-9 rounded-lg bg-employee px-3.5 text-sm font-medium text-employee-foreground disabled:opacity-60"
+                              >
+                                {submittingEmpId === member.empId ? 'Saving...' : 'Submit'}
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {performanceReports.length > 0 && (
+                <div className="overflow-x-auto border-t border-border/80">
+                  <table className="w-full text-left" style={{ minWidth: 640 }}>
+                    <thead>
+                      <tr className="border-b border-border/80 bg-muted/40">
+                        {['Employee', 'Month', 'Rating', 'Comments', 'Last Updated'].map((col) => (
+                          <th key={col} className="h-11 px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
+                            {col}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {performanceReports.map((report) => (
+                        <tr key={report.id} className="border-b border-border/60 last:border-0">
+                          <td className="px-4 py-3 text-sm text-foreground">{report.employeeName}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{MONTH_NAMES[report.month - 1]} {report.year}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{report.rating} / 5</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{report.comments || '—'}</td>
+                          <td className="px-4 py-3 text-sm text-muted-foreground">{report.updatedAt}</td>
                         </tr>
                       ))}
                     </tbody>

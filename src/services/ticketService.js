@@ -32,9 +32,15 @@ export const createTicket = async ({ subject, description }) => {
   return response.json();
 };
 
-// Client admin's view - scoped server-side to the admin's own client.
-export const getClientTickets = async () => {
-  const response = await apiFetch(`${API_BASE_URL}/api/tickets`);
+// Client admin's view - scoped server-side to the admin's own client, filtered and paginated
+// server-side too. Returns Spring Data's Page shape: { content, totalElements, totalPages, ... }.
+export const getClientTickets = async ({ page = 0, size = 15, status } = {}) => {
+  const params = new URLSearchParams({ page: String(page), size: String(size) });
+  const normalizedStatus = status && status.toLowerCase() !== 'all' ? status : '';
+  if (normalizedStatus) {
+    params.append('status', normalizedStatus);
+  }
+  const response = await apiFetch(`${API_BASE_URL}/api/tickets?${params.toString()}`);
   if (!response.ok) {
     throw new Error(await parseErrorMessage(response, 'Failed to load tickets'));
   }

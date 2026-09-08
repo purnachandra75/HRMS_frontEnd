@@ -1,10 +1,12 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { RefreshCw } from 'lucide-react';
 import AdminLayout from '../components/AdminLayout';
+import Pagination from '../components/Pagination';
 import { getClientTickets, updateTicketStatus } from '../services/ticketService';
 import '../styles/tailwind.css';
 
 const STATUS_OPTIONS = ['all', 'Open', 'In Progress', 'Resolved', 'Rejected'];
+const PAGE_SIZE = 15;
 
 const STATUS_CLASSES = {
   open: 'border-[#fde68a] bg-[#fffbeb] text-[#b45309]',
@@ -20,12 +22,17 @@ function AdminTicketsPage({ userName, onLogout }) {
   const [statusFilter, setStatusFilter] = useState('all');
   const [drafts, setDrafts] = useState({}); // ticketId -> { status, adminResponse }
   const [savingId, setSavingId] = useState(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
 
   const loadTickets = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await getClientTickets();
-      setTickets(Array.isArray(data) ? data : []);
+      const data = await getClientTickets({ page: currentPage - 1, size: PAGE_SIZE, status: statusFilter });
+      setTickets(Array.isArray(data.content) ? data.content : []);
+      setTotalPages(Math.max(1, data.totalPages ?? 1));
+      setTotalItems(data.totalElements ?? 0);
       setError(null);
     } catch (err) {
       console.error('Failed to load tickets:', err);
@@ -33,16 +40,17 @@ function AdminTicketsPage({ userName, onLogout }) {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [currentPage, statusFilter]);
 
   useEffect(() => {
     loadTickets();
   }, [loadTickets]);
 
-  const filteredTickets = useMemo(() => {
-    if (statusFilter === 'all') return tickets;
-    return tickets.filter((t) => (t.status || '').toLowerCase() === statusFilter.toLowerCase());
-  }, [tickets, statusFilter]);
+  // Sets both together so React batches them into one re-render - one fetch, not two.
+  const handleStatusFilterChange = (value) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
+  };
 
   const draftFor = (ticket) =>
     drafts[ticket.id] || { status: ticket.status, adminResponse: ticket.adminResponse || '' };
@@ -55,13 +63,16 @@ function AdminTicketsPage({ userName, onLogout }) {
     const draft = draftFor(ticket);
     setSavingId(ticket.id);
     try {
-      const updated = await updateTicketStatus(ticket.id, draft);
-      setTickets((current) => current.map((t) => (t.id === updated.id ? updated : t)));
+      await updateTicketStatus(ticket.id, draft);
       setDrafts((prev) => {
         const next = { ...prev };
         delete next[ticket.id];
         return next;
       });
+      // Reload rather than patch local state in place - the ticket's new status may no longer
+      // match the active status filter, so it should drop out of the current page like it
+      // would after a fresh fetch.
+      await loadTickets();
     } catch (err) {
       console.error('Failed to update ticket:', err);
       alert(err.message || 'Failed to update ticket');
@@ -96,7 +107,7 @@ function AdminTicketsPage({ userName, onLogout }) {
               <select
                 id="ticket-status-filter"
                 value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                onChange={(e) => handleStatusFilterChange(e.target.value)}
                 className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
               >
                 {STATUS_OPTIONS.map((option) => (
@@ -117,11 +128,12 @@ function AdminTicketsPage({ userName, onLogout }) {
 
           {loading ? (
             <div className="px-5 py-6 text-center text-sm text-muted-foreground">Loading tickets...</div>
-          ) : filteredTickets.length === 0 ? (
+          ) : tickets.length === 0 ? (
             <div className="px-5 py-6 text-center text-sm text-muted-foreground">No tickets found.</div>
           ) : (
+            <>
             <ul className="divide-y divide-border/60">
-              {filteredTickets.map((ticket) => {
+              {tickets.map((ticket) => {
                 const statusKey = (ticket.status || '').toLowerCase();
                 const draft = draftFor(ticket);
                 const isDirty =
@@ -183,6 +195,14 @@ function AdminTicketsPage({ userName, onLogout }) {
                 );
               })}
             </ul>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+              totalItems={totalItems}
+              pageSize={PAGE_SIZE}
+            />
+            </>
           )}
         </section>
       </div>

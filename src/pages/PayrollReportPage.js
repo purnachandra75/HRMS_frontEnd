@@ -1,8 +1,12 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { getPayrollReport, updatePayrollStatus, updatePayslipMode, uploadManualPayslip } from '../services/payrollService';
 import { Search } from 'lucide-react';
 import AdminLayout from '../components/AdminLayout';
+import Pagination from '../components/Pagination';
+import useDebouncedValue from '../hooks/useDebouncedValue';
 import '../styles/tailwind.css';
+
+const PAGE_SIZE = 15;
 
 const formatCurrency = (amount) =>
   new Intl.NumberFormat('en-IN', {
@@ -57,6 +61,7 @@ const normalizePayrollRecord = (record, selectedMonth, selectedYear) => {
     department: record.department || record.employee?.department || 'N/A',
     designation: record.designation || record.employee?.designation || 'N/A',
     amount,
+    variablePay: record.variablePay ?? 0,
     status: normalizeStatus(record.creditStatus ?? record.paymentStatus ?? record.status),
     manualPayslip: Boolean(record.manualPayslip),
     hasPayslipFile: Boolean(record.hasPayslipFile),
@@ -67,7 +72,8 @@ const getPayrollRowKey = (row) => `${row.payrollId || row.employeeId}-${row.mont
 
 function PayrollReportPage({ userName, onLogout }) {
   const [reportRows, setReportRows] = useState([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchDraft, setSearchDraft] = useState('');
+  const debouncedSearch = useDebouncedValue(searchDraft, 400);
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [reportLoaded, setReportLoaded] = useState(false);
@@ -76,6 +82,11 @@ function PayrollReportPage({ userName, onLogout }) {
   const [payslipUpdatingKey, setPayslipUpdatingKey] = useState('');
   const [error, setError] = useState('');
   const [statusMessage, setStatusMessage] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalEmployees, setTotalEmployees] = useState(0);
+  const [creditedCount, setCreditedCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     setReportLoaded(false);
@@ -84,7 +95,16 @@ function PayrollReportPage({ userName, onLogout }) {
     setStatusMessage('');
   }, [selectedMonth, selectedYear]);
 
-  const handleLoadReport = async () => {
+  // Debounced search auto-fetches (page reset to 1) once a report has been loaded at least
+  // once - typing before that just edits the box, nothing to search yet.
+  useEffect(() => {
+    if (!reportLoaded) return;
+    setCurrentPage(1);
+    loadReport(1, debouncedSearch);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch]);
+
+  const loadReport = async (page, search) => {
     setLoading(true);
     setError('');
     setStatusMessage('');
@@ -93,11 +113,18 @@ function PayrollReportPage({ userName, onLogout }) {
       const response = await getPayrollReport({
         month: selectedMonth,
         year: selectedYear,
+        page: page - 1,
+        size: PAGE_SIZE,
+        search,
       });
       const records = pickReportRecords(response).map((record) =>
         normalizePayrollRecord(record, selectedMonth, selectedYear)
       );
       setReportRows(records);
+      setTotalEmployees(response.totalEmployees ?? records.length);
+      setCreditedCount(response.creditedCount ?? 0);
+      setPendingCount(response.pendingCount ?? 0);
+      setTotalPages(Math.max(1, response.totalPages ?? 1));
       setReportLoaded(true);
     } catch (err) {
       console.error('Failed to load payroll report:', err);
@@ -109,10 +136,19 @@ function PayrollReportPage({ userName, onLogout }) {
     }
   };
 
+  const handleReportClick = () => {
+    setCurrentPage(1);
+    loadReport(1, debouncedSearch);
+  };
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    loadReport(page, debouncedSearch);
+  };
+
   const handlePayrollStatusUpdate = async (row) => {
     const rowKey = getPayrollRowKey(row);
     const status = 'Amount Credited';
-    const previousRows = reportRows;
 
     setUpdatingKey(rowKey);
     setError('');
@@ -126,17 +162,12 @@ function PayrollReportPage({ userName, onLogout }) {
         year: row.year,
         status,
       });
-      setReportRows((currentRows) =>
-        currentRows.map((currentRow) =>
-          getPayrollRowKey(currentRow) === rowKey
-            ? { ...currentRow, status }
-            : currentRow
-        )
-      );
       setStatusMessage('Payroll status updated successfully.');
+      // Reload rather than patch locally - the credited/pending stat tiles are computed
+      // server-side over the full filtered set, not just this page.
+      await loadReport(currentPage, debouncedSearch);
     } catch (err) {
       console.error('Failed to update payroll status:', err);
-      setReportRows(previousRows);
       setError(err.message || 'Failed to update payroll status');
     } finally {
       setUpdatingKey('');
@@ -146,7 +177,6 @@ function PayrollReportPage({ userName, onLogout }) {
   const handlePayslipModeToggle = async (row) => {
     const rowKey = getPayrollRowKey(row);
     const manualPayslip = !row.manualPayslip;
-    const previousRows = reportRows;
 
     setPayslipUpdatingKey(rowKey);
     setError('');
@@ -160,16 +190,9 @@ function PayrollReportPage({ userName, onLogout }) {
         year: row.year,
         manualPayslip,
       });
-      setReportRows((currentRows) =>
-        currentRows.map((currentRow) =>
-          getPayrollRowKey(currentRow) === rowKey
-            ? { ...currentRow, manualPayslip }
-            : currentRow
-        )
-      );
+      await loadReport(currentPage, debouncedSearch);
     } catch (err) {
       console.error('Failed to update payslip mode:', err);
-      setReportRows(previousRows);
       setError(err.message || 'Failed to update payslip mode');
     } finally {
       setPayslipUpdatingKey('');
@@ -186,14 +209,8 @@ function PayrollReportPage({ userName, onLogout }) {
 
     try {
       await uploadManualPayslip(row.payrollId, file);
-      setReportRows((currentRows) =>
-        currentRows.map((currentRow) =>
-          getPayrollRowKey(currentRow) === rowKey
-            ? { ...currentRow, manualPayslip: true, hasPayslipFile: true }
-            : currentRow
-        )
-      );
       setStatusMessage('Payslip uploaded successfully.');
+      await loadReport(currentPage, debouncedSearch);
     } catch (err) {
       console.error('Failed to upload payslip:', err);
       setError(err.message || 'Failed to upload payslip');
@@ -209,39 +226,22 @@ function PayrollReportPage({ userName, onLogout }) {
   const yearOptions = Array.from({ length: 5 }, (_, index) => new Date().getFullYear() - 2 + index);
   const selectedMonthName = monthOptions[selectedMonth - 1];
 
-  const payrollReportRows = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-
-    return reportRows.filter((row) => {
-      if (!query) return true;
-      return [
-        row.employeeId,
-        row.employeeName,
-        row.department,
-        row.designation,
-        row.status,
-      ].some((field) => field?.toString().toLowerCase().includes(query));
-    });
-  }, [reportRows, searchQuery]);
-
-  const creditedCount = payrollReportRows.filter((row) => row.status === 'Amount Credited').length;
-  const pendingCount = Math.max(payrollReportRows.length - creditedCount, 0);
-
   const renderPayrollReport = () => {
     if (!reportLoaded) {
       return <p className="px-5 py-6 text-sm text-muted-foreground">Select month and year, then click Report to load payroll records.</p>;
     }
 
-    if (payrollReportRows.length === 0) {
+    if (reportRows.length === 0) {
       return <p className="px-5 py-6 text-sm text-muted-foreground">No payroll records found for this month and year.</p>;
     }
 
     return (
+      <>
       <div className="overflow-x-auto">
-        <table className="w-full text-left" style={{ minWidth: 1000 }}>
+        <table className="w-full text-left" style={{ minWidth: 1080 }}>
           <thead>
             <tr className="border-b border-border/80 bg-muted/40">
-              {['Employee ID', 'Employee Name', 'Month', 'Year', 'Department', 'Designation', 'Amount', 'Status', 'Action', 'Payslip'].map((col) => (
+              {['Employee ID', 'Employee Name', 'Month', 'Year', 'Department', 'Designation', 'Amount', 'Variable Pay', 'Status', 'Action', 'Payslip'].map((col) => (
                 <th key={col} className="h-11 whitespace-nowrap px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                   {col}
                 </th>
@@ -249,7 +249,7 @@ function PayrollReportPage({ userName, onLogout }) {
             </tr>
           </thead>
           <tbody>
-            {payrollReportRows.map((row) => {
+            {reportRows.map((row) => {
               const rowKey = getPayrollRowKey(row);
               const isUpdating = updatingKey === rowKey;
               const isCredited = row.status === 'Amount Credited';
@@ -264,6 +264,7 @@ function PayrollReportPage({ userName, onLogout }) {
                   <td className="px-4 py-3 text-sm text-muted-foreground">{row.department}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">{row.designation}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">{formatCurrency(row.amount)}</td>
+                  <td className="px-4 py-3 text-sm text-muted-foreground">{row.variablePay ? formatCurrency(row.variablePay) : '—'}</td>
                   <td className="px-4 py-3">
                     <span
                       className={`inline-flex h-6 items-center rounded-full border px-2.5 text-[11px] font-semibold ${
@@ -316,6 +317,14 @@ function PayrollReportPage({ userName, onLogout }) {
           </tbody>
         </table>
       </div>
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={handlePageChange}
+        totalItems={totalEmployees}
+        pageSize={PAGE_SIZE}
+      />
+      </>
     );
   };
 
@@ -324,7 +333,7 @@ function PayrollReportPage({ userName, onLogout }) {
       <div className="flex flex-col gap-5">
         <section className="grid grid-cols-3 gap-4">
           {[
-            { label: 'Records', value: payrollReportRows.length },
+            { label: 'Records', value: totalEmployees },
             { label: 'Pending', value: pendingCount },
             { label: 'Amount Credited', value: creditedCount },
           ].map((item) => (
@@ -341,9 +350,9 @@ function PayrollReportPage({ userName, onLogout }) {
               <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="text"
-                placeholder="Search by ID, name, email, department, or designation"
-                value={searchQuery}
-                onChange={(event) => setSearchQuery(event.target.value)}
+                placeholder="Search by employee ID or name"
+                value={searchDraft}
+                onChange={(event) => setSearchDraft(event.target.value)}
                 className="h-9 w-full rounded-lg border border-border bg-white pl-9 pr-3 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
               />
             </div>
@@ -378,7 +387,7 @@ function PayrollReportPage({ userName, onLogout }) {
             </div>
             <button
               type="button"
-              onClick={handleLoadReport}
+              onClick={handleReportClick}
               disabled={loading}
               className="h-9 rounded-lg bg-client px-4 text-sm font-medium text-client-foreground hover:bg-client/90 disabled:opacity-60"
             >
@@ -403,7 +412,7 @@ function PayrollReportPage({ userName, onLogout }) {
                     Showing employee payroll records for {selectedMonthName} {selectedYear}.
                   </p>
                 </div>
-                <span className="text-sm text-muted-foreground">{payrollReportRows.length} employees</span>
+                <span className="text-sm text-muted-foreground">{totalEmployees} employees</span>
               </div>
               {renderPayrollReport()}
             </div>

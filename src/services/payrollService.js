@@ -73,13 +73,15 @@ const fetchFirstAvailableJson = async (requests, fallbackMessage) => {
   throw new Error(`${lastErrorMessage}. Backend payroll report endpoint was not found. Tried: ${notFoundUrls.join(', ')}`);
 };
 
-export const getPayrollReport = async ({ month, year, employeeId, employeeName } = {}) => {
+export const getPayrollReport = async ({ month, year, page = 0, size = 15, status, search } = {}) => {
   const params = new URLSearchParams({
     month: String(month),
     year: String(year),
+    page: String(page),
+    size: String(size),
   });
-  if (employeeId) params.append('employeeId', String(employeeId));
-  if (employeeName) params.append('employeeName', employeeName);
+  if (status) params.append('status', status);
+  if (search) params.append('search', search);
   const query = params.toString();
 
   return fetchFirstAvailableJson(
@@ -92,6 +94,30 @@ export const getPayrollReport = async ({ month, year, employeeId, employeeName }
     ],
     'Failed to load payroll report'
   );
+};
+
+// The calling employee's own payroll row for a month, scoped server-side to their own empId -
+// used by the Payslip page instead of fetching the whole client's report and filtering
+// client-side. Returns null if nothing has been processed for them yet that month.
+export const getMyPayrollRecord = async ({ month, year }) => {
+  const params = new URLSearchParams({ month: String(month), year: String(year) });
+  const response = await apiFetch(`${API_BASE_URL}/api/payroll/my?${params.toString()}`);
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error('Failed to check payroll status');
+  }
+  return response.json();
+};
+
+// Employee ids that already have a processed payroll row for this month/year - used by the
+// Run Payroll screen to auto-exclude and lock them from being processed a second time.
+export const getProcessedEmployeeIds = async ({ month, year }) => {
+  const params = new URLSearchParams({ month: String(month), year: String(year) });
+  const response = await apiFetch(`${API_BASE_URL}/api/payroll/processed-employees?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error('Failed to check already-processed employees');
+  }
+  return response.json();
 };
 
 export const updatePayrollStatus = async ({ payrollId, employeeId, month, year, status }) => {

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { Plus, X } from 'lucide-react';
 import AdminLayout from '../components/AdminLayout';
 import { getAllEmployees } from '../services/employeeService';
 import {
@@ -30,6 +31,8 @@ function TeamStructurePage({ userName, onLogout }) {
   const [memberForm, setMemberForm] = useState({ employeeId: '', teamLeadId: '' });
 
   const [selectedProjectId, setSelectedProjectId] = useState(null);
+  const [activeSection, setActiveSection] = useState('orgchart');
+  const [showCreateProject, setShowCreateProject] = useState(false);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -83,10 +86,16 @@ function TeamStructurePage({ userName, onLogout }) {
         projectManagerId: newProject.projectManagerId ? Number(newProject.projectManagerId) : null,
       });
       setNewProject({ name: '', description: '', projectManagerId: '' });
+      setShowCreateProject(false);
       await loadAll();
     } catch (err) {
       alert(err?.response?.data?.error || 'Failed to create project');
     }
+  };
+
+  const closeCreateProject = () => {
+    setShowCreateProject(false);
+    setNewProject({ name: '', description: '', projectManagerId: '' });
   };
 
   const handleToggleStatus = async (project) => {
@@ -188,6 +197,12 @@ function TeamStructurePage({ userName, onLogout }) {
   const personLabel = (person) =>
     person ? `${person.name}${person.designation ? ` · ${person.designation}` : ''}` : '';
 
+  const sections = [
+    { key: 'orgchart', label: 'Org Chart' },
+    { key: 'bench', label: `Bench (${hierarchy.bench.length})` },
+    { key: 'manage', label: 'Manage Projects' },
+  ];
+
   return (
     <AdminLayout
       userName={userName}
@@ -200,6 +215,34 @@ function TeamStructurePage({ userName, onLogout }) {
         <p className="text-sm text-muted-foreground">Loading team structure...</p>
       ) : (
         <div className="flex flex-col gap-5">
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border/80 bg-card p-3 shadow-sm">
+            <div className="flex flex-wrap gap-2">
+              {sections.map((section) => (
+                <button
+                  key={section.key}
+                  type="button"
+                  onClick={() => setActiveSection(section.key)}
+                  className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                    activeSection === section.key
+                      ? 'bg-client text-client-foreground'
+                      : 'border border-border bg-white text-foreground hover:bg-muted'
+                  }`}
+                >
+                  {section.label}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowCreateProject(true)}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-client px-3 py-1.5 text-sm font-medium text-client-foreground hover:opacity-90"
+            >
+              <Plus className="size-3.5" />
+              Create Project
+            </button>
+          </div>
+
+          {activeSection === 'orgchart' && (
           <section className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
             <h3 className="text-base font-semibold text-foreground">Org Chart</h3>
             {hierarchy.projects.length === 0 ? (
@@ -315,7 +358,9 @@ function TeamStructurePage({ userName, onLogout }) {
               </>
             )}
           </section>
+          )}
 
+          {activeSection === 'bench' && (
           <section className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
             <h3 className="text-base font-semibold text-foreground">Bench ({hierarchy.bench.length})</h3>
             {hierarchy.bench.length === 0 ? (
@@ -331,50 +376,9 @@ function TeamStructurePage({ userName, onLogout }) {
               </div>
             )}
           </section>
+          )}
 
-          <section className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
-            <h3 className="text-base font-semibold text-foreground">Create Project</h3>
-            <form onSubmit={handleCreateProject} className="mt-4 flex flex-wrap items-end gap-3">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-foreground">Project Name</label>
-                <input
-                  type="text"
-                  value={newProject.name}
-                  onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
-                  className="h-9 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-sm font-medium text-foreground">Project Manager</label>
-                <select
-                  value={newProject.projectManagerId}
-                  onChange={(e) => setNewProject({ ...newProject, projectManagerId: e.target.value })}
-                  className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
-                >
-                  <option value="">Unassigned</option>
-                  {employees.map((emp) => (
-                    <option key={emp.id} value={emp.id}>{employeeName(emp)}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex flex-1 flex-col gap-1.5">
-                <label className="text-sm font-medium text-foreground">Description</label>
-                <input
-                  type="text"
-                  value={newProject.description}
-                  onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
-                  className="h-9 w-full rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
-                />
-              </div>
-              <button
-                type="submit"
-                className="h-9 rounded-lg bg-client px-4 text-sm font-medium text-client-foreground hover:bg-client/90"
-              >
-                Create Project
-              </button>
-            </form>
-          </section>
-
+          {activeSection === 'manage' && (
           <section className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
             <h3 className="text-base font-semibold text-foreground">Manage Projects</h3>
             {projects.length === 0 ? (
@@ -545,6 +549,97 @@ function TeamStructurePage({ userName, onLogout }) {
               </div>
             )}
           </section>
+          )}
+        </div>
+      )}
+
+      {showCreateProject && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+          onClick={closeCreateProject}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="flex w-full max-w-lg flex-col gap-4 rounded-xl border border-border/80 bg-card p-6 shadow-lg"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-base font-semibold text-foreground">Create Project</h2>
+                <p className="mt-0.5 text-sm text-muted-foreground">Set up a new project and optionally assign its manager.</p>
+              </div>
+              <button
+                onClick={closeCreateProject}
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                aria-label="Close"
+              >
+                <X className="size-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateProject} className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="project-name" className="text-sm font-medium text-foreground">
+                  Project Name
+                </label>
+                <input
+                  id="project-name"
+                  type="text"
+                  value={newProject.name}
+                  onChange={(e) => setNewProject({ ...newProject, name: e.target.value })}
+                  placeholder="e.g. Client Portal Revamp"
+                  autoFocus
+                  className="h-9 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="project-manager" className="text-sm font-medium text-foreground">
+                  Project Manager
+                </label>
+                <select
+                  id="project-manager"
+                  value={newProject.projectManagerId}
+                  onChange={(e) => setNewProject({ ...newProject, projectManagerId: e.target.value })}
+                  className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+                >
+                  <option value="">Unassigned</option>
+                  {employees.map((emp) => (
+                    <option key={emp.id} value={emp.id}>{employeeName(emp)}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="project-description" className="text-sm font-medium text-foreground">
+                  Description
+                </label>
+                <textarea
+                  id="project-description"
+                  rows={3}
+                  value={newProject.description}
+                  onChange={(e) => setNewProject({ ...newProject, description: e.target.value })}
+                  placeholder="What is this project about?"
+                  className="rounded-lg border border-border bg-white px-3 py-2 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={closeCreateProject}
+                  className="rounded-lg border border-border bg-white px-4 py-2 text-sm font-medium text-foreground hover:bg-muted"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-lg bg-client px-4 py-2 text-sm font-medium text-client-foreground hover:bg-client/90"
+                >
+                  Create Project
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </AdminLayout>

@@ -2,7 +2,8 @@ import React, { useEffect, useMemo, useState, useRef } from 'react';
 import EmployeeLayout from '../components/EmployeeLayout';
 import { getEmployeeProfile } from '../services/employeeService';
 import { getEmployeeLeaveRequests } from '../services/leaveService';
-import { getPayrollReport, getManualPayslipUrl } from '../services/payrollService';
+import { getMyPayrollRecord, getManualPayslipUrl } from '../services/payrollService';
+import { getPayslipSettings, fetchPayslipLogoObjectUrl } from '../services/payslipSettingsService';
 import { apiFetch } from '../utils/apiClient';
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
@@ -17,14 +18,24 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
-const COMPANY_DETAILS = {
-  name: 'PROMINENT SCIENTIFIC PVT LTD.',
-  line1: '4th floor, Jayabheri Enclave, JQ-Chambers',
-  line2: 'Dr No. 4-50/5, Plot No. 5, Gachibowli,',
-  line3: 'Serilingampalle, Hyderabad - 500032',
-  phone: 'Tel: 7801083072',
-  website: 'www.prominentscientific.co.in',
-  email: 'info@prominentscientific.co.in',
+// Used until the client's own payslip settings finish loading (or if a client hasn't
+// configured any yet) - keeps the page rendering sane rather than showing blank fields.
+const DEFAULT_PAYSLIP_SETTINGS = {
+  companyName: '',
+  addressLine1: '',
+  addressLine2: '',
+  addressLine3: '',
+  phone: '',
+  website: '',
+  email: '',
+  basicPercent: 50,
+  hraPercent: 20,
+  specialAllowancePercent: 30,
+  pfPercent: 12,
+  professionalTax: 200,
+  esiAmount: 600,
+  customEarnings: [],
+  customDeductions: [],
 };
 
 function toLocalDate(value) {
@@ -92,63 +103,72 @@ function countLeaveDaysInMonth(fromDate, toDate, year, monthIndex) {
   return leaveDays;
 }
 
-function buildSalaryComponents(employee, workingDays, payableDays) {
-  const basicActual = Number(employee.basicSalary) || 0;
-  const monthlyGross = Number(employee.ctc) > 0 ? Number(employee.ctc) / 12 : basicActual * 2.3;
-  const hraActual = basicActual * 0.4;
-  const conveyanceActual = Math.min(monthlyGross * 0.025, 1600);
-  const medicalActual = Math.min(monthlyGross * 0.0375, 1250);
-  const ccaActual = Math.min(monthlyGross * 0.03, 1003);
-  const knownTotal = basicActual + hraActual + conveyanceActual + medicalActual + ccaActual;
-  const specialActual = Math.max(monthlyGross - knownTotal, 0);
+// CTC split driven by the client's configured payslip settings (see PayslipSettingsPage) -
+// basic/hra/special percentages always sum to 100 (validated server-side), so the components
+// always sum exactly to the same monthly gross the payroll report shows.
+function buildSalaryComponents(employee, workingDays, payableDays, settings) {
+  const basicPercent = Number(settings.basicPercent) / 100;
+  const hraPercent = Number(settings.hraPercent) / 100;
+  const specialPercent = Number(settings.specialAllowancePercent) / 100;
+  const ctc = Number(employee.ctc) || 0;
+  const basicSalary = Number(employee.basicSalary) || 0;
+  const monthlyGross = ctc > 0 ? ctc / 12 : basicSalary / basicPercent;
+  const basicActual = monthlyGross * basicPercent;
+  const hraActual = monthlyGross * hraPercent;
+  const specialActual = monthlyGross * specialPercent;
   const earnedRatio = workingDays > 0 ? payableDays / workingDays : 0;
   const earned = (value) => value * earnedRatio;
 
+  const customEarnings = (settings.customEarnings || []).map((item) => {
+    const actual = String(item.valueType).toUpperCase() === 'PERCENT'
+      ? monthlyGross * (Number(item.value) / 100)
+      : Number(item.value) || 0;
+    return { label: item.label, actual, earned: earned(actual) };
+  });
+
+  const components = [
+    { label: 'Basic Pay', actual: basicActual, earned: earned(basicActual) },
+    { label: 'House Rent Allowance', actual: hraActual, earned: earned(hraActual) },
+    { label: 'Special Allowance', actual: specialActual, earned: earned(specialActual) },
+    ...customEarnings,
+  ];
+  // Basic/HRA/Special always sum to monthlyGross, but custom earnings are additive on top of
+  // that split - so the displayed Actuals total must be the sum of every row, not monthlyGross
+  // itself, or custom earnings would show in their own row yet never move the total.
+  const totalActual = components.reduce((sum, component) => sum + component.actual, 0);
+
   return {
     monthlyGross,
-    components: [
-      { label: 'Basic Pay', actual: basicActual, earned: earned(basicActual) },
-      { label: 'House Rent Allowance', actual: hraActual, earned: earned(hraActual) },
-      { label: 'Conveyance Allowance', actual: conveyanceActual, earned: earned(conveyanceActual) },
-      { label: 'Medical Allowance', actual: medicalActual, earned: earned(medicalActual) },
-      { label: 'Special Allowance', actual: specialActual, earned: earned(specialActual) },
-      { label: 'CCA', actual: ccaActual, earned: earned(ccaActual) },
-    ],
+    totalActual,
+    components,
   };
 }
 
-function buildDeductions(employee, earnedBasicSalary) {
-  const professionalTax = 200;
-  const pfDeduction = String(employee.pfApplicable).toLowerCase() === 'yes' ? earnedBasicSalary * 0.12 : 0;
-  const insurance = String(employee.esiApplicable).toLowerCase() === 'yes' ? 600 : 0;
-  const gratuity = earnedBasicSalary * 0.0481;
+function buildDeductions(employee, earnedBasicSalary, settings) {
+  const professionalTax = Number(settings.professionalTax) || 0;
+  const pfPercent = Number(settings.pfPercent) / 100;
+  const pfDeduction = String(employee.pfApplicable).toLowerCase() === 'yes' ? earnedBasicSalary * pfPercent : 0;
+  const insurance = String(employee.esiApplicable).toLowerCase() === 'yes' ? Number(settings.esiAmount) || 0 : 0;
   const otherDeductions = 0;
+
+  const customDeductions = (settings.customDeductions || []).map((item) => {
+    const amount = String(item.valueType).toUpperCase() === 'PERCENT'
+      ? earnedBasicSalary * (Number(item.value) / 100)
+      : Number(item.value) || 0;
+    return { label: item.label, amount };
+  });
 
   return [
     { label: 'Professional Tax', amount: professionalTax },
     { label: 'PF Deductions', amount: pfDeduction },
     { label: 'Insurance', amount: insurance },
-    { label: 'Gratuity', amount: gratuity },
     { label: 'Other Deductions', amount: otherDeductions },
+    ...customDeductions,
   ];
 }
 
-const pickPayrollRecords = (response) => {
-  if (Array.isArray(response)) return response;
-  if (Array.isArray(response?.records)) return response.records;
-  if (Array.isArray(response?.payrolls)) return response.payrolls;
-  if (Array.isArray(response?.employees)) return response.employees;
-  if (Array.isArray(response?.rows)) return response.rows;
-  if (Array.isArray(response?.data)) return response.data;
-  if (response && typeof response === 'object') return [response];
-  return [];
-};
-
 const buildEmployeeName = (employee) =>
   `${employee?.firstName || ''} ${employee?.lastName || ''}`.trim() || employee?.name || 'N/A';
-
-const getPayrollEmployeeId = (record) =>
-  record.employeeId ?? record.empId ?? record.employee?.id ?? record.employee?.empId ?? record.id;
 
 const getPayrollCreditStatus = (record) =>
   record.creditStatus ?? record.paymentStatus ?? record.payrollStatus ?? record.employee?.creditStatus ?? record.status ?? '';
@@ -173,61 +193,73 @@ function PayslipGeneratorPage({ userId, userName, onLogout }) {
   const [payrollMessage, setPayrollMessage] = useState('');
   const [manualPayslipPayrollId, setManualPayslipPayrollId] = useState(null);
   const [downloadingManualPayslip, setDownloadingManualPayslip] = useState(false);
+  const [payrollRecord, setPayrollRecord] = useState(null);
+  const [payslipSettings, setPayslipSettings] = useState(DEFAULT_PAYSLIP_SETTINGS);
+  const [logoUrl, setLogoUrl] = useState(null);
   const payslipRef = useRef(null);
 
   useEffect(() => {
+    let cancelled = false;
+    let objectUrl = null;
+
     const loadData = async () => {
       setLoading(true);
       try {
-        const [employeeData, leaveData] = await Promise.all([
+        const [employeeData, leaveData, settingsData] = await Promise.all([
           getEmployeeProfile(userId),
           getEmployeeLeaveRequests(userId),
+          getPayslipSettings().catch((err) => {
+            console.error('Failed to load payslip settings:', err);
+            return DEFAULT_PAYSLIP_SETTINGS;
+          }),
         ]);
 
+        if (cancelled) return;
         setEmployee(employeeData);
         setLeaveRequests(leaveData);
+        setPayslipSettings(settingsData);
+        if (settingsData?.hasLogo) {
+          objectUrl = await fetchPayslipLogoObjectUrl();
+          if (!cancelled) setLogoUrl(objectUrl);
+        }
         setError('');
       } catch (err) {
         console.error('Failed to load payslip generator data:', err);
-        setError('Unable to load payslip data.');
+        if (!cancelled) setError('Unable to load payslip data.');
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     if (userId) {
       loadData();
     }
+
+    return () => {
+      cancelled = true;
+      if (objectUrl) window.URL.revokeObjectURL(objectUrl);
+    };
   }, [userId]);
 
   useEffect(() => {
     setCanGeneratePayslip(false);
     setPayrollMessage('');
     setManualPayslipPayrollId(null);
+    setPayrollRecord(null);
   }, [selectedMonth, selectedYear]);
 
   const handleGeneratePayslip = async () => {
     if (!employee) return;
 
-    const employeeName = buildEmployeeName(employee);
     setCheckingPayroll(true);
     setCanGeneratePayslip(false);
     setManualPayslipPayrollId(null);
+    setPayrollRecord(null);
     setPayrollMessage('');
     setError('');
 
     try {
-      const response = await getPayrollReport({
-        employeeId: employee.id,
-        employeeName,
-        month: selectedMonth,
-        year: selectedYear,
-      });
-      const payrollRecords = pickPayrollRecords(response);
-      const employeePayroll = payrollRecords.find((record) => {
-        const recordEmployeeId = getPayrollEmployeeId(record);
-        return String(recordEmployeeId) === String(employee.id);
-      });
+      const employeePayroll = await getMyPayrollRecord({ month: selectedMonth, year: selectedYear });
 
       if (employeePayroll && isAmountCredited(getPayrollCreditStatus(employeePayroll))) {
         if (getPayrollManualFlag(employeePayroll)) {
@@ -240,6 +272,7 @@ function PayslipGeneratorPage({ userId, userName, onLogout }) {
           return;
         }
 
+        setPayrollRecord(employeePayroll);
         setCanGeneratePayslip(true);
         setPayrollMessage('Payroll amount credited. Payslip is ready to download.');
         return;
@@ -283,7 +316,13 @@ function PayslipGeneratorPage({ userId, userName, onLogout }) {
 
     const monthIndex = selectedMonth - 1;
     const workingDays = countWeekdaysInMonth(selectedYear, monthIndex);
-    const approvedLeaveDays = leaveRequests
+
+    // LOP is anchored to what was actually processed for this month (frozen on the payroll
+    // record at run time) rather than recalculated live - live leave requests could have
+    // changed since then. Net Pay itself is always derived from the earnings/deductions
+    // breakdown below (a live formula-based estimate, since component-level figures aren't
+    // persisted on the record), so it stays consistent with what the table displays.
+    const liveApprovedLeaveDays = leaveRequests
       .filter((request) => {
         const employeeId = request.employeeId ?? request.empId;
         return String(employeeId) === String(employee.id) && (request.status || '').toLowerCase() === 'approved';
@@ -292,14 +331,19 @@ function PayslipGeneratorPage({ userId, userName, onLogout }) {
         (total, request) => total + countLeaveDaysInMonth(request.fromDate, request.toDate, selectedYear, monthIndex),
         0
       );
+    const lop = payrollRecord?.lop ?? liveApprovedLeaveDays;
+    const variablePay = Number(payrollRecord?.variablePay) || 0;
 
-    const payableDays = Math.max(workingDays - approvedLeaveDays, 0);
-    const salaryData = buildSalaryComponents(employee, workingDays, payableDays);
+    const payableDays = Math.max(workingDays - lop, 0);
+    const salaryData = buildSalaryComponents(employee, workingDays, payableDays, payslipSettings);
     const totalEarned = salaryData.components.reduce((sum, item) => sum + item.earned, 0);
     const earnedBasicSalary = salaryData.components[0]?.earned || 0;
-    const deductions = buildDeductions(employee, earnedBasicSalary);
+    const deductions = buildDeductions(employee, earnedBasicSalary, payslipSettings);
     const totalDeductions = deductions.reduce((sum, item) => sum + item.amount, 0);
-    const netPay = totalEarned - totalDeductions;
+    // Net Pay must match what the table above it shows: (Total Earned + Variable Pay) minus
+    // Total Deductions - not payrollRecord.netSalary, which is the processed payroll amount
+    // (gross minus LOP plus variable pay) and never had PF/PT/ESI subtracted from it.
+    const netPay = totalEarned + variablePay - totalDeductions;
 
     return {
       employee,
@@ -307,7 +351,8 @@ function PayslipGeneratorPage({ userId, userName, onLogout }) {
       year: selectedYear,
       workingDays,
       payableDays,
-      lop: approvedLeaveDays,
+      lop,
+      variablePay,
       salaryData,
       deductions,
       totalEarned,
@@ -325,7 +370,7 @@ function PayslipGeneratorPage({ userId, userName, onLogout }) {
       bankName: employee.bankName || 'N/A',
       bankAccount: employee.accountNumber || 'N/A',
     };
-  }, [canGeneratePayslip, employee, leaveRequests, selectedMonth, selectedYear]);
+  }, [canGeneratePayslip, employee, leaveRequests, payrollRecord, payslipSettings, selectedMonth, selectedYear]);
 
   const yearOptions = Array.from({ length: 11 }, (_, index) => new Date().getFullYear() - 5 + index);
 
@@ -487,20 +532,23 @@ function PayslipGeneratorPage({ userId, userName, onLogout }) {
                     <div className="payslip-border">
                     <div className="payslip-top-grid">
                       <div className="payslip-logo-box">
-                        <div className="payslip-logo-text">
-                          <div className="payslip-logo-main">PROMINENT</div>
-                          <div className="payslip-logo-sub">SCIENTIFIC</div>
-                        </div>
+                        {logoUrl ? (
+                          <img src={logoUrl} alt="Company logo" className="payslip-logo-image" />
+                        ) : (
+                          <div className="payslip-logo-text">
+                            <div className="payslip-logo-main">{payslipSettings.companyName || 'COMPANY'}</div>
+                          </div>
+                        )}
                       </div>
                       <div className="payslip-company-box">
-                        <div className="payslip-bluebar payslip-company-title">{COMPANY_DETAILS.name}</div>
+                        <div className="payslip-bluebar payslip-company-title">{payslipSettings.companyName}</div>
                         <div className="payslip-company-content">
-                          <p>{COMPANY_DETAILS.line1}</p>
-                          <p>{COMPANY_DETAILS.line2}</p>
-                          <p>{COMPANY_DETAILS.line3}</p>
-                          <p>{COMPANY_DETAILS.phone}</p>
-                          <p className="payslip-link">{COMPANY_DETAILS.website}</p>
-                          <p className="payslip-link">{COMPANY_DETAILS.email}</p>
+                          <p>{payslipSettings.addressLine1}</p>
+                          <p>{payslipSettings.addressLine2}</p>
+                          <p>{payslipSettings.addressLine3}</p>
+                          <p>{payslipSettings.phone}</p>
+                          <p className="payslip-link">{payslipSettings.website}</p>
+                          <p className="payslip-link">{payslipSettings.email}</p>
                         </div>
                       </div>
                     </div>
@@ -573,21 +621,34 @@ function PayslipGeneratorPage({ userId, userName, onLogout }) {
                         </tr>
                       </thead>
                       <tbody>
-                        {payslip.salaryData.components.map((item, index) => (
-                          <tr key={item.label}>
-                            <td>{item.label}</td>
-                            <td className="amount">{formatCurrency(item.actual)}</td>
-                            <td className="amount">{formatCurrency(item.earned)}</td>
-                            <td>{payslip.deductions[index]?.label || ''}</td>
-                            <td className="amount">
-                              {payslip.deductions[index] ? formatDisplayAmount(payslip.deductions[index].amount) : ''}
-                            </td>
+                        {Array.from({
+                          length: Math.max(payslip.salaryData.components.length, payslip.deductions.length),
+                        }).map((_, index) => {
+                          const earning = payslip.salaryData.components[index];
+                          const deduction = payslip.deductions[index];
+                          return (
+                            <tr key={earning?.label || deduction?.label || index}>
+                              <td>{earning?.label || ''}</td>
+                              <td className="amount">{earning ? formatCurrency(earning.actual) : ''}</td>
+                              <td className="amount">{earning ? formatCurrency(earning.earned) : ''}</td>
+                              <td>{deduction?.label || ''}</td>
+                              <td className="amount">{deduction ? formatDisplayAmount(deduction.amount) : ''}</td>
+                            </tr>
+                          );
+                        })}
+                        {payslip.variablePay > 0 && (
+                          <tr>
+                            <td>Variable Pay</td>
+                            <td className="amount">{formatCurrency(payslip.variablePay)}</td>
+                            <td className="amount">{formatCurrency(payslip.variablePay)}</td>
+                            <td></td>
+                            <td className="amount"></td>
                           </tr>
-                        ))}
+                        )}
                         <tr className="total-row">
                           <td>Total(INR)</td>
-                          <td className="amount">{formatCurrency(payslip.salaryData.monthlyGross)}</td>
-                          <td className="amount">{formatCurrency(payslip.totalEarned)}</td>
+                          <td className="amount">{formatCurrency(payslip.salaryData.totalActual)}</td>
+                          <td className="amount">{formatCurrency(payslip.totalEarned + payslip.variablePay)}</td>
                           <td>Total Deductions(INR)</td>
                           <td className="amount">{formatCurrency(payslip.totalDeductions)}</td>
                         </tr>

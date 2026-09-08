@@ -17,10 +17,12 @@ import EmployeeAttendancePage from './pages/EmployeeAttendancePage';
 import PfGeneratorPage from './pages/PfGeneratorPage';
 import PayrollPage from './pages/PayrollPage';
 import PayrollReportPage from './pages/PayrollReportPage';
+import PayslipSettingsPage from './pages/PayslipSettingsPage';
 import AdminHolidaysPage from './pages/AdminHolidaysPage';
 import TeamStructurePage from './pages/TeamStructurePage';
 import AdminTimesheetsPage from './pages/AdminTimesheetsPage';
 import AdminTicketsPage from './pages/AdminTicketsPage';
+import AdminPerformanceReportsPage from './pages/AdminPerformanceReportsPage';
 import EmployeeTicketsPage from './pages/EmployeeTicketsPage';
 import MyTeamPage from './pages/MyTeamPage';
 import TimesheetPage from './pages/TimesheetPage';
@@ -228,6 +230,17 @@ function App() {
           />
 
           <Route
+            path="/admin/performance-reports"
+            element={
+              isAuthenticated && userRole === 'admin' ? (
+                <AdminPerformanceReportsPage userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+
+          <Route
             path="/admin/salary-report"
             element={
               isAuthenticated && userRole === 'admin' ? (
@@ -265,6 +278,17 @@ function App() {
             element={
               isAuthenticated && userRole === 'admin' ? (
                 <PayrollReportPage userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+
+          <Route
+            path="/admin/payslip-settings"
+            element={
+              isAuthenticated && userRole === 'admin' ? (
+                <PayslipSettingsPage userName={userName} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/login" />
               )

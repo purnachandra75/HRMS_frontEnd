@@ -2,7 +2,20 @@
   "permissions": {
     "allow": [
       "Bash(find / -iname \"chromium-cli*\" 2>/dev/null | grep -v node_modules | head -20)",
-      "Read(//c//**)"
+      "Read(//c//**)",
+      "Bash(\"/c/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe\" -u root -proot -D hrms -e \"SHOW TABLES;\")",
+      "Bash(wmic process *)",
+      "Bash(powershell -c \"\\(Get-Process -Id 15256\\).StartTime\")",
+      "Bash(powershell -c \"\\(Get-Process -Id 32144\\).StartTime\")",
+      "Bash(powershell -c \"Get-WmiObject Win32_Process -Filter \\\\\"ProcessId=15256\\\\\" | Select-Object CommandLine\")",
+      "Bash(powershell -c \"[System.Diagnostics.Process]::GetProcessById\\(15256\\) | Out-Null\")",
+      "Bash(powershell -c \"Get-Process -Id 15256 | Select-Object -ExpandProperty StartInfo\")",
+      "Bash(\"/c/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe\" -u root -proot -D hrms -e \"SELECT emp_id, email, role, client_id FROM employee WHERE role='ADMIN' AND client_id=1 LIMIT 5;\")",
+      "Bash(\"/c/Program Files/MySQL/MySQL Server 8.0/bin/mysql.exe\" -u root -proot -D hrms -e \"SELECT emp_id, email, role, client_id FROM employees WHERE client_id=1 ORDER BY role;\")",
+      "Bash(node -e ' *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\user\\Documents\\project\\HRMS_backEnd\\src\\main\\java\\com\\employee\\management\\backend\\dto"
     ]
   }
 }
