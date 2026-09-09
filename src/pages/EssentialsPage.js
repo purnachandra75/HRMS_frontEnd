@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileSignature, FileText, Award, FileCheck } from 'lucide-react';
+import { FileSignature, FileText, Award, FileCheck, LayoutTemplate } from 'lucide-react';
 import AdminLayout from '../components/AdminLayout';
 import '../styles/tailwind.css';
 
@@ -9,6 +9,7 @@ const LETTERS = [
   { label: 'Generate Offer Letter', path: '/admin/essentials/offer-letter', icon: FileText },
   { label: 'Generate Experience Letter', path: '/admin/essentials/experience-letter', icon: Award },
   { label: 'Generate Relieving Letter', path: '/admin/essentials/relieving-letter', icon: FileCheck },
+  { label: 'Manage Letter Templates', path: '/admin/essentials/templates', icon: LayoutTemplate },
 ];
 
 function EssentialsPage({ userName, onLogout }) {

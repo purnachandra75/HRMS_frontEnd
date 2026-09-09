@@ -32,6 +32,7 @@ import OfferLetterForm from './OfferLetterForm';
 import ExperienceLetter from './pages/ExperienceLetter';
 import RelievingLetter from './pages/RelievingLetter';
 import LetterOfIntent from './pages/LetterOfIntent';
+import LetterTemplatesPage from './pages/LetterTemplatesPage';
 import SuperAdminDashboard from './pages/SuperAdmin/SuperAdminDashboard';
 import SuperAdminClients from './pages/SuperAdmin/SuperAdminClients';
 import SuperAdminClientDetail from './pages/SuperAdmin/SuperAdminClientDetail';
@@ -351,6 +352,16 @@ function App() {
             element={
               isAuthenticated && userRole === 'admin' ? (
                 <LetterOfIntent userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+          <Route
+            path="/admin/essentials/templates"
+            element={
+              isAuthenticated && userRole === 'admin' ? (
+                <LetterTemplatesPage userName={userName} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/login" />
               )

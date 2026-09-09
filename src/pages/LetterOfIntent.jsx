@@ -1,26 +1,21 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import AdminLayout from "../components/AdminLayout";
 import "../App.css";
 import "../styles/tailwind.css";
 import { formatDateDDMMYYYY } from "../utils/dateFormat";
+import {
+  getLetterTemplates,
+  fetchLetterTemplateLogoObjectUrl,
+  fetchLetterTemplateSignatureObjectUrl,
+} from "../services/letterTemplateService";
+import { generatePagedPdf, mergeTemplateBody } from "../utils/generatePagedPdf";
 
-import logo from "../assets/ProminentLogo.png";
-import sign from "../assets/Sign.jpg";
+import defaultLogo from "../assets/ProminentLogo.png";
+import defaultSign from "../assets/Sign.jpg";
 import watermark from "../assets/p2.jpg";
-
-const company = {
-  name: "PROMINENT SCIENTIFIC PVT LTD",
-  website: "www.prominentscientific.co.in",
-  email: "info@prominentscientific.co.in",
-  phone: "+91 7801083072",
-  addressLines: [
-    "Address: JQ-Chambers, D.No.4-50/5,",
-    "Plot No: 5, 4th Floor, Gachibowli,",
-    "Hyderabad, Telangana - 500032",
-  ],
-};
 
 const fields = [
   ["employeeName", "Employee Name"],
@@ -138,10 +133,10 @@ const formatJoinDate = (value) => {
   return formatDateDDMMYYYY(value);
 };
 
-function LetterHeader() {
+function LetterHeader({ company, logoSrc }) {
   return (
     <div className="loi-header">
-      <img src={logo} alt="" className="loi-logo" />
+      <img src={logoSrc} alt="" className="loi-logo" />
       <div className="loi-company">
         <strong>{company.name}</strong>
         {company.addressLines.map((line) => (
@@ -152,7 +147,7 @@ function LetterHeader() {
   );
 }
 
-function LetterFooter() {
+function LetterFooter({ company }) {
   return (
     <div className="loi-footer">
       <hr />
@@ -165,6 +160,78 @@ function LetterFooter() {
 function LetterOfIntent({ userName, onLogout }) {
   const pdfRef = useRef(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [templatesLoading, setTemplatesLoading] = useState(true);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [templateLogoUrl, setTemplateLogoUrl] = useState(null);
+  const [templateSignatureUrl, setTemplateSignatureUrl] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTemplates = async () => {
+      setTemplatesLoading(true);
+      try {
+        const data = await getLetterTemplates('LETTER_OF_INTENT');
+        if (cancelled) return;
+        setTemplates(data);
+        const preferred = data.find((t) => t.isDefault) || data[0] || null;
+        setSelectedTemplateId(preferred ? preferred.id : '');
+      } catch (err) {
+        console.error('Failed to load letter of intent templates:', err);
+      } finally {
+        if (!cancelled) setTemplatesLoading(false);
+      }
+    };
+
+    loadTemplates();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let logoUrl = null;
+    let signatureUrl = null;
+
+    const loadImages = async () => {
+      const template = templates.find((t) => t.id === selectedTemplateId);
+      if (!template) {
+        setTemplateLogoUrl(null);
+        setTemplateSignatureUrl(null);
+        return;
+      }
+      if (template.hasLogo) logoUrl = await fetchLetterTemplateLogoObjectUrl(template.id);
+      if (template.hasSignature) signatureUrl = await fetchLetterTemplateSignatureObjectUrl(template.id);
+      if (!cancelled) {
+        setTemplateLogoUrl(logoUrl);
+        setTemplateSignatureUrl(signatureUrl);
+      }
+    };
+
+    loadImages();
+    return () => {
+      cancelled = true;
+      if (logoUrl) window.URL.revokeObjectURL(logoUrl);
+      if (signatureUrl) window.URL.revokeObjectURL(signatureUrl);
+    };
+  }, [templates, selectedTemplateId]);
+
+  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId) || null;
+  const company = {
+    name: selectedTemplate?.companyName || '',
+    website: selectedTemplate?.website || '',
+    email: selectedTemplate?.email || '',
+    phone: selectedTemplate?.phone || '',
+    addressLines: selectedTemplate
+      ? [selectedTemplate.addressLine1, selectedTemplate.addressLine2, selectedTemplate.addressLine3].filter(Boolean)
+      : [],
+    hrName: selectedTemplate?.hrName || '',
+  };
+  const logoSrc = templateLogoUrl || defaultLogo;
+  const signSrc = templateSignatureUrl || defaultSign;
+
   const [form, setForm] = useState({
     employeeName: "",
     houseNumber: "",
@@ -179,6 +246,15 @@ function LetterOfIntent({ userName, onLogout }) {
     variablePay: "",
     ...calculateSalary("", ""),
   });
+
+  const customBodyRef = useRef(null);
+  const [customFieldValues, setCustomFieldValues] = useState({});
+  const hasCustomBody = Boolean(selectedTemplate?.fields?.length);
+
+  const updateCustomField = (fieldKey) => (event) => {
+    const value = event.target.value;
+    setCustomFieldValues((current) => ({ ...current, [fieldKey]: value }));
+  };
 
   const updateField = (key) => (event) => {
     const value = event.target.value;
@@ -256,6 +332,26 @@ function LetterOfIntent({ userName, onLogout }) {
   };
 
   const generatePDF = async () => {
+    if (!selectedTemplate) {
+      alert("Please select a letter template first");
+      return;
+    }
+
+    if (hasCustomBody) {
+      const nameForFile = (customFieldValues.employeeName || "Document").replaceAll(" ", "_");
+      try {
+        setIsGenerating(true);
+        await generatePagedPdf(customBodyRef.current, `LetterOfIntent_${nameForFile}.pdf`);
+        alert("Letter of Intent downloaded successfully!");
+      } catch (err) {
+        console.error("Letter of Intent PDF error:", err);
+        alert("Error generating PDF: " + err.message);
+      } finally {
+        setIsGenerating(false);
+      }
+      return;
+    }
+
     if (!form.employeeName.trim()) {
       alert("Please enter employee name");
       return;
@@ -417,6 +513,15 @@ function LetterOfIntent({ userName, onLogout }) {
               Enter candidate details, Annual CTC, and Variable Pay. The annexure salary tables are calculated automatically.
             </p>
           </div>
+          {!templatesLoading && templates.length === 0 ? (
+            <div className="rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-sm text-[#b91c1c]">
+              No Letter of Intent templates yet.{' '}
+              <Link to="/admin/essentials/templates" className="font-medium underline">
+                Create one in Essentials → Letter Templates
+              </Link>{' '}
+              before generating a letter.
+            </div>
+          ) : (
           <form
             onSubmit={(event) => {
               event.preventDefault();
@@ -424,6 +529,41 @@ function LetterOfIntent({ userName, onLogout }) {
             }}
             className="flex flex-col gap-4"
           >
+            {templates.length > 1 && (
+              <div className="flex flex-col gap-1.5 sm:w-72">
+                <label className="text-sm font-medium text-foreground">Template</label>
+                <select
+                  value={selectedTemplateId}
+                  onChange={(e) => setSelectedTemplateId(Number(e.target.value))}
+                  className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+                >
+                  {templates.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            {hasCustomBody && (
+              <div className="flex flex-col gap-3 rounded-lg border border-[#bfdbfe] bg-[#eff6ff] p-3">
+                <div className="text-sm font-semibold text-foreground">
+                  Fill in details for "{selectedTemplate.name}"
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {selectedTemplate.fields.map((f) => (
+                    <div className="flex flex-col gap-1.5" key={f.fieldKey}>
+                      <label className="text-sm font-medium text-foreground">{f.label}</label>
+                      <input
+                        type={f.fieldType === 'DATE' ? 'date' : f.fieldType === 'CURRENCY' ? 'number' : 'text'}
+                        value={customFieldValues[f.fieldKey] || ''}
+                        onChange={updateCustomField(f.fieldKey)}
+                        placeholder={f.label}
+                        className="h-9 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             <div className="text-sm font-semibold text-foreground">Candidate Details</div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {fields.map(([key, label, type = "text"]) => (
@@ -472,11 +612,12 @@ function LetterOfIntent({ userName, onLogout }) {
               {isGenerating ? "Generating..." : "Generate Letter of Intent"}
             </button>
           </form>
+          )}
         </section>
 
         <div ref={pdfRef} className="loi-pdf-root">
           <div className="loi-page">
-            <LetterHeader />
+            <LetterHeader company={company} logoSrc={logoSrc} />
             <div className="loi-title">Warm Welcome</div>
             <div className="loi-date">{offer.generatedDate}</div>
             <div className="loi-address">
@@ -488,33 +629,33 @@ function LetterOfIntent({ userName, onLogout }) {
             <div className="loi-subject">Subject: Letter of Intent</div>
             <div className="loi-body">
               <p>Dear <strong>{firstName}</strong>,</p>
-              <p>We are pleased to offer you employment with <strong>Prominent Scientific Private Limited</strong> as an <strong>{offer.designation}</strong>.</p>
+              <p>We are pleased to offer you employment with <strong>{company.name}</strong> as an <strong>{offer.designation}</strong>.</p>
               <p>You will be assigned to work on projects and client engagements as determined by the company from time to time. Your responsibilities, reporting structure, and work location will be communicated upon joining.</p>
               <p>Your <strong>Cost to Company (CTC)</strong> will be <strong>INR Rs. {offer.annualCtc}/-</strong> per annum. The salary structure is described in the Salary Structure <strong>(Annexure-1)</strong>.</p>
               <p>We request you to join our organization on or before <strong>{offer.joiningDate}</strong>. A detailed Appointment Letter containing the terms and conditions of your employment will be issued upon your joining.</p>
-              <p>Your employment with Prominent Scientific Private Limited shall be governed by the company's policies and procedures.</p>
-              <p>We are confident that your skills, knowledge, and enthusiasm will contribute significantly to the success of our organization. We look forward to welcoming you to the Prominent Scientific family.</p>
+              <p>Your employment with {company.name} shall be governed by the company's policies and procedures.</p>
+              <p>We are confident that your skills, knowledge, and enthusiasm will contribute significantly to the success of our organization. We look forward to welcoming you to the {company.name} family.</p>
               <p>Please sign and return a copy of this letter as a token of your acceptance.</p>
             </div>
             <div className="loi-signature-block">
-              <div>Congratulations and Welcome to Prominent Scientific Private Limited!</div>
-              <div>For Prominent Scientific Private Limited</div>
-              <img src={sign} alt="" className="loi-signature-image" />
+              <div>Congratulations and Welcome to {company.name}!</div>
+              <div>For {company.name}</div>
+              <img src={signSrc} alt="" className="loi-signature-image" />
               <div>Authorized Signatory</div>
             </div>
             <div className="loi-acceptance">
               <strong>Acceptance</strong>
-              <div>I accept the above offer and agree to join Prominent Scientific Private Limited on the date specified.</div>
+              <div>I accept the above offer and agree to join {company.name} on the date specified.</div>
             </div>
             <div className="loi-sign-line">
               <span>Signature :</span>
               <span>Date :</span>
             </div>
-            <LetterFooter />
+            <LetterFooter company={company} />
           </div>
 
           <div className="loi-page">
-            <LetterHeader />
+            <LetterHeader company={company} logoSrc={logoSrc} />
             <div className="loi-annexure-title">Annexure - I</div>
             <div className="loi-annexure-info">
               <p><strong>Name :</strong> {offer.employeeName}</p>
@@ -556,20 +697,45 @@ function LetterOfIntent({ userName, onLogout }) {
             </table>
             <div className="loi-final-signature">
               <div>Yours Sincerely,</div>
-              <img src={sign} alt="" className="loi-signature-image" />
-              <strong>P Lokeswari,<br />HR Manager</strong>
+              <img src={signSrc} alt="" className="loi-signature-image" />
+              <strong>{company.hrName},<br />HR Manager</strong>
             </div>
-            <LetterFooter />
+            <LetterFooter company={company} />
           </div>
 
           <div className="loi-page">
-            <LetterHeader />
+            <LetterHeader company={company} logoSrc={logoSrc} />
             <div className="loi-note">
-              <strong>Note:</strong> This information is confidential and meant for your reference only. It should not be shared with any of the other employees of Prominent Scientific Pvt Ltd. In case it comes to the attention of the management that this confidentiality is not maintained, it will be viewed seriously by the Management, and this will be treated as a breach of organizational discipline.
+              <strong>Note:</strong> This information is confidential and meant for your reference only. It should not be shared with any of the other employees of {company.name}. In case it comes to the attention of the management that this confidentiality is not maintained, it will be viewed seriously by the Management, and this will be treated as a breach of organizational discipline.
             </div>
-            <LetterFooter />
+            <LetterFooter company={company} />
           </div>
         </div>
+
+        {hasCustomBody && (
+          <div
+            ref={customBodyRef}
+            style={{
+              position: "fixed", top: "-9999px", left: "-9999px", width: "210mm",
+              background: "#fff", color: "#111", fontFamily: '"Times New Roman", Times, serif',
+              padding: "15mm 17mm", backgroundImage: `url(${watermark})`, backgroundRepeat: "no-repeat",
+              backgroundPosition: "center 150mm", backgroundSize: "300px",
+            }}
+          >
+            <LetterHeader company={company} logoSrc={logoSrc} />
+            <div style={{ marginTop: 24, fontSize: 16, lineHeight: 1.5 }}>
+              {mergeTemplateBody(selectedTemplate?.bodyContent, customFieldValues).map((paragraph, index) => (
+                <p key={index} style={{ margin: "0 0 15px", textAlign: "justify" }}>{paragraph}</p>
+              ))}
+            </div>
+            <div style={{ marginTop: 24, fontSize: 16, fontWeight: 700 }}>
+              <div>Yours Sincerely,</div>
+              <img src={signSrc} alt="" className="loi-signature-image" />
+              <div>{company.hrName}, HR Manager</div>
+            </div>
+            <LetterFooter company={company} />
+          </div>
+        )}
       </div>
     </AdminLayout>
   );

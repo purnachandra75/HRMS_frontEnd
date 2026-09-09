@@ -1,13 +1,20 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import AdminLayout from "../components/AdminLayout";
 
-import logo from "../assets/ProminentLogo.png";
-import sign from "../assets/Sign.jpg";
+import defaultLogo from "../assets/ProminentLogo.png";
+import defaultSign from "../assets/Sign.jpg";
 import watermark from "../assets/p2.jpg";
 import { formatDateDDMMYYYY } from "../utils/dateFormat";
 import { apiFetch } from "../utils/apiClient";
+import {
+  getLetterTemplates,
+  fetchLetterTemplateLogoObjectUrl,
+  fetchLetterTemplateSignatureObjectUrl,
+} from "../services/letterTemplateService";
+import { generatePagedPdf, mergeTemplateBody } from "../utils/generatePagedPdf";
 import "../styles/tailwind.css";
 
 function RelievingLetter({ userName, onLogout }) {
@@ -17,6 +24,86 @@ function RelievingLetter({ userName, onLogout }) {
   const [error, setError] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [manualRelievingDate, setManualRelievingDate] = useState("");
+  const [templates, setTemplates] = useState([]);
+  const [templatesLoading, setTemplatesLoading] = useState(true);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [templateLogoUrl, setTemplateLogoUrl] = useState(null);
+  const [templateSignatureUrl, setTemplateSignatureUrl] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTemplates = async () => {
+      setTemplatesLoading(true);
+      try {
+        const data = await getLetterTemplates('RELIEVING');
+        if (cancelled) return;
+        setTemplates(data);
+        const preferred = data.find((t) => t.isDefault) || data[0] || null;
+        setSelectedTemplateId(preferred ? preferred.id : '');
+      } catch (err) {
+        console.error('Failed to load relieving letter templates:', err);
+      } finally {
+        if (!cancelled) setTemplatesLoading(false);
+      }
+    };
+
+    loadTemplates();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let logoUrl = null;
+    let signatureUrl = null;
+
+    const loadImages = async () => {
+      const template = templates.find((t) => t.id === selectedTemplateId);
+      if (!template) {
+        setTemplateLogoUrl(null);
+        setTemplateSignatureUrl(null);
+        return;
+      }
+      if (template.hasLogo) logoUrl = await fetchLetterTemplateLogoObjectUrl(template.id);
+      if (template.hasSignature) signatureUrl = await fetchLetterTemplateSignatureObjectUrl(template.id);
+      if (!cancelled) {
+        setTemplateLogoUrl(logoUrl);
+        setTemplateSignatureUrl(signatureUrl);
+      }
+    };
+
+    loadImages();
+    return () => {
+      cancelled = true;
+      if (logoUrl) window.URL.revokeObjectURL(logoUrl);
+      if (signatureUrl) window.URL.revokeObjectURL(signatureUrl);
+    };
+  }, [templates, selectedTemplateId]);
+
+  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId) || null;
+  const company = {
+    name: selectedTemplate?.companyName || '',
+    website: selectedTemplate?.website || '',
+    email: selectedTemplate?.email || '',
+    phone: selectedTemplate?.phone || '',
+    addressLines: selectedTemplate
+      ? [selectedTemplate.addressLine1, selectedTemplate.addressLine2, selectedTemplate.addressLine3].filter(Boolean)
+      : [],
+    hrName: selectedTemplate?.hrName || '',
+  };
+  const logoSrc = templateLogoUrl || defaultLogo;
+  const signSrc = templateSignatureUrl || defaultSign;
+
+  const customBodyRef = useRef();
+  const [customFieldValues, setCustomFieldValues] = useState({});
+  const hasCustomBody = Boolean(selectedTemplate?.fields?.length);
+
+  const updateCustomField = (fieldKey) => (event) => {
+    const value = event.target.value;
+    setCustomFieldValues((current) => ({ ...current, [fieldKey]: value }));
+  };
 
   const normalizeEmployee = (data) => ({
     employeeId: data.employeeId ?? data.empId ?? data.id ?? employeeId.trim(),
@@ -54,6 +141,10 @@ function RelievingLetter({ userName, onLogout }) {
   };
 
   const generatePDF = async () => {
+    if (!selectedTemplate) {
+      alert("Please select a letter template first");
+      return;
+    }
     if (!employee || !employeeId.trim()) {
       alert("Please search and select an employee first");
       return;
@@ -62,8 +153,20 @@ function RelievingLetter({ userName, onLogout }) {
       alert("Please enter a relieving date to continue");
       return;
     }
+
+    if (hasCustomBody) {
+      try {
+        await generatePagedPdf(customBodyRef.current, `RelievingLetter_${employee.employeeId}.pdf`);
+        alert("PDF downloaded successfully!");
+      } catch (err) {
+        console.error("PDF Generation Error:", err);
+        alert("Error generating PDF: " + err.message);
+      }
+      return;
+    }
+
     try {
-      const canvas = await html2canvas(pdfRef.current, { 
+      const canvas = await html2canvas(pdfRef.current, {
         scale: 2,
         backgroundColor: "#ffffff"
       });
@@ -93,6 +196,52 @@ function RelievingLetter({ userName, onLogout }) {
           <h1 className="text-lg font-semibold text-foreground">Generate Relieving Letter</h1>
           <p className="mt-1 text-sm text-muted-foreground">Search by employee ID, verify the employee details, then generate the PDF.</p>
         </div>
+
+        {!templatesLoading && templates.length === 0 ? (
+          <div className="rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-sm text-[#b91c1c]">
+            No Relieving Letter templates yet.{' '}
+            <Link to="/admin/essentials/templates" className="font-medium underline">
+              Create one in Essentials → Letter Templates
+            </Link>{' '}
+            before generating a letter.
+          </div>
+        ) : (
+        <>
+        {templates.length > 1 && (
+          <div className="mb-3 flex flex-col gap-1.5 sm:w-72">
+            <label className="text-sm font-medium text-foreground">Template</label>
+            <select
+              value={selectedTemplateId}
+              onChange={(e) => setSelectedTemplateId(Number(e.target.value))}
+              className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+            >
+              {templates.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        {hasCustomBody && (
+          <div className="mb-3 flex flex-col gap-3 rounded-lg border border-[#bfdbfe] bg-[#eff6ff] p-3">
+            <div className="text-sm font-semibold text-foreground">
+              Fill in details for "{selectedTemplate.name}"
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {selectedTemplate.fields.map((f) => (
+                <div className="flex flex-col gap-1.5" key={f.fieldKey}>
+                  <label className="text-sm font-medium text-foreground">{f.label}</label>
+                  <input
+                    type={f.fieldType === 'DATE' ? 'date' : f.fieldType === 'CURRENCY' ? 'number' : 'text'}
+                    value={customFieldValues[f.fieldKey] || ''}
+                    onChange={updateCustomField(f.fieldKey)}
+                    placeholder={f.label}
+                    className="h-9 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
         <div className="flex flex-wrap gap-3">
           <input
             type="text"
@@ -153,32 +302,66 @@ function RelievingLetter({ userName, onLogout }) {
             {/* Hidden PDF template for generation only - Not visible to user */}
             <div ref={pdfRef} style={{ position: "fixed", top: "-9999px", left: "-9999px", width: "210mm", minHeight: "297mm", padding: "15mm", backgroundImage: `url(${watermark})`, backgroundRepeat: "no-repeat", backgroundPosition: "center", backgroundSize: "300px", backgroundColor: "white" }}>
               <div style={{ overflow: "hidden" }}>
-                <img src={logo} alt="" style={{ width: "90px", float: "left" }} />
+                <img src={logoSrc} alt="" style={{ width: "90px", float: "left" }} />
                 <div style={{ float: "right", textAlign: "right", color: "#0d2d73", fontSize: "13px" }}>
-                  <strong>PROMINENT SCIENTIFIC PVT LTD</strong><br />
-                  Address: JQ-Chambers, D.No.4-50/5<br />
-                  Plot No:5, 4th Floor, Gachibowli<br />
-                  Hyderabad, Telangana - 500032
+                  <strong>{company.name}</strong><br />
+                  {company.addressLines.map((line) => (
+                    <React.Fragment key={line}>{line}<br /></React.Fragment>
+                  ))}
                 </div>
               </div>
               <br /><br /><br />
               <h2 style={{ textAlign: "center", textDecoration: "underline" }}>RELIEVING LETTER</h2>
-              <div><h3>PROMINENT SCIENTIFIC</h3><h4>HR Department</h4><p>JQ-Chambers, D.No.4-50/5<br />Plot No:5, 4th Floor<br />Gachibowli, Hyderabad<br />Telangana - 500032</p></div>
+              <div><h3>{company.name}</h3><h4>HR Department</h4><p>{company.addressLines.map((line) => (
+                <React.Fragment key={line}>{line}<br /></React.Fragment>
+              ))}</p></div>
               <div style={{ marginTop: "20px", fontWeight: "bold" }}>Date: {getCurrentDate()}</div>
               <div style={{ marginTop: "35px", fontWeight: "bold" }}>TO <span style={{ textTransform: "uppercase" }}>{employee.employeeName}</span></div>
               <div style={{ marginTop: "25px", lineHeight: 1.6, textAlign: "justify" }}>
-                This is to certify that <strong>Mr/Ms. {employee.employeeName}</strong>, Employee ID <strong>{employee.employeeId}</strong>, worked with Prominent Scientific as an {employee.designation} from <strong>{employee.joiningDate}</strong> to <strong>{formatDateDDMMYYYY(manualRelievingDate)}</strong>.
+                This is to certify that <strong>Mr/Ms. {employee.employeeName}</strong>, Employee ID <strong>{employee.employeeId}</strong>, worked with {company.name} as an {employee.designation} from <strong>{employee.joiningDate}</strong> to <strong>{formatDateDDMMYYYY(manualRelievingDate)}</strong>.
                 <br /><br />
-               During her employment, she discharged her duties with commitment and professionalism. She has completed all the required formalities and is hereby relieved from the services of the company with effective {formatDateDDMMYYYY(manualRelievingDate)}. 
+               During her employment, she discharged her duties with commitment and professionalism. She has completed all the required formalities and is hereby relieved from the services of the company with effective {formatDateDDMMYYYY(manualRelievingDate)}.
                 <br /><br />
                 We thank her for the services rendered to the organization and wish her success in her future career.
               </div>
-              <div style={{ marginTop: "30px" }}>For <strong>Prominent Scientific Pvt Ltd</strong><br /><br /><strong>P Lokeswari</strong><br />HR Manager<br /><br /><img src={sign} alt="" style={{ width: "90px" }} /></div>
-              <div style={{ position: "absolute", left: "12px", right: "12px", bottom: "10px", textAlign: "center" }}><hr /><div style={{ fontSize: "10px" }}>Website: www.prominentscientific.co.in<br />Email: info@prominentscientific.co.in<br />Tel: +91 7760152730</div></div>
+              <div style={{ marginTop: "30px" }}>For <strong>{company.name}</strong><br /><br /><strong>{company.hrName}</strong><br />HR Manager<br /><br /><img src={signSrc} alt="" style={{ width: "90px" }} /></div>
+              <div style={{ position: "absolute", left: "12px", right: "12px", bottom: "10px", textAlign: "center" }}><hr /><div style={{ fontSize: "10px" }}>Website: {company.website}<br />Email: {company.email}<br />Tel: {company.phone}</div></div>
             </div>
+
+            {hasCustomBody && (
+              <div
+                ref={customBodyRef}
+                style={{
+                  position: "fixed", top: "-9999px", left: "-9999px", width: "210mm",
+                  padding: "15mm", backgroundImage: `url(${watermark})`, backgroundRepeat: "no-repeat",
+                  backgroundPosition: "center 150mm", backgroundSize: "300px", backgroundColor: "white",
+                }}
+              >
+                <div style={{ overflow: "hidden" }}>
+                  <img src={logoSrc} alt="" style={{ width: "90px", float: "left" }} />
+                  <div style={{ float: "right", textAlign: "right", color: "#0d2d73", fontSize: "13px" }}>
+                    <strong>{company.name}</strong><br />
+                    {company.addressLines.map((line) => (
+                      <React.Fragment key={line}>{line}<br /></React.Fragment>
+                    ))}
+                  </div>
+                </div>
+                <br /><br /><br />
+                <h2 style={{ textAlign: "center", textDecoration: "underline" }}>RELIEVING LETTER</h2>
+                <div style={{ marginTop: 25, lineHeight: 1.6, textAlign: "justify" }}>
+                  {mergeTemplateBody(selectedTemplate?.bodyContent, customFieldValues).map((paragraph, index) => (
+                    <p key={index} style={{ margin: "0 0 14px" }}>{paragraph}</p>
+                  ))}
+                </div>
+                <div style={{ marginTop: "30px" }}>For <strong>{company.name}</strong><br /><br /><strong>{company.hrName}</strong><br />HR Manager<br /><br /><img src={signSrc} alt="" style={{ width: "90px" }} /></div>
+                <div style={{ marginTop: 40, textAlign: "center" }}><hr /><div style={{ fontSize: "10px" }}>Website: {company.website}<br />Email: {company.email}<br />Tel: {company.phone}</div></div>
+              </div>
+            )}
           </>
         )}
       </div>
+      </>
+      )}
       </section>
     </div>
   );

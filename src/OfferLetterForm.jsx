@@ -1,28 +1,21 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import AdminLayout from "./components/AdminLayout";
 import "./App.css";
 import "./styles/tailwind.css";
 import { formatDateDDMMYYYY } from "./utils/dateFormat";
+import {
+  getLetterTemplates,
+  fetchLetterTemplateLogoObjectUrl,
+  fetchLetterTemplateSignatureObjectUrl,
+} from "./services/letterTemplateService";
+import { generatePagedPdf, mergeTemplateBody } from "./utils/generatePagedPdf";
 
-import logo from "./assets/ProminentLogo.png";
-import sign from "./assets/Sign.jpg";
+import defaultLogo from "./assets/ProminentLogo.png";
+import defaultSign from "./assets/Sign.jpg";
 import watermark from "./assets/p2.jpg";
-
-const company = {
-  name: "PROMINENT SCIENTIFIC PVT LTD",
-  website: "www.prominentscientific.co.in",
-  email: "info@prominentscientific.co.in",
-  phone: "+91 7760152730",
-  addressLines: [
-    "Address: JQ-Chambers, D.No.4-50/5,",
-    "Plot No: 5, 4th Floor, Gachibowli,",
-    "Hyderabad, Telangana - 500032",
-  ],
-  address: "Address: JQ-Chambers, D.No.4-50/5, Plot No: 5, 4th Floor, Gachibowli, Hyderabad, Telangana - 500032",
-  hrName: "P Lokeswari",
-};
 
 const offerFields = [
   ["employeeName", "Employee Name"],
@@ -183,14 +176,14 @@ const calculateSalary = (annualCtcValue, variablePayValue) => {
   };
 };
 
-function OfferHeader() {
+function OfferHeader({ company, logoSrc }) {
   return (
     <div className="offer-header">
       <table width="100%">
         <tbody>
           <tr>
             <td width="20%" valign="top">
-              <img src={logo} className="offer-logo" alt="" />
+              <img src={logoSrc} className="offer-logo" alt="" />
             </td>
             <td width="80%" valign="top">
               <div className="offer-company-info">
@@ -207,7 +200,7 @@ function OfferHeader() {
   );
 }
 
-function OfferFooter() {
+function OfferFooter({ company }) {
   return (
     <div className="offer-footer">
       <hr />
@@ -220,6 +213,81 @@ function OfferFooter() {
 function OfferLetterForm({ userName, onLogout }) {
   const pdfRef = useRef(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [templates, setTemplates] = useState([]);
+  const [templatesLoading, setTemplatesLoading] = useState(true);
+  const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  const [templateLogoUrl, setTemplateLogoUrl] = useState(null);
+  const [templateSignatureUrl, setTemplateSignatureUrl] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTemplates = async () => {
+      setTemplatesLoading(true);
+      try {
+        const data = await getLetterTemplates('OFFER');
+        if (cancelled) return;
+        setTemplates(data);
+        const preferred = data.find((t) => t.isDefault) || data[0] || null;
+        setSelectedTemplateId(preferred ? preferred.id : '');
+      } catch (err) {
+        console.error('Failed to load offer letter templates:', err);
+      } finally {
+        if (!cancelled) setTemplatesLoading(false);
+      }
+    };
+
+    loadTemplates();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    let logoUrl = null;
+    let signatureUrl = null;
+
+    const loadImages = async () => {
+      const template = templates.find((t) => t.id === selectedTemplateId);
+      if (!template) {
+        setTemplateLogoUrl(null);
+        setTemplateSignatureUrl(null);
+        return;
+      }
+      if (template.hasLogo) logoUrl = await fetchLetterTemplateLogoObjectUrl(template.id);
+      if (template.hasSignature) signatureUrl = await fetchLetterTemplateSignatureObjectUrl(template.id);
+      if (!cancelled) {
+        setTemplateLogoUrl(logoUrl);
+        setTemplateSignatureUrl(signatureUrl);
+      }
+    };
+
+    loadImages();
+    return () => {
+      cancelled = true;
+      if (logoUrl) window.URL.revokeObjectURL(logoUrl);
+      if (signatureUrl) window.URL.revokeObjectURL(signatureUrl);
+    };
+  }, [templates, selectedTemplateId]);
+
+  const selectedTemplate = templates.find((t) => t.id === selectedTemplateId) || null;
+  // Falls back to blank fields (not null) when no template is selected yet - the PDF preview
+  // below stays mounted off-screen regardless, and the empty-state message/disabled form is what
+  // actually stops generation, not a conditional unmount of this large preview tree.
+  const company = {
+    name: selectedTemplate?.companyName || '',
+    website: selectedTemplate?.website || '',
+    email: selectedTemplate?.email || '',
+    phone: selectedTemplate?.phone || '',
+    addressLines: selectedTemplate
+      ? [selectedTemplate.addressLine1, selectedTemplate.addressLine2, selectedTemplate.addressLine3].filter(Boolean)
+      : [],
+    hrName: selectedTemplate?.hrName || '',
+  };
+  const logoSrc = templateLogoUrl || defaultLogo;
+  const signSrc = templateSignatureUrl || defaultSign;
+
   const [offerLetter, setOfferLetter] = useState({
     employeeName: "",
     fatherName: "",
@@ -261,6 +329,18 @@ function OfferLetterForm({ userName, onLogout }) {
     gratuityAnnual: "",
     grossPay: "",
   });
+
+  // Only used when the selected template has fields of its own (built from an uploaded document -
+  // see LetterTemplatesPage.js) - orthogonal to offerLetter above, which feeds the fixed legal
+  // letter every template already renders.
+  const customBodyRef = useRef(null);
+  const [customFieldValues, setCustomFieldValues] = useState({});
+  const hasCustomBody = Boolean(selectedTemplate?.fields?.length);
+
+  const updateCustomField = (fieldKey) => (event) => {
+    const value = event.target.value;
+    setCustomFieldValues((current) => ({ ...current, [fieldKey]: value }));
+  };
 
   const updateField = (key) => (event) => {
     const value = event.target.value;
@@ -343,6 +423,26 @@ function OfferLetterForm({ userName, onLogout }) {
   };
 
   const generatePDF = async () => {
+    if (!selectedTemplate) {
+      alert("Please select a letter template first");
+      return;
+    }
+
+    if (hasCustomBody) {
+      const nameForFile = (customFieldValues.employeeName || "Document").replaceAll(" ", "_");
+      try {
+        setIsGenerating(true);
+        await generatePagedPdf(customBodyRef.current, `OfferLetter_${nameForFile}.pdf`);
+        alert("Offer letter downloaded successfully!");
+      } catch (err) {
+        console.error("PDF Generation Error:", err);
+        alert("Error generating PDF: " + err.message);
+      } finally {
+        setIsGenerating(false);
+      }
+      return;
+    }
+
     if (!offerLetter.employeeName.trim()) {
       alert("Please enter employee name");
       return;
@@ -386,13 +486,18 @@ function OfferLetterForm({ userName, onLogout }) {
       <div className="letter-generator-page offer-letter-page">
       <style>{`
         .offer-pdf-root {
-          position: fixed;
-          top: -9999px;
-          left: -9999px;
           width: 210mm;
           background: #ffffff;
           color: #000000;
           font-family: Arial, Helvetica, sans-serif;
+        }
+
+        .letter-preview-wrapper {
+          overflow: auto;
+          max-height: 75vh;
+          border-radius: 8px;
+          background: #f3f4f6;
+          padding: 16px;
         }
 
         .offer-page {
@@ -741,6 +846,15 @@ function OfferLetterForm({ userName, onLogout }) {
           </p>
         </div>
 
+        {!templatesLoading && templates.length === 0 ? (
+          <div className="rounded-lg border border-[#fecaca] bg-[#fef2f2] px-3 py-2 text-sm text-[#b91c1c]">
+            No offer letter templates yet.{' '}
+            <Link to="/admin/essentials/templates" className="font-medium underline">
+              Create one in Essentials → Letter Templates
+            </Link>{' '}
+            before generating a letter.
+          </div>
+        ) : (
         <form
           onSubmit={(event) => {
             event.preventDefault();
@@ -748,6 +862,41 @@ function OfferLetterForm({ userName, onLogout }) {
           }}
           className="flex flex-col gap-4"
         >
+          {templates.length > 1 && (
+            <div className="flex flex-col gap-1.5 sm:w-72">
+              <label className="text-sm font-medium text-foreground">Template</label>
+              <select
+                value={selectedTemplateId}
+                onChange={(e) => setSelectedTemplateId(Number(e.target.value))}
+                className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+              >
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {hasCustomBody && (
+            <div className="flex flex-col gap-3 rounded-lg border border-[#bfdbfe] bg-[#eff6ff] p-3">
+              <div className="text-sm font-semibold text-foreground">
+                Fill in details for "{selectedTemplate.name}"
+              </div>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {selectedTemplate.fields.map((f) => (
+                  <div className="flex flex-col gap-1.5" key={f.fieldKey}>
+                    <label className="text-sm font-medium text-foreground">{f.label}</label>
+                    <input
+                      type={f.fieldType === 'DATE' ? 'date' : f.fieldType === 'CURRENCY' ? 'number' : 'text'}
+                      value={customFieldValues[f.fieldKey] || ''}
+                      onChange={updateCustomField(f.fieldKey)}
+                      placeholder={f.label}
+                      className="h-9 rounded-lg border border-border bg-white px-3 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
           <div className="text-sm font-semibold text-foreground">Employee Details</div>
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {offerFields.map(([key, label, type = "text"]) => (
@@ -788,11 +937,15 @@ function OfferLetterForm({ userName, onLogout }) {
             {isGenerating ? "Generating..." : "Generate Offer Letter"}
           </button>
         </form>
+        )}
       </section>
 
+      <section className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
+        <h3 className="mb-3 text-sm font-semibold text-foreground">Letter Preview</h3>
+        <div className="letter-preview-wrapper">
       <div ref={pdfRef} className="offer-pdf-root">
               <div className="offer-page">
-                <OfferHeader />
+                <OfferHeader company={company} logoSrc={logoSrc} />
                 <div className="offer-title">LETTER OF EMPLOYMENT</div>
                 <table width="100%">
                   <tbody>
@@ -848,17 +1001,17 @@ function OfferLetterForm({ userName, onLogout }) {
                 <div className="offer-signature">
                  <b>Yours Sincerely,</b>
                   <br /><br />
-                  <img src={sign} className="offer-signature-image" alt="" />
+                  <img src={signSrc} className="offer-signature-image" alt="" />
                   <br />
                   <b>HR Manager</b>
                  <b><div>{company.hrName}</div></b> 
                   
                 </div>
-                <OfferFooter />
+                <OfferFooter company={company} />
               </div>
 
               <div className="offer-page offer-salary-page">
-                <OfferHeader />
+                <OfferHeader company={company} logoSrc={logoSrc} />
                 <div className="offer-section-title">Details of Employee</div>
                 <div className="offer-salary-employee-summary">
                   <div><span>Name</span>: {offer.employeeName}</div>
@@ -912,15 +1065,15 @@ function OfferLetterForm({ userName, onLogout }) {
 
                 <div className="offer-salary-note">
                   <ul>
-                    <li>Notional sum indicating contribution of 5.31% of your basic towards provision of Gratuity. Employees will be eligible for payment of gratuity as per the Prominent Policy for the same.</li>
+                    <li>Notional sum indicating contribution of 5.31% of your basic towards provision of Gratuity. Employees will be eligible for payment of gratuity as per the Company Policy for the same.</li>
                   </ul>
                 </div>
-                <OfferFooter />
+                <OfferFooter company={company} />
               </div>
               
 
               <div className="offer-page">
-                <OfferHeader />
+                <OfferHeader company={company} logoSrc={logoSrc} />
                 <div className="offer-salary-note">
                   <ul>
                     <li>Please note that your compensation is personal to you and you are requested not to share details of the same with others.</li>
@@ -935,21 +1088,21 @@ function OfferLetterForm({ userName, onLogout }) {
                   <div className="offer-section"><div className="offer-section-heading">3. CONFIDENTIALITY</div><ul><li>You will be required to execute a confidentiality agreement at the time of joining regarding your employment and the business matters of the company.</li><li>Any breach of confidentiality, including unauthorized sharing of proprietary documents, client information, trade secrets, or intellectual property, will be subject to strict legal and disciplinary action, including immediate termination of employment.</li><li>Employees must return all Company-owned confidential materials, including electronic devices, reports, emails, and project files, before exiting the organization.</li></ul></div>
                   <div className="offer-section"><div className="offer-section-heading">4. AUTHENTICITY</div><ul><li>This offer is subject to the authenticity of the information and documentation provided by you.</li><li>If any information is found to be false or misleading, at any point, the Company reserves the right to terminate employment immediately without any notice or severance benefits.</li></ul></div>
                 </div>
-                <OfferFooter />
+                <OfferFooter company={company} />
               </div>
 
               <div className="offer-page">
-                <OfferHeader />
+                <OfferHeader company={company} logoSrc={logoSrc} />
                 <div className="offer-section"><div className="offer-section-heading">5. DOCUMENTS REQUIRED</div><ul><li>Our offer is subject to the completion of separation formalities at your previous employer.</li><li>At the time of joining, you are required to produce the following documents (Photocopies), as applicable.<ul><li>Copy of Passport</li><li>Proof of Date of Birth Certificate</li><li>All Educational Certificates</li><li>Recent 4 Passport-size photographs</li></ul></li><li>The original documents will be returned to you on the same day after verification.</li></ul></div>
                 <div className="offer-section"><div className="offer-section-heading">6. REMUNERATION</div><ul><li>Upon successful completion of the training, your fixed salary as per the offer letter will be applicable.</li><li>Salary will be paid monthly, and all deductions, including taxes, PF, gratuity and statutory contributions, will be applied as per applicable laws.</li></ul></div>
                 <div className="offer-section"><div className="offer-section-heading">7. FLEXIBLE BENEFITS</div><ul><li>Under Flexible Benefits, you will be eligible to claim actual expenses under Medical Expenses and Leave Travel Assistance.</li><li>Any balance amount after reimbursement under any of the mentioned benefits will be paid as Flexible Benefit Allowance.</li><li>Employees may opt for additional benefit plans based on their preference, subject to approval from the Company and budget considerations.</li></ul></div>
                 <div className="offer-section"><div className="offer-section-heading">8. HEALTH INSURANCE</div><ul><li>You and your dependents will be covered under the Company's Medical Insurance Policy.</li><li>The Company facilitates annual health check-ups and wellness programs to promote Employee well-being.</li></ul></div>
                 <div className="offer-section"><div className="offer-section-heading">9. PERSONAL ACCIDENT INSURANCE</div><ul><li>You will be covered under the Group Personal Accident Insurance Plan up to a maximum of Rs. 1 Lakh (Rupees One Lakh Only).</li><li>Coverage amounts and specific policy terms will be shared upon joining, and Employees may opt to increase their coverage by paying additional premiums.</li></ul></div>
-                <OfferFooter />
+                <OfferFooter company={company} />
               </div>
 
               <div className="offer-page">
-                <OfferHeader />
+                <OfferHeader company={company} logoSrc={logoSrc} />
                 <div className="offer-content-terms">
                   <ul><li>In the event of an accident, Employees must notify the HR department immediately to initiate the claims process.</li></ul>
                   <h3>10. LEAVE POLICY</h3>
@@ -963,22 +1116,22 @@ function OfferLetterForm({ userName, onLogout }) {
                   <h3>14. ON SEPARATION</h3>
                   <ul><li>At the time of leaving the organization, you must immediately hand over all correspondence, specifications, formulae, books, documents, cost data, market data, literature, drawings, effects, or records belonging to the organization.</li><li>You shall not make or retain any copies of these items.</li></ul>
                 </div>
-                <OfferFooter />
+                <OfferFooter company={company} />
               </div>
 
               <div className="offer-page">
-                <OfferHeader />
+                <OfferHeader company={company} logoSrc={logoSrc} />
                 <div className="offer-content-terms">
                   <div className="offer-section"><div className="offer-section-heading">15. NOTICE PERIOD</div><ul><li>Your employment is terminable by either party with a notice period. The notice period varies according to your status in employment as follows:<ul><li>During Probation Period: 7 days</li><li>After Confirmation: 30 days</li></ul></li><li>You are responsible for knowledge transfer of all duties you are handling to a person identified by management before you are relieved.</li><li>The organization has the right to terminate your services without reason on the grounds of indiscipline, default, negligence, or breach of terms.</li><li>The company may relieve an employee before the expiry of the notice period by compensating for the remaining period.</li><li>If termination is due to ethical/moral grounds, the company is not bound to provide compensation or a reason for termination.</li></ul></div>
                   <div className="offer-section"><div className="offer-section-heading">16. PAST RECORD</div><ul><li>All details furnished by you in your CV/documents are liable to be verified at any time during your employment.</li><li>If a mismatch of facts is found, you are liable for termination from service at any time without notice.</li><li>The company may choose to verify all your credentials as deemed necessary by the organization and the client.</li></ul></div>
                   <div className="offer-section"><div className="offer-section-heading">17. CONFIDENTIAL INFORMATION</div><ul><li>You shall not, at any time, without the consent of the functional head, disclose, divulge, or make public any information regarding the company's affairs or research.</li></ul></div>
                   <div className="offer-section"><div className="offer-section-heading">18. VARIABLE PAY POLICY SUMMARY AND COMPUTATION</div><ul><li>Variable pay is a variable component in your salary stack which would be paid out on a quarterly basis.</li><li>You will be covered under a variable pay program, which would entitle you to receive variable pay of {offer.variablePay} per annum, subject to individual group/function and organization level achievement parameters.</li></ul></div>
                 </div>
-                <OfferFooter />
+                <OfferFooter company={company} />
               </div>
 
               <div className="offer-page">
-                <OfferHeader />
+                <OfferHeader company={company} logoSrc={logoSrc} />
                 <div className="offer-note-section">
                   <ul><li>The Variable pay program may be changed, altered, or modified in part or full from time to time, at the sole discretion of the management.</li></ul>
                   <div className="offer-note-title">NOTE:</div>
@@ -989,9 +1142,42 @@ function OfferLetterForm({ userName, onLogout }) {
                 </div>
                 <div className="offer-note-section"><strong>Signature:</strong><span className="offer-line"></span></div>
                 <div className="offer-note-section"><strong>Date:</strong><span className="offer-line"></span></div>
-                <OfferFooter />
+                <OfferFooter company={company} />
               </div>
       </div>
+        </div>
+      </section>
+
+      {hasCustomBody && (
+      <section className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
+        <h3 className="mb-3 text-sm font-semibold text-foreground">Letter Preview (Custom Content)</h3>
+        <div className="letter-preview-wrapper">
+        <div
+          ref={customBodyRef}
+          style={{
+            width: "210mm",
+            background: "#ffffff", color: "#000000", fontFamily: "Arial, Helvetica, sans-serif",
+            padding: "15mm 21mm", backgroundImage: `url(${watermark})`, backgroundRepeat: "no-repeat",
+            backgroundPosition: "center 150mm", backgroundSize: "300px",
+          }}
+        >
+          <OfferHeader company={company} logoSrc={logoSrc} />
+          <div style={{ marginTop: 24, fontSize: 14, lineHeight: 1.6 }}>
+            {mergeTemplateBody(selectedTemplate?.bodyContent, customFieldValues).map((paragraph, index) => (
+              <p key={index} style={{ margin: "0 0 14px", textAlign: "justify" }}>{paragraph}</p>
+            ))}
+          </div>
+          <div style={{ marginTop: 24, fontSize: 14 }}>
+            <div>Yours Sincerely,</div>
+            <img src={signSrc} alt="" style={{ width: 90, margin: "8px 0" }} />
+            <div><strong>{company.hrName}</strong></div>
+            <div>HR Manager</div>
+          </div>
+          <OfferFooter company={company} />
+        </div>
+        </div>
+      </section>
+      )}
       </div>
     </AdminLayout>
   );
