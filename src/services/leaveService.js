@@ -1,12 +1,12 @@
 import { apiFetch } from '../utils/apiClient';
+import { LEAVE_TYPE_KEYS, normalizeLeaveTypeKey, normalizeLeaveBalances } from '../utils/leaveUtils';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8080';
 
-const DEFAULT_LEAVE_BALANCES = {
-  casual: 18,
-  sick: 6,
-  paid: 12,
-};
+// Zero-filled, not a guess at real allocations - only used when there is no server data and no
+// cache at all (e.g. first load while offline). Real allocations always come from the API, which
+// reflects each org's admin-configured leave-settings.
+const emptyLeaveBalances = () => LEAVE_TYPE_KEYS.reduce((acc, key) => ({ ...acc, [key]: 0 }), {});
 
 const STORAGE_KEYS = {
   leaveRequests: 'leaveRequests',
@@ -24,48 +24,6 @@ const safeParseJSON = (value) => {
 };
 
 const buildStorageKey = (key, employeeId) => `${key}_${employeeId}`;
-
-const normalizeLeaveTypeKey = (leaveType) => {
-  if (!leaveType) return null;
-  const normalized = String(leaveType).trim().toLowerCase();
-  if (DEFAULT_LEAVE_BALANCES[normalized] !== undefined) {
-    return normalized;
-  }
-  return Object.keys(DEFAULT_LEAVE_BALANCES).find(
-    (key) => key.toLowerCase() === normalized
-  ) || null;
-};
-
-const normalizeLeaveBalancesPayload = (balances) => {
-  const normalizedBalances = {};
-
-  if (Array.isArray(balances)) {
-    balances.forEach((item) => {
-      const normalizedKey = normalizeLeaveTypeKey(item?.leaveType);
-      if (normalizedKey && item.balance !== undefined) {
-        normalizedBalances[normalizedKey] = Number(item.balance) || 0;
-      }
-    });
-  } else if (typeof balances === 'object' && balances !== null) {
-    if (balances.leaveType && balances.balance !== undefined) {
-      const normalizedKey = normalizeLeaveTypeKey(balances.leaveType);
-      if (normalizedKey) {
-        normalizedBalances[normalizedKey] = Number(balances.balance) || 0;
-      }
-    } else {
-      Object.entries(balances).forEach(([key, value]) => {
-        const normalizedKey = normalizeLeaveTypeKey(key);
-        if (normalizedKey) {
-          normalizedBalances[normalizedKey] = Number(value) || 0;
-        }
-      });
-    }
-  }
-
-  return Object.keys(normalizedBalances).length > 0
-    ? { ...DEFAULT_LEAVE_BALANCES, ...normalizedBalances }
-    : { ...DEFAULT_LEAVE_BALANCES };
-};
 
 const saveToStorage = (storageKey, value) => {
   localStorage.setItem(storageKey, JSON.stringify(value));
@@ -86,7 +44,7 @@ const getStoredLeaveBalances = (employeeId) => {
 };
 
 const saveLeaveBalancesToStorage = (employeeId, balances) => {
-  const normalized = normalizeLeaveBalancesPayload(balances);
+  const normalized = normalizeLeaveBalances(balances, emptyLeaveBalances());
   const payload = { ...normalized, year: getCurrentYear() };
   saveToStorage(buildStorageKey(STORAGE_KEYS.leaveBalances, employeeId), payload);
   return payload;
@@ -98,7 +56,7 @@ const ensureLeaveBalancesForCurrentYear = (employeeId) => {
     return stored;
   }
 
-  return saveLeaveBalancesToStorage(employeeId, { ...DEFAULT_LEAVE_BALANCES });
+  return saveLeaveBalancesToStorage(employeeId, emptyLeaveBalances());
 };
 
 // Calculate working days (excluding weekends) between two dates

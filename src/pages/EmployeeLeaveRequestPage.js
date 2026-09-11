@@ -67,7 +67,7 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
       requestsData = await getEmployeeLeaveRequests(userId);
     } catch (requestError) {
       console.error('Failed to load leave requests:', requestError);
-      loadError = 'Unable to load leave requests. Default leave balances are shown.';
+      loadError = 'Unable to load leave requests.';
     }
 
     try {

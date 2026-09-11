@@ -18,6 +18,7 @@ import PfGeneratorPage from './pages/PfGeneratorPage';
 import PayrollPage from './pages/PayrollPage';
 import PayrollReportPage from './pages/PayrollReportPage';
 import PayslipSettingsPage from './pages/PayslipSettingsPage';
+import LeaveSettingsPage from './pages/LeaveSettingsPage';
 import AdminHolidaysPage from './pages/AdminHolidaysPage';
 import TeamStructurePage from './pages/TeamStructurePage';
 import AdminTimesheetsPage from './pages/AdminTimesheetsPage';
@@ -290,6 +291,17 @@ function App() {
             element={
               isAuthenticated && userRole === 'admin' ? (
                 <PayslipSettingsPage userName={userName} onLogout={handleLogout} />
+              ) : (
+                <Navigate to="/login" />
+              )
+            }
+          />
+
+          <Route
+            path="/admin/leave-settings"
+            element={
+              isAuthenticated && userRole === 'admin' ? (
+                <LeaveSettingsPage userName={userName} onLogout={handleLogout} />
               ) : (
                 <Navigate to="/login" />
               )

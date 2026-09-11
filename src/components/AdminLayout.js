@@ -23,6 +23,7 @@ import {
   Sun,
   Moon,
   Settings,
+  SlidersHorizontal,
 } from 'lucide-react';
 import useTheme from '../hooks/useTheme';
 import '../styles/tailwind.css';
@@ -131,6 +132,7 @@ export default function AdminLayout({ userName, onLogout, activeItem, title, sub
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto px-2 pb-4">
         <NavButton icon={Users} label="Employee Details" active={activeItem === 'dashboard'} collapsed={collapsed} onClick={() => go('/admin')} />
         <NavButton icon={CalendarDays} label="Leave Management" active={activeItem === 'leaves'} collapsed={collapsed} onClick={() => go('/admin/leaves')} />
+        <NavButton icon={SlidersHorizontal} label="Leave Settings" active={activeItem === 'leave-settings'} collapsed={collapsed} onClick={() => go('/admin/leave-settings')} />
 
         <div>
           <div className="flex items-center">

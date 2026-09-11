@@ -1,27 +1,21 @@
 import { leaveTypes } from '../config/leaveConfig';
 
-export const DEFAULT_LEAVE_BALANCES = {
-  casual: 18,
-  sick: 6,
-  paid: 12,
-};
+// Leave type keys the backend seeds a balance for (see LeavePolicySettingsService.LEAVE_TYPES
+// on the backend) - used only to recognize/normalize keys, never to fabricate a balance number.
+// Actual allocation counts always come from the API (per-org, admin-configured), not from here.
+export const LEAVE_TYPE_KEYS = ['casual', 'sick', 'paid'];
 
-const normalizeLeaveTypeKey = (leaveType) => {
+export const normalizeLeaveTypeKey = (leaveType) => {
   if (!leaveType) return null;
   const normalized = String(leaveType).trim().toLowerCase();
-  if (DEFAULT_LEAVE_BALANCES[normalized] !== undefined) {
-    return normalized;
-  }
-  return Object.keys(DEFAULT_LEAVE_BALANCES).find(
-    (key) => key.toLowerCase() === normalized
-  ) || null;
+  return LEAVE_TYPE_KEYS.find((key) => key === normalized) || null;
 };
 
 export function formatLeaveType(type) {
   return leaveTypes[type] || type;
 }
 
-export function normalizeLeaveBalances(balances, fallbackBalances = DEFAULT_LEAVE_BALANCES) {
+export function normalizeLeaveBalances(balances, fallbackBalances = {}) {
   const normalizedBalances = {};
 
   if (Array.isArray(balances)) {
@@ -47,9 +41,7 @@ export function normalizeLeaveBalances(balances, fallbackBalances = DEFAULT_LEAV
     }
   }
 
-  return Object.keys(normalizedBalances).length > 0
-    ? { ...fallbackBalances, ...normalizedBalances }
-    : { ...fallbackBalances };
+  return { ...fallbackBalances, ...normalizedBalances };
 }
 
 export function getTotalLeaveBalance(balances) {

@@ -62,8 +62,12 @@ export default function LeaveReportCard({ userId }) {
 
   const currentYearData = calculateMonthlyData();
   const totalUsedInYear = currentYearData.reduce((sum, val) => sum + val, 0);
-  const totalAllotted = 22; // Default total
-  const totalRemaining = totalAllotted - totalUsedInYear;
+  // Both derived from real data - leaveData is this employee's actual current balance per
+  // type (seeded from the org's admin-configured leave-settings), never a fixed constant.
+  const totalRemaining = leaveData
+    ? Object.values(leaveData).reduce((sum, val) => sum + (Number(val) || 0), 0)
+    : 0;
+  const totalAllotted = totalRemaining + totalUsedInYear;
 
   if (loading) return <div className="text-sm text-muted-foreground">Loading leave data...</div>;
 
