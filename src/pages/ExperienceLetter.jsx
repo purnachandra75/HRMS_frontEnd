@@ -121,7 +121,7 @@ function ExperienceLetter({ userName, onLogout }) {
     }
 
     const apiBase = process.env.REACT_APP_API_URL || 'http://localhost:8080';
-    const url = `${apiBase}/api/employee/${employeeId.trim()}/experience`;
+    const url = `${apiBase}/api/employee/${encodeURIComponent(employeeId.trim())}/experience`;
     setIsSearching(true);
     setError("");
     setEmployee(null);

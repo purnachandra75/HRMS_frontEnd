@@ -121,7 +121,8 @@ function PayrollPage({ userName, onLogout }) {
   // the rest stay substring matches since that's expected for text search.
   const matchesEmployeeSearch = (employee, query) => {
     if (!query) return true;
-    if (String(employee.id ?? '').toLowerCase() === query) return true;
+    // Exact match on the client-assigned Employee ID (e.g. "EMP001"), not the internal id.
+    if (String(employee.employeeId ?? '').toLowerCase() === query) return true;
 
     const fullName = `${employee.firstName || ''} ${employee.lastName || ''}`.trim();
     return [
@@ -181,6 +182,7 @@ function PayrollPage({ userName, onLogout }) {
       .filter((employee) => effectiveIncludedIds.includes(String(employee.id)))
       .map((employee) => ({
         id: employee.id,
+        employeeCode: employee.employeeId || 'N/A',
         name: `${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A',
         department: employee.department || 'N/A',
         designation: employee.designation || 'N/A',
@@ -194,7 +196,7 @@ function PayrollPage({ userName, onLogout }) {
       return <p className="px-5 py-6 text-sm text-muted-foreground">{emptyMessage}</p>;
     }
 
-    const columns = ['Include', 'ID', 'Name', 'Email', 'Department', 'Designation', 'Phone', 'Salary'];
+    const columns = ['Include', 'Employee ID', 'Name', 'Email', 'Department', 'Designation', 'Phone', 'Salary'];
     if (showVariablePay) columns.push('Variable Pay');
 
     return (
@@ -229,7 +231,7 @@ function PayrollPage({ userName, onLogout }) {
                       <span className="mt-0.5 block text-[10px] font-medium text-muted-foreground">Processed</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-foreground">{employee.id}</td>
+                  <td className="px-4 py-3 text-sm text-foreground">{employee.employeeId || 'N/A'}</td>
                   <td className="px-4 py-3 text-sm text-foreground">{`${employee.firstName || ''} ${employee.lastName || ''}`.trim() || 'N/A'}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">{employee.email || 'N/A'}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">{employee.department || 'N/A'}</td>
@@ -361,7 +363,7 @@ function PayrollPage({ userName, onLogout }) {
                       <tbody>
                         {payrollReportRows.map((row) => (
                           <tr key={`${row.id}-${selectedMonth}-${selectedYear}`} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
-                            <td className="px-4 py-3 text-sm text-foreground">{row.id}</td>
+                            <td className="px-4 py-3 text-sm text-foreground">{row.employeeCode}</td>
                             <td className="px-4 py-3 text-sm text-foreground">{row.name}</td>
                             <td className="px-4 py-3 text-sm text-muted-foreground">{selectedMonthName}</td>
                             <td className="px-4 py-3 text-sm text-muted-foreground">{selectedYear}</td>
@@ -387,7 +389,7 @@ function PayrollPage({ userName, onLogout }) {
                     <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                     <input
                       type="text"
-                      placeholder="Search by ID, name, email, department, or designation"
+                      placeholder="Search by employee ID, name, email, department, or designation"
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                       className="h-9 w-full rounded-lg border border-border bg-white pl-9 pr-3 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"

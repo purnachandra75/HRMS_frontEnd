@@ -33,7 +33,7 @@ export default function EmployeeRequestTable({ requests, updatedIds = [] }) {
           <table className="w-full text-left" style={{ minWidth: 640 }}>
             <thead>
               <tr className="border-b border-border/80 bg-muted/40">
-                {['ID', 'Type', 'From Date', 'To Date', 'Days', 'Status', 'Submitted'].map((col) => (
+                {['S.No', 'Type', 'From Date', 'To Date', 'Days', 'Status', 'Submitted'].map((col) => (
                   <th key={col} className="h-11 px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                     {col}
                   </th>
@@ -41,11 +41,11 @@ export default function EmployeeRequestTable({ requests, updatedIds = [] }) {
               </tr>
             </thead>
             <tbody>
-              {requests.map((request) => {
+              {requests.map((request, index) => {
                 const statusKey = (request.status || '').toLowerCase();
                 return (
                   <tr key={request.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
-                    <td className="px-4 py-3 text-sm text-foreground">{request.id}</td>
+                    <td className="px-4 py-3 text-sm text-foreground">{index + 1}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">{formatLeaveType(request.leaveType || request.type)}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">{formatDateDDMMYYYY(request.fromDate)}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">{formatDateDDMMYYYY(request.toDate)}</td>

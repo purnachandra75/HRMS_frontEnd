@@ -16,6 +16,8 @@ const STATUS_CLASSES = {
 
 export default function AdminRequestTable({
   requests,
+  // Serial number of the first row on this page, so numbering continues across pages.
+  startIndex = 0,
   totalRequests = 0,
   statusFilter = 'all',
   onStatusFilterChange,
@@ -69,7 +71,7 @@ export default function AdminRequestTable({
           <table className="w-full text-left" style={{ minWidth: 640 }}>
             <thead>
               <tr className="border-b border-border/80 bg-muted/40">
-                {['ID', 'Employee', 'Type', 'Days', 'Status', 'Action'].map((col) => (
+                {['S.No', 'Employee', 'Type', 'Days', 'Status', 'Action'].map((col) => (
                   <th key={col} className="h-11 px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
                     {col}
                   </th>
@@ -77,14 +79,14 @@ export default function AdminRequestTable({
               </tr>
             </thead>
             <tbody>
-              {requests.map((request) => {
+              {requests.map((request, index) => {
                 const statusKey = (request.status || '').toLowerCase();
                 return (
                   <tr key={request.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
-                    <td className="px-4 py-3 text-sm text-foreground">{request.id}</td>
+                    <td className="px-4 py-3 text-sm text-foreground">{startIndex + index + 1}</td>
                     <td className="px-4 py-3 text-sm text-foreground">
                       {request.employeeName || request.firstName} {request.lastName || ''}
-                      <div className="text-xs text-muted-foreground">{request.employeeId}</div>
+                      <div className="text-xs text-muted-foreground">{request.employeeCode}</div>
                     </td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">{formatLeaveType(request.leaveType)}</td>
                     <td className="px-4 py-3 text-sm text-muted-foreground">{getCorrectDays(request)}</td>

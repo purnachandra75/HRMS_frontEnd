@@ -225,7 +225,7 @@ export default function AdminLeaveReportCard() {
                       return (
                         <tr key={request.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
                           <td className="px-4 py-3 text-sm text-foreground">
-                            {request.empId || request.employeeId || request.employee?.empId || request.employee?.employeeId || request.id}
+                            {request.employeeCode || request.employee?.employeeId || 'N/A'}
                           </td>
                           <td className="px-4 py-3 text-sm text-foreground">
                             {request.employeeName || request.employee?.fullName || request.employee?.name || 'N/A'}

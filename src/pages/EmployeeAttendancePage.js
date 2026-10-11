@@ -1,12 +1,36 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Clock } from 'lucide-react';
 import EmployeeLayout from '../components/EmployeeLayout';
+import useEmployeeCode from '../hooks/useEmployeeCode';
 import { getEmployeeLeaveRequests } from '../services/leaveService';
 import { getHolidays } from '../services/holidayService';
 import { apiFetch } from '../utils/apiClient';
 import '../styles/tailwind.css';
 
+// Check-in/out times come back as "09:15:30 AM" (what this page sends) or 24-hour "09:15:30".
+// Returns [hours, minutes, seconds] in 24-hour form, or null if unreadable.
+const parseTimeOfDay = (value) => {
+  const match = String(value || '').replace(/\s+/g, ' ').trim()
+    .match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?\s*([AaPp][Mm])?$/);
+  if (!match) return null;
+  let hours = Number(match[1]);
+  const suffix = match[4] ? match[4].toUpperCase() : null;
+  if (suffix === 'PM' && hours < 12) hours += 12;
+  if (suffix === 'AM' && hours === 12) hours = 0;
+  return [hours, Number(match[2]), Number(match[3] || 0)];
+};
+
+// Matches app.attendance.missed-checkout-hours on the backend.
+const MISSED_CHECKOUT_HOURS = 14;
+
+// 8.5 -> "8h 30m"
+const formatHours = (hours) => {
+  const totalMinutes = Math.max(0, Math.round(Number(hours) * 60));
+  return `${Math.floor(totalMinutes / 60)}h ${String(totalMinutes % 60).padStart(2, '0')}m`;
+};
+
 function EmployeeAttendancePage({ userId, userName, onLogout }) {
+  const employeeCode = useEmployeeCode(userId);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [activeTab, setActiveTab] = useState('today');
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -15,12 +39,28 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
   const [checkedOutToday, setCheckedOutToday] = useState(false);
   const [todayCheckInTime, setTodayCheckInTime] = useState(null);
   const [todayCheckOutTime, setTodayCheckOutTime] = useState(null);
+  // Date of the current shift's attendance row (yesterday for a shift that crossed midnight).
+  const [todayShiftDate, setTodayShiftDate] = useState(null);
+  const [todayTotalHours, setTodayTotalHours] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [allAttendanceData, setAllAttendanceData] = useState([]);
   const [isOnApprovedLeaveToday, setIsOnApprovedLeaveToday] = useState(false);
   const [holidays, setHolidays] = useState([]);
 
   const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:8080';
+
+  const toLocalDateKey = (date) =>
+    `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+
+  // Hours since check-in, ticking with the clock, while the employee is still checked in.
+  const getHoursSoFar = () => {
+    const shiftDate = parseLocalDate(todayShiftDate);
+    const time = parseTimeOfDay(todayCheckInTime);
+    if (!shiftDate || !time) return null;
+    shiftDate.setHours(time[0], time[1], time[2], 0);
+    const elapsedMs = currentTime.getTime() - shiftDate.getTime();
+    return elapsedMs > 0 ? elapsedMs / 3600000 : null;
+  };
 
   const parseLocalDate = (value) => {
     if (!value) return null;
@@ -29,10 +69,14 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
     return new Date(year, month - 1, day);
   };
 
+  // Only the selected month's records - the backend filters by year/month, so this never
+  // downloads the employee's whole attendance history.
   const loadAttendanceData = useCallback(async () => {
     if (!userId) return;
     try {
-      const response = await apiFetch(`${API_BASE}/api/attendance/employee/${userId}`);
+      const response = await apiFetch(
+        `${API_BASE}/api/attendance/employee/${userId}?year=${selectedYear}&month=${selectedMonth}`
+      );
       if (response.ok) {
         const data = await response.json();
         const mapped = data.map((record) => ({
@@ -49,7 +93,7 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
       console.error('Failed to load attendance data', error);
       setAllAttendanceData([]);
     }
-  }, [API_BASE, userId]);
+  }, [API_BASE, userId, selectedYear, selectedMonth]);
 
   const loadTodayAttendance = useCallback(async () => {
     if (!userId) return;
@@ -61,11 +105,15 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
         setCheckedOutToday(Boolean(data.checkOutTime));
         setTodayCheckInTime(data.checkInTime || null);
         setTodayCheckOutTime(data.checkOutTime || null);
+        setTodayShiftDate(data.date || null);
+        setTodayTotalHours(data.totalHours ?? null);
       } else {
         setCheckedInToday(false);
         setCheckedOutToday(false);
         setTodayCheckInTime(null);
         setTodayCheckOutTime(null);
+        setTodayShiftDate(null);
+        setTodayTotalHours(null);
       }
     } catch (error) {
       console.error('Failed to load today attendance', error);
@@ -73,6 +121,8 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
       setCheckedOutToday(false);
       setTodayCheckInTime(null);
       setTodayCheckOutTime(null);
+      setTodayShiftDate(null);
+      setTodayTotalHours(null);
     }
   }, [API_BASE, userId]);
 
@@ -107,12 +157,16 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
   }, [userId]);
 
   useEffect(() => {
-    loadAttendanceData();
     loadTodayAttendance();
     loadApprovedLeaveStatus();
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
-  }, [loadAttendanceData, loadTodayAttendance, loadApprovedLeaveStatus]);
+  }, [loadTodayAttendance, loadApprovedLeaveStatus]);
+
+  // Refetch whenever the selected month/year changes.
+  useEffect(() => {
+    loadAttendanceData();
+  }, [loadAttendanceData]);
 
   useEffect(() => {
     const loadHolidayData = async () => {
@@ -158,6 +212,8 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
       const result = await response.json();
       if (response.ok) {
         setTodayCheckInTime(checkInTime);
+        setTodayShiftDate(toLocalDateKey(now));
+        setTodayTotalHours(null);
         setCheckedInToday(true);
         setCheckedOutToday(false);
         setStatusMessage(result.message || `Checked in successfully at ${checkInTime}`);
@@ -189,6 +245,7 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
       const result = await response.json();
       if (response.ok) {
         setTodayCheckOutTime(checkOutTime);
+        setTodayTotalHours(result.totalHours ?? null);
         setCheckedOutToday(true);
         setStatusMessage(result.message || 'Checked out successfully');
         await loadAttendanceData();
@@ -255,6 +312,7 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
 
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i);
   const checkInDisabled = checkedInToday || isOnApprovedLeaveToday;
+  const hoursSoFar = checkedInToday && !checkedOutToday ? getHoursSoFar() : null;
   const checkOutDisabled = !checkedInToday || checkedOutToday || isOnApprovedLeaveToday;
 
   return (
@@ -279,7 +337,7 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
             <div className="text-sm text-muted-foreground">{dateString}</div>
           </div>
           <div className="text-sm text-foreground">
-            <strong>Employee ID:</strong> <span>{userId}</span>
+            <strong>Employee ID:</strong> <span>{employeeCode || '—'}</span>
           </div>
         </div>
 
@@ -329,10 +387,25 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
               {isOnApprovedLeaveToday && <p>You are on approved leave today, so check-in and check-out are disabled.</p>}
               {!isOnApprovedLeaveToday && !checkedInToday && <p>Click CHECK IN to start your day.</p>}
               {!isOnApprovedLeaveToday && checkedInToday && !checkedOutToday && (
-                <p>You checked in at {todayCheckInTime}. Click CHECK OUT when leaving.</p>
+                <>
+                  <p>You checked in at {todayCheckInTime}. Click CHECK OUT when leaving.</p>
+                  {hoursSoFar != null && (
+                    <p className="mt-1 font-medium text-foreground">Hours worked so far: {formatHours(hoursSoFar)}</p>
+                  )}
+                  {hoursSoFar != null && hoursSoFar >= MISSED_CHECKOUT_HOURS && (
+                    <p className="mt-1 font-medium text-red-600">
+                      You haven't checked out for over {MISSED_CHECKOUT_HOURS} hours - a missed check-out warning has been emailed to you and HR.
+                    </p>
+                  )}
+                </>
               )}
               {!isOnApprovedLeaveToday && checkedInToday && checkedOutToday && (
-                <p>Completed - Checked in at {todayCheckInTime}, out at {todayCheckOutTime}</p>
+                <>
+                  <p>Completed - Checked in at {todayCheckInTime}, out at {todayCheckOutTime}</p>
+                  {todayTotalHours != null && (
+                    <p className="mt-1 font-medium text-foreground">Total hours worked: {formatHours(todayTotalHours)}</p>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -427,53 +500,6 @@ function EmployeeAttendancePage({ userId, userName, onLogout }) {
                               {record.status}
                             </span>
                           </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
-              <h2 className="text-base font-semibold text-foreground">Complete Attendance History</h2>
-              <div className="mt-4 overflow-x-auto rounded-xl border border-border/80">
-                <table className="w-full text-left" style={{ minWidth: 720 }}>
-                  <thead>
-                    <tr className="border-b border-border/80 bg-muted/40">
-                      {['Date', 'Check In Time', 'Check Out Time', 'Total Hours', 'Status', 'Remarks'].map((col) => (
-                        <th key={col} className="h-11 px-4 text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                          {col}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {allAttendanceData.length === 0 ? (
-                      <tr>
-                        <td colSpan={6} className="px-4 py-6 text-center text-sm text-muted-foreground">
-                          No attendance records found
-                        </td>
-                      </tr>
-                    ) : (
-                      allAttendanceData.map((record) => (
-                        <tr key={record.id} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
-                          <td className="px-4 py-3 text-sm text-foreground">{record.date}</td>
-                          <td className="px-4 py-3 text-sm text-muted-foreground">{record.checkInTime}</td>
-                          <td className="px-4 py-3 text-sm text-muted-foreground">{record.checkOutTime}</td>
-                          <td className="px-4 py-3 text-sm text-muted-foreground">{record.totalHours}</td>
-                          <td className="px-4 py-3">
-                            <span
-                              className={`inline-flex h-6 items-center rounded-full border px-2.5 text-[11px] font-semibold ${
-                                record.status === 'PRESENT'
-                                  ? 'border-[#bbf7d0] bg-[#f0fdf4] text-[#15803d]'
-                                  : 'border-[#fecaca] bg-[#fef2f2] text-[#b91c1c]'
-                              }`}
-                            >
-                              {record.status}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-muted-foreground">{record.remarks || '-'}</td>
                         </tr>
                       ))
                     )}

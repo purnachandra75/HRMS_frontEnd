@@ -39,6 +39,7 @@ const normalizeStatus = (status) => {
     return 'Amount Credited';
   }
   if (value === 'processing' || value === 'in process') return 'Processing';
+  if (['non_credited', 'non credited', 'not credited', 'not_credited'].includes(value)) return 'Not Credited';
   return originalStatus || 'N/A';
 };
 
@@ -55,6 +56,8 @@ const normalizePayrollRecord = (record, selectedMonth, selectedYear) => {
   return {
     payrollId: record.payrollId || record.id || record.payrollProcessId || null,
     employeeId,
+    // Client-assigned Employee ID for display; employeeId above is the internal key the API uses.
+    employeeCode: record.employeeCode || record.employee?.employeeId || null,
     employeeName: buildEmployeeName(record.employee || record),
     month: record.month || selectedMonth,
     year: record.year || selectedYear,
@@ -146,9 +149,14 @@ function PayrollReportPage({ userName, onLogout }) {
     loadReport(page, debouncedSearch);
   };
 
-  const handlePayrollStatusUpdate = async (row) => {
+  // Marks the row credited, or - via Cancel, for a row credited by mistake - puts it back to
+  // NON_CREDITED (the status every payroll row starts with).
+  const handlePayrollStatusUpdate = async (row, { revert = false } = {}) => {
+    if (revert && !window.confirm(`Cancel the credited status for ${row.employeeName}? It will go back to Not Credited.`)) {
+      return;
+    }
     const rowKey = getPayrollRowKey(row);
-    const status = 'Amount Credited';
+    const status = revert ? 'NON_CREDITED' : 'Amount Credited';
 
     setUpdatingKey(rowKey);
     setError('');
@@ -162,7 +170,7 @@ function PayrollReportPage({ userName, onLogout }) {
         year: row.year,
         status,
       });
-      setStatusMessage('Payroll status updated successfully.');
+      setStatusMessage(revert ? 'Credited status cancelled - marked as Not Credited.' : 'Payroll status updated successfully.');
       // Reload rather than patch locally - the credited/pending stat tiles are computed
       // server-side over the full filtered set, not just this page.
       await loadReport(currentPage, debouncedSearch);
@@ -257,7 +265,7 @@ function PayrollReportPage({ userName, onLogout }) {
 
               return (
                 <tr key={rowKey} className="border-b border-border/60 last:border-0 hover:bg-muted/30">
-                  <td className="px-4 py-3 text-sm text-foreground">{row.employeeId || 'N/A'}</td>
+                  <td className="px-4 py-3 text-sm text-foreground">{row.employeeCode || 'N/A'}</td>
                   <td className="px-4 py-3 text-sm text-foreground">{row.employeeName}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">{monthOptions[Number(row.month) - 1] || row.month}</td>
                   <td className="px-4 py-3 text-sm text-muted-foreground">{row.year}</td>
@@ -277,14 +285,26 @@ function PayrollReportPage({ userName, onLogout }) {
                     </span>
                   </td>
                   <td className="px-4 py-3">
-                    <button
-                      type="button"
-                      onClick={() => handlePayrollStatusUpdate(row)}
-                      disabled={isUpdating || isCredited}
-                      className="rounded-md border border-border bg-white px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      {isUpdating ? 'Updating...' : isCredited ? 'Credited' : 'Update'}
-                    </button>
+                    {isCredited ? (
+                      <button
+                        type="button"
+                        onClick={() => handlePayrollStatusUpdate(row, { revert: true })}
+                        disabled={isUpdating}
+                        title="Credited by mistake? Set it back to Not Credited"
+                        className="rounded-md border border-[#fecaca] bg-white px-2.5 py-1 text-xs font-medium text-[#b91c1c] hover:bg-[#fef2f2] disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isUpdating ? 'Cancelling...' : 'Cancel'}
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => handlePayrollStatusUpdate(row)}
+                        disabled={isUpdating}
+                        className="rounded-md border border-border bg-white px-2.5 py-1 text-xs font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {isUpdating ? 'Updating...' : 'Update'}
+                      </button>
+                    )}
                   </td>
                   <td className="px-4 py-3">
                     <label className="flex items-center gap-1.5 text-xs text-foreground">

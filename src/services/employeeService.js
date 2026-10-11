@@ -256,7 +256,7 @@ const normalizeStatus = (status) => {
   return status.trim();
 };
 
-export const getEmployeesPage = async ({ page = 1, size = 2, department = '', employeeType = '', status = '', searchQuery = '', joinedFrom = '', joinedTo = '' }) => {
+export const getEmployeesPage = async ({ page = 1, size = 2, department = '', employeeType = '', status = '', searchQuery = '', joinedFrom = '', joinedTo = '', excludeAdmins = false }) => {
   const params = {
     page: Math.max(0, page - 1),
     size,
@@ -271,6 +271,8 @@ export const getEmployeesPage = async ({ page = 1, size = 2, department = '', em
   if (normalizedStatus) params.status = normalizedStatus;
   if (joinedFrom) params.joinedFrom = joinedFrom;
   if (joinedTo) params.joinedTo = joinedTo;
+  // Leaves client admin accounts out of the list (used by the admin dashboard).
+  if (excludeAdmins) params.excludeAdmins = true;
 
   let requestUrl = API_BASE_URL;
   if (searchQuery) {

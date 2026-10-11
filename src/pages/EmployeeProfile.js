@@ -344,6 +344,8 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
   const canGoNext = currentSectionIndex < sections.length - 1;
   const canGoPrevious = currentSectionIndex > 0;
   const sectionReadOnly = !isAdminView && !isCreateMode && (activeSection === 'job' || activeSection === 'salary' || activeSection === 'project');
+  // Only the client admin can set or change an Employee ID (the backend enforces this too).
+  const canEditEmployeeId = userRole === 'admin';
 
   const renderSectionView = (id) => {
     const F = (label, value, isFile = false, fieldName = '') => {
@@ -630,6 +632,8 @@ function EmployeeProfile({ userId, userRole, onLogout }) {
                         value={formData.employeeId || ''}
                         onChange={handleInputChange}
                         placeholder="Enter employee ID"
+                        disabled={!canEditEmployeeId}
+                        title={canEditEmployeeId ? undefined : 'Only your company admin can change the Employee ID'}
                       />
                     </div>
                   </div>

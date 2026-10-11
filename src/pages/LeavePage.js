@@ -93,6 +93,7 @@ function LeavePage({ userName, onLogout }) {
             <>
               <AdminRequestTable
                 requests={requests}
+                startIndex={(currentPage - 1) * ROWS_PER_PAGE}
                 totalRequests={totalRequests}
                 statusFilter={statusFilter}
                 onStatusFilterChange={handleStatusFilterChange}

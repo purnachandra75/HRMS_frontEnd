@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import EmployeeLayout from '../components/EmployeeLayout';
+import useEmployeeCode from '../hooks/useEmployeeCode';
 import LeaveRequestForm from '../components/LeaveRequestForm';
 import EmployeeRequestTable from '../components/EmployeeRequestTable';
 import LeaveBalances from '../components/LeaveBalances';
@@ -46,6 +47,7 @@ const sortNewestRequestsFirst = (requestList) => {
 };
 
 function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
+  const employeeCode = useEmployeeCode(userId);
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard'); // dashboard, apply-leave
   const [formData, setFormData] = useState({
@@ -185,7 +187,7 @@ function EmployeeLeaveRequestPage({ userName, userId, onLogout }) {
               </div>
               <div className="text-right">
                 <div className="text-xs uppercase tracking-wide text-muted-foreground">Employee ID</div>
-                <div className="text-base font-semibold text-foreground">{userId}</div>
+                <div className="text-base font-semibold text-foreground">{employeeCode || '—'}</div>
               </div>
             </section>
 

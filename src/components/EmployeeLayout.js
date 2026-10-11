@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import useIsProjectManager from '../hooks/useIsProjectManager';
 import useTheme from '../hooks/useTheme';
-import useCompanyName from '../hooks/useCompanyName';
+import CompanyBrand from './CompanyBrand';
 import usePolledCount from '../hooks/usePolledCount';
 import { getMyTickets, getUpdatedTicketIds, TICKETS_CHANGED_EVENT } from '../services/ticketService';
 import {
@@ -96,7 +96,6 @@ function EmployeeLayout({ userName, onLogout, activeItem, title, subtitle, child
   const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [theme, toggleTheme] = useTheme();
-  const companyName = useCompanyName();
   // Sidebar badges: tickets and leave requests whose status the admin changed since last viewed.
   const updatedTicketCount = usePolledCount(fetchUpdatedTicketCount, TICKETS_CHANGED_EVENT);
   const updatedLeaveCount = usePolledCount(fetchUpdatedLeaveCount, LEAVES_CHANGED_EVENT);
@@ -118,12 +117,8 @@ function EmployeeLayout({ userName, onLogout, activeItem, title, subtitle, child
     });
   };
 
-  const initials = (userName || 'EM')
-    .split(' ')
-    .map((part) => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
+  const firstName = (userName || '').trim().split(/\s+/)[0];
+  const initials = (firstName || 'E').charAt(0).toUpperCase();
 
   const go = (path) => {
     navigate(path);
@@ -185,21 +180,13 @@ function EmployeeLayout({ userName, onLogout, activeItem, title, subtitle, child
 
         <div className="flex min-h-screen flex-1 flex-col">
           <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border/80 bg-card/85 px-4 py-3 backdrop-blur sm:px-6">
-            <div className="flex items-center gap-3">
+            <div className="flex min-w-0 items-center gap-3">
               <button className="text-foreground sm:hidden" onClick={() => setMobileOpen(true)}>
                 <Menu className="size-5" />
               </button>
-              <h1 className="text-base font-semibold tracking-tight text-foreground">Employee Portal</h1>
+              <CompanyBrand fallbackTitle="Employee Portal" />
             </div>
-            {companyName && (
-              <div
-                className="pointer-events-none absolute left-1/2 hidden max-w-[40%] -translate-x-1/2 truncate text-lg font-bold tracking-tight text-foreground md:block"
-                title={companyName}
-              >
-                {companyName}
-              </div>
-            )}
-            <div className="relative">
+            <div className="relative shrink-0">
               <button
                 onClick={() => setMenuOpen((v) => !v)}
                 className="inline-flex items-center gap-2 rounded-full border border-border bg-card py-1 pr-2.5 pl-1"
@@ -207,7 +194,7 @@ function EmployeeLayout({ userName, onLogout, activeItem, title, subtitle, child
                 <span className="flex size-7 items-center justify-center rounded-full bg-employee text-xs font-semibold text-employee-foreground">
                   {initials}
                 </span>
-                <span className="hidden text-sm font-medium text-foreground sm:inline">{userName}</span>
+                <span className="hidden text-sm font-medium text-foreground sm:inline">{firstName}</span>
                 <ChevronDown className="size-3.5 text-muted-foreground" />
               </button>
               {menuOpen && (

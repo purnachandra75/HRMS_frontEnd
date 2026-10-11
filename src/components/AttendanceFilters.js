@@ -13,7 +13,14 @@ function AttendanceFilters({
   onYearChange,
   onViewReport,
   showAllYears = false,
+  // Optional day-of-month filter (0 = all dates). Shown only when onDayChange is passed, and
+  // enabled once a specific month and year are chosen.
+  selectedDay = 0,
+  onDayChange,
 }) {
+  const canPickDay = selectedMonth > 0 && selectedYear > 0;
+  const daysInMonth = canPickDay ? new Date(selectedYear, selectedMonth, 0).getDate() : 31;
+
   return (
     <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border/80 bg-card p-4 shadow-sm">
       <div className="flex flex-col gap-1.5">
@@ -69,6 +76,29 @@ function AttendanceFilters({
           ))}
         </select>
       </div>
+
+      {onDayChange && (
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="attendanceDay" className="text-sm font-medium text-foreground">
+            Select date
+          </label>
+          <select
+            id="attendanceDay"
+            value={canPickDay ? selectedDay : 0}
+            onChange={(e) => onDayChange(parseInt(e.target.value, 10))}
+            disabled={!canPickDay}
+            title={canPickDay ? undefined : 'Choose a month and year first'}
+            className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <option value={0}>All Dates</option>
+            {Array.from({ length: daysInMonth }, (_, i) => i + 1).map((day) => (
+              <option key={day} value={day}>
+                {day}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
 
       <button
         type="button"

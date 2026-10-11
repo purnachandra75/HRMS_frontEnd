@@ -18,6 +18,28 @@ export const getAttendanceRecords = async ({ employeeId, month, year, monthNumbe
   return response.json();
 };
 
+// Admin correction of one attendance record (e.g. a missed check-out): status is 'PRESENT' or
+// 'ABSENT'; date ("yyyy-MM-dd") and check-in/check-out ("HH:mm") are optional, blank = unchanged.
+// The backend recalculates total hours from the times.
+export const updateAttendanceRecord = async (id, { status, date, checkInTime, checkOutTime, remarks }) => {
+  const response = await apiFetch(`${API_BASE_URL}/api/attendance/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status, date, checkInTime, checkOutTime, remarks }),
+  });
+  if (!response.ok) {
+    let message = 'Failed to update attendance';
+    try {
+      const data = await response.json();
+      message = data.error || data.message || message;
+    } catch {
+      // keep the default message
+    }
+    throw new Error(message);
+  }
+  return response.json();
+};
+
 // Single consolidated call for the Reports module's Attendance Report - the backend
 // joins employees + that month's attendance and paginates server-side, instead of the
 // frontend hitting /api/employees and /api/attendance separately and joining them here.

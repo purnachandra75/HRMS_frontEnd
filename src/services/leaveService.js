@@ -159,8 +159,8 @@ export const getLeaveRequests = async () => {
 
 // Server-side paginated + filtered fetch (used by the admin Leave Requests table and
 // the Monthly Leave Report). `page` is 1-based on the frontend; converted to the
-// backend's 0-based page index. `search` matches employee ID exactly or employee
-// name as a substring - the backend decides which based on whether it's numeric.
+// backend's 0-based page index. `search` matches the client-assigned Employee ID exactly
+// (e.g. "EMP001") or the employee name as a substring.
 export const getLeaveRequestsPage = async ({ page = 1, size = 10, status = '', search = '', month = null, year = null } = {}) => {
   const params = new URLSearchParams();
   params.append('page', Math.max(0, page - 1));

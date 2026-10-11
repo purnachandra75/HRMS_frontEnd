@@ -151,6 +151,9 @@
 .form-group {
   display: flex;
   flex-direction: column;
+  /* Let the grid column shrink below the inputs' intrinsic width instead of the field
+     spilling over (and covering) the field next to it. */
+  min-width: 0;
 }
 
 .form-group label {
@@ -163,6 +166,9 @@
 .form-group input,
 .form-group textarea,
 .form-group select {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   padding: 9px 12px;
   border: 1px solid #e2e8f0;
   border-radius: 10px;
@@ -669,6 +675,7 @@
 /* Main Content Styles */
 .profile-main {
   flex: 1;
+  min-width: 0;
   background: white;
   border-radius: 14px;
   border: 1px solid #e2e8f0;

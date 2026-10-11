@@ -11,6 +11,8 @@ const STATUS_CLASSES = {
   rejected: 'border-[#fecaca] bg-[#fef2f2] text-[#b91c1c]',
 };
 
+const TICKETS_PER_PAGE = 10;
+
 function EmployeeTicketsPage({ userName, userId, onLogout }) {
   const [tickets, setTickets] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -19,6 +21,7 @@ function EmployeeTicketsPage({ userName, userId, onLogout }) {
   const [submitting, setSubmitting] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [updatedIds, setUpdatedIds] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
 
   const loadTickets = useCallback(async () => {
     setLoading(true);
@@ -42,6 +45,11 @@ function EmployeeTicketsPage({ userName, userId, onLogout }) {
     loadTickets();
   }, [loadTickets]);
 
+  const totalPages = Math.max(1, Math.ceil(tickets.length / TICKETS_PER_PAGE));
+  // Clamp in case the list shrank after a reload.
+  const safePage = Math.min(currentPage, totalPages);
+  const pageTickets = tickets.slice((safePage - 1) * TICKETS_PER_PAGE, safePage * TICKETS_PER_PAGE);
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!formData.subject.trim() || !formData.description.trim()) {
@@ -53,6 +61,8 @@ function EmployeeTicketsPage({ userName, userId, onLogout }) {
     try {
       const newTicket = await createTicket(formData);
       setTickets((current) => [newTicket, ...current]);
+      // Newest ticket is first, so jump back to page 1 to show it.
+      setCurrentPage(1);
       setFormData({ subject: '', description: '' });
       setShowForm(false);
       alert('Ticket raised successfully! Your HR admin has been notified.');
@@ -112,8 +122,9 @@ function EmployeeTicketsPage({ userName, userId, onLogout }) {
           ) : tickets.length === 0 ? (
             <div className="px-5 py-6 text-center text-sm text-muted-foreground">No tickets raised yet.</div>
           ) : (
+            <>
             <ul className="divide-y divide-border/60">
-              {tickets.map((ticket) => {
+              {pageTickets.map((ticket) => {
                 const statusKey = (ticket.status || '').toLowerCase();
                 return (
                   <li key={ticket.id} className="flex flex-col gap-2 px-5 py-4">
@@ -146,6 +157,35 @@ function EmployeeTicketsPage({ userName, userId, onLogout }) {
                 );
               })}
             </ul>
+            {totalPages > 1 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border/80 px-5 py-3">
+                <span className="text-sm text-muted-foreground">
+                  Showing {(safePage - 1) * TICKETS_PER_PAGE + 1}-{Math.min(safePage * TICKETS_PER_PAGE, tickets.length)} of {tickets.length}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(safePage - 1)}
+                    disabled={safePage === 1}
+                    className="h-8 rounded-lg border border-border px-3 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm text-muted-foreground">
+                    Page {safePage} of {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setCurrentPage(safePage + 1)}
+                    disabled={safePage === totalPages}
+                    className="h-8 rounded-lg border border-border px-3 text-sm font-medium text-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
+            </>
           )}
         </section>
       </div>

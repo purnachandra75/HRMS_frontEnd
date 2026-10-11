@@ -451,7 +451,7 @@ function PayslipGeneratorPage({ userId, userName, onLogout }) {
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-foreground">Employee ID</label>
                 <div className="flex h-9 items-center rounded-lg border border-border bg-muted/40 px-3 text-sm text-foreground">
-                  {employee?.id || userId || 'N/A'}
+                  {employee?.employeeId || 'N/A'}
                 </div>
               </div>
 
@@ -563,7 +563,7 @@ function PayslipGeneratorPage({ userId, userName, onLogout }) {
                           <td className="label">Name</td>
                           <td className="value">{payslip.employee.firstName} {payslip.employee.lastName}</td>
                           <td className="label">Emp.Code</td>
-                          <td className="value">{payslip.employee.id}</td>
+                          <td className="value">{payslip.employee.employeeId || 'N/A'}</td>
                         </tr>
                         <tr>
                           <td className="label">Designation</td>

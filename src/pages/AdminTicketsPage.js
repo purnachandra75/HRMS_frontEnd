@@ -145,7 +145,7 @@ function AdminTicketsPage({ userName, onLogout }) {
                       <div>
                         <h3 className="text-sm font-semibold text-foreground">{ticket.subject}</h3>
                         <div className="text-xs text-muted-foreground">
-                          {ticket.employeeName} (ID: {ticket.empId}) &middot; {ticket.createdAt}
+                          {ticket.employeeName} (ID: {ticket.employeeCode || 'N/A'}) &middot; {ticket.createdAt}
                         </div>
                       </div>
                       <span
