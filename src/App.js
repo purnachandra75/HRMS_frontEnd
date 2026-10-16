@@ -19,6 +19,7 @@ import PayrollPage from './pages/PayrollPage';
 import PayrollReportPage from './pages/PayrollReportPage';
 import PayslipSettingsPage from './pages/PayslipSettingsPage';
 import ManualPayslipPage from './pages/ManualPayslipPage';
+import LandingPage from './pages/LandingPage';
 import LeaveSettingsPage from './pages/LeaveSettingsPage';
 import AdminHolidaysPage from './pages/AdminHolidaysPage';
 import TeamStructurePage from './pages/TeamStructurePage';
@@ -567,7 +568,12 @@ function App() {
           <Route
             path="/"
             element={
-              <Navigate to={isAuthenticated && VALID_ROLES.includes(userRole) ? homeRouteForRole(userRole) : '/login'} />
+              // Logged-in users go straight to their dashboard; everyone else sees the landing page.
+              isAuthenticated && VALID_ROLES.includes(userRole) ? (
+                <Navigate to={homeRouteForRole(userRole)} />
+              ) : (
+                <LandingPage />
+              )
             }
           />
         </Routes>

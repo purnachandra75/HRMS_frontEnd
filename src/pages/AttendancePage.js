@@ -24,6 +24,8 @@ function AttendancePage({ userName, onLogout }) {
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   // Day of the month to show (0 = all dates); only applies with a specific month and year.
   const [selectedDay, setSelectedDay] = useState(0);
+  // Present/Absent filter ('' = all statuses), applied by the backend.
+  const [selectedStatus, setSelectedStatus] = useState('');
   const [showReport, setShowReport] = useState(false);
   const [attendanceRecords, setAttendanceRecords] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -104,6 +106,7 @@ function AttendancePage({ userName, onLogout }) {
       if (trimmedQuery) params.search = trimmedQuery;
       if (selectedYear !== 0) params.year = selectedYear;
       if (selectedMonth !== 0) params.monthNumber = selectedMonth;
+      if (selectedStatus) params.status = selectedStatus;
 
       const records = await getAttendanceRecords(params);
       const dayKey = selectedDay > 0 && selectedMonth > 0 && selectedYear > 0
@@ -186,6 +189,11 @@ function AttendancePage({ userName, onLogout }) {
             setSelectedDay(value);
             setShowReport(false);
           }}
+          selectedStatus={selectedStatus}
+          onStatusChange={(value) => {
+            setSelectedStatus(value);
+            setShowReport(false);
+          }}
           onViewReport={handleViewReport}
           showAllYears
         />
@@ -194,7 +202,7 @@ function AttendancePage({ userName, onLogout }) {
           <h3 className="border-b border-border/80 px-5 py-4 text-base font-semibold text-foreground">Attendance Report</h3>
           {!showReport ? (
             <div className="px-5 py-6 text-sm text-muted-foreground">
-              Search by Employee ID or name, choose a date, month and year, and click <strong className="text-foreground">View Report</strong> to see the filtered attendance data.
+              Search by Employee ID or name, choose a date, month, year and status, and click <strong className="text-foreground">View Report</strong> to see the filtered attendance data.
             </div>
           ) : loading ? (
             <div className="px-5 py-6 text-sm text-muted-foreground">Loading attendance data...</div>

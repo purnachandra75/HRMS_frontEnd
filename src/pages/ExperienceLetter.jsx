@@ -300,7 +300,7 @@ function ExperienceLetter({ userName, onLogout }) {
               </div>
 
             {/* Hidden PDF template for generation only - Not visible to user */}
-            <div ref={pdfRef} style={{ position: "fixed", top: "-9999px", left: "-9999px", width: "210mm", minHeight: "297mm", padding: "15mm", backgroundImage: `url(${watermark})`, backgroundRepeat: "no-repeat", backgroundPosition: "center", backgroundSize: "300px", backgroundColor: "white" }}>
+            <div ref={pdfRef} className="keep-light" style={{ position: "fixed", top: "-9999px", left: "-9999px", width: "210mm", minHeight: "297mm", padding: "15mm", backgroundImage: `url(${watermark})`, backgroundRepeat: "no-repeat", backgroundPosition: "center", backgroundSize: "300px", backgroundColor: "white" }}>
               <div style={{ overflow: "hidden" }}>
                 <img src={logoSrc} alt="" style={{ width: "90px", float: "left" }} />
                 <div style={{ float: "right", textAlign: "right", color: "#0d2d73", fontSize: "13px" }}>

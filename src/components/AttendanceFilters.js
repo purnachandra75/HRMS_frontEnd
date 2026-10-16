@@ -17,6 +17,9 @@ function AttendanceFilters({
   // enabled once a specific month and year are chosen.
   selectedDay = 0,
   onDayChange,
+  // Optional Present/Absent filter ('' = all statuses). Shown only when onStatusChange is passed.
+  selectedStatus = '',
+  onStatusChange,
 }) {
   const canPickDay = selectedMonth > 0 && selectedYear > 0;
   const daysInMonth = canPickDay ? new Date(selectedYear, selectedMonth, 0).getDate() : 31;
@@ -96,6 +99,24 @@ function AttendanceFilters({
                 {day}
               </option>
             ))}
+          </select>
+        </div>
+      )}
+
+      {onStatusChange && (
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="attendanceStatus" className="text-sm font-medium text-foreground">
+            Select status
+          </label>
+          <select
+            id="attendanceStatus"
+            value={selectedStatus}
+            onChange={(e) => onStatusChange(e.target.value)}
+            className="h-9 rounded-lg border border-border bg-white px-2.5 text-sm outline-none focus:border-client focus:ring-2 focus:ring-client/30"
+          >
+            <option value="">All Status</option>
+            <option value="PRESENT">Present</option>
+            <option value="ABSENT">Absent</option>
           </select>
         </div>
       )}

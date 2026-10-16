@@ -64,7 +64,7 @@ const PayslipDocument = forwardRef(function PayslipDocument({ settings, logoUrl,
   const variablePay = Number(payslip.variablePay) || 0;
 
   return (
-    <div className="payslip-preview">
+    <div className="payslip-preview keep-light">
       <div className="payslip-sheet" ref={ref}>
         <div className="payslip-border">
           <div className="payslip-top-grid">
@@ -378,7 +378,16 @@ function ManualPayslipPage({ userName, onLogout }) {
   const updateDeduction = updateRow(setDeductions);
 
   const sumRows = (rows) => rows.reduce((sum, row) => sum + (Number(row.amount) || 0), 0);
-  const totalEarnings = sumRows(earnings);
+  // Earnings are entered as full-month actuals; what's actually earned is pro-rated for LOP:
+  // earned = actual x (working days - LOP days) / working days.
+  const workingNumber = Number(workingDays);
+  const lopNumber = Number(lopDays) || 0;
+  const payRatio = workingNumber > 0 && lopNumber >= 0 && lopNumber <= workingNumber
+    ? (workingNumber - lopNumber) / workingNumber
+    : 1;
+  const earnedAmount = (actual) => round2((Number(actual) || 0) * payRatio);
+  const totalActualEarnings = sumRows(earnings);
+  const totalEarnedEarnings = earnings.reduce((sum, row) => sum + earnedAmount(row.amount), 0);
   const totalDeductions = sumRows(deductions);
 
   const handleGenerate = () => {
@@ -411,12 +420,14 @@ function ManualPayslipPage({ userName, onLogout }) {
       return;
     }
 
+    const ratio = (working - lop) / working;
     const earningItems = filledEarnings.map((row) => ({
       label: row.label.trim(),
       actual: Number(row.amount),
-      earned: Number(row.amount),
+      earned: round2(Number(row.amount) * ratio),
     }));
     const deductionItems = filledDeductions.map((row) => ({ label: row.label.trim(), amount: Number(row.amount) }));
+    const actualTotal = earningItems.reduce((sum, item) => sum + item.actual, 0);
     const earnedTotal = earningItems.reduce((sum, item) => sum + item.earned, 0);
     const deductionTotal = deductionItems.reduce((sum, item) => sum + item.amount, 0);
     const employee = selectedEmployee;
@@ -443,7 +454,7 @@ function ManualPayslipPage({ userName, onLogout }) {
       earnings: earningItems,
       deductions: deductionItems,
       variablePay: 0,
-      totalActual: earnedTotal,
+      totalActual: actualTotal,
       totalEarned: earnedTotal,
       totalDeductions: deductionTotal,
       netPay: earnedTotal - deductionTotal,
@@ -468,7 +479,8 @@ function ManualPayslipPage({ userName, onLogout }) {
 
   const yearOptions = Array.from({ length: 11 }, (_, index) => now.getFullYear() - 5 + index);
 
-  const renderRows = (rows, update, remove, placeholder) => (
+  // showEarned: for earnings, show the LOP-adjusted earned amount next to each actual.
+  const renderRows = (rows, update, remove, placeholder, showEarned = false) => (
     <div className="flex flex-col gap-2">
       {rows.length === 0 && <p className="text-sm text-muted-foreground">No rows yet.</p>}
       {rows.map((row) => (
@@ -486,9 +498,14 @@ function ManualPayslipPage({ userName, onLogout }) {
             step="0.01"
             value={row.amount}
             onChange={(e) => update(row.id, 'amount', e.target.value)}
-            placeholder="Amount"
+            placeholder={showEarned ? 'Actual' : 'Amount'}
             className={`${inputClass} w-32`}
           />
+          {showEarned && (
+            <span className="w-28 shrink-0 text-right text-xs text-muted-foreground" title="Earned after LOP">
+              Earned {formatCurrency(earnedAmount(row.amount))}
+            </span>
+          )}
           <button
             type="button"
             onClick={() => remove(row.id)}
@@ -584,10 +601,26 @@ function ManualPayslipPage({ userName, onLogout }) {
                     <Plus className="size-3.5" /> Add Earning
                   </button>
                 </div>
-                {renderRows(earnings, updateEarning, removeRow(setEarnings), 'e.g. Basic Pay, Bonus')}
-                <div className="flex justify-between border-t border-border/80 pt-3 text-sm font-semibold text-foreground">
-                  <span>Total Earnings</span>
-                  <span>{formatCurrency(totalEarnings)}</span>
+                <p className="text-xs text-muted-foreground">
+                  Enter the full-month (actual) amounts. Earned is calculated for LOP:
+                  actual &times; ({workingNumber > 0 ? workingNumber : 0} &minus; {lopNumber}) &divide; {workingNumber > 0 ? workingNumber : 0} working days.
+                </p>
+                {renderRows(earnings, updateEarning, removeRow(setEarnings), 'e.g. Basic Pay, Bonus', true)}
+                <div className="flex flex-col gap-1 border-t border-border/80 pt-3 text-sm text-foreground">
+                  <div className="flex justify-between">
+                    <span>Total Actual</span>
+                    <span>{formatCurrency(totalActualEarnings)}</span>
+                  </div>
+                  {lopNumber > 0 && (
+                    <div className="flex justify-between text-[#b91c1c]">
+                      <span>LOP ({lopNumber} day{lopNumber === 1 ? '' : 's'})</span>
+                      <span>&minus; {formatCurrency(totalActualEarnings - totalEarnedEarnings)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between font-semibold">
+                    <span>Total Earned</span>
+                    <span>{formatCurrency(totalEarnedEarnings)}</span>
+                  </div>
                 </div>
               </section>
 
@@ -612,7 +645,7 @@ function ManualPayslipPage({ userName, onLogout }) {
 
             <div className="flex flex-wrap items-center gap-4 rounded-xl border border-border/80 bg-card p-4 shadow-sm">
               <div className="text-sm text-foreground">
-                Net Pay: <strong>{formatCurrency(totalEarnings - totalDeductions)}</strong>
+                Net Pay: <strong>{formatCurrency(totalEarnedEarnings - totalDeductions)}</strong>
               </div>
               <button
                 type="button"

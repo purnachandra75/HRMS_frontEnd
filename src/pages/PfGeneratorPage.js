@@ -527,7 +527,7 @@ function PayslipGeneratorPage({ userId, userName, onLogout }) {
 
             {payslip && (
               <>
-                <div className="payslip-preview">
+                <div className="payslip-preview keep-light">
                   <div className="payslip-sheet" ref={payslipRef}>
                     <div className="payslip-border">
                     <div className="payslip-top-grid">

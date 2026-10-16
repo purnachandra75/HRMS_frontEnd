@@ -615,7 +615,7 @@ function LetterOfIntent({ userName, onLogout }) {
           )}
         </section>
 
-        <div ref={pdfRef} className="loi-pdf-root">
+        <div ref={pdfRef} className="loi-pdf-root keep-light">
           <div className="loi-page">
             <LetterHeader company={company} logoSrc={logoSrc} />
             <div className="loi-title">Warm Welcome</div>

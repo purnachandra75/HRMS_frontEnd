@@ -942,7 +942,7 @@ function OfferLetterForm({ userName, onLogout }) {
 
       <section className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
         <h3 className="mb-3 text-sm font-semibold text-foreground">Letter Preview</h3>
-        <div className="letter-preview-wrapper">
+        <div className="letter-preview-wrapper keep-light">
       <div ref={pdfRef} className="offer-pdf-root">
               <div className="offer-page">
                 <OfferHeader company={company} logoSrc={logoSrc} />
@@ -1151,7 +1151,7 @@ function OfferLetterForm({ userName, onLogout }) {
       {hasCustomBody && (
       <section className="rounded-xl border border-border/80 bg-card p-5 shadow-sm">
         <h3 className="mb-3 text-sm font-semibold text-foreground">Letter Preview (Custom Content)</h3>
-        <div className="letter-preview-wrapper">
+        <div className="letter-preview-wrapper keep-light">
         <div
           ref={customBodyRef}
           style={{

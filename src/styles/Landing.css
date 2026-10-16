@@ -1,0 +1,103 @@
+/* Public landing page (/) - soft gradient background with two slowly drifting blurred blobs.
+   Tailwind's preflight is off in this app, so the few element resets the page relies on are
+   scoped to .landing here instead of being global. They're wrapped in :where() so they carry
+   no specificity and Tailwind spacing utilities (mt-4, p-4, ...) still win. */
+
+.landing {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  color: rgb(var(--color-foreground));
+  font-family: inherit;
+}
+
+:where(.landing) :where(h1, h2, h3, p, ul, ol) {
+  margin: 0;
+}
+
+:where(.landing) :where(ul, ol) {
+  padding: 0;
+  list-style: none;
+}
+
+:where(.landing) :where(a) {
+  text-decoration: none;
+}
+
+.landing__bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(70% 50% at 12% 8%, rgb(124 58 237 / 12%), transparent 55%),
+    radial-gradient(60% 45% at 92% 88%, rgb(6 182 212 / 10%), transparent 50%),
+    linear-gradient(#f8fafc 0%, #f5f3ff 50%, #f8fafc 100%);
+}
+
+.dark .landing__bg {
+  background:
+    radial-gradient(70% 50% at 12% 8%, rgb(124 58 237 / 22%), transparent 55%),
+    radial-gradient(60% 45% at 92% 88%, rgb(6 182 212 / 16%), transparent 50%),
+    linear-gradient(#0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+}
+
+.landing__blob {
+  position: absolute;
+  border-radius: 9999px;
+  pointer-events: none;
+  filter: blur(48px);
+  opacity: 0.4;
+  animation: landing-float-blob 16s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.landing__blob--one {
+  top: 8%;
+  right: -3rem;
+  width: 18rem;
+  height: 18rem;
+  background: rgb(124 58 237 / 28%);
+}
+
+.landing__blob--two {
+  bottom: 6%;
+  left: -4rem;
+  width: 16rem;
+  height: 16rem;
+  background: rgb(6 182 212 / 22%);
+  animation-delay: -5s;
+}
+
+.landing__fade-up {
+  animation: landing-fade-up 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes landing-float-blob {
+  0%,
+  100% {
+    transform: translate(0) scale(1);
+  }
+  40% {
+    transform: translate(18px, -22px) scale(1.06);
+  }
+  70% {
+    transform: translate(-14px, 12px) scale(0.96);
+  }
+}
+
+@keyframes landing-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing__blob,
+  .landing__fade-up {
+    animation: none !important;
+  }
+}

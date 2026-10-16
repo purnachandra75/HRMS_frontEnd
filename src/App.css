@@ -62,7 +62,8 @@
   /* Neutrals */
   --color-text: #1f2937;
   --color-text-muted: #6b7280;
-  --color-border: #e5e7eb;
+  /* No --color-border here: tailwind.css owns it (as an RGB triplet for light/dark), and a
+     hex value redefined on :root after it broke every border-border in both themes. */
   --color-bg: #f8fafc;
   --color-surface: #ffffff;
 
